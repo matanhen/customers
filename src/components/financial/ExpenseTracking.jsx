@@ -693,9 +693,9 @@ export default function ExpenseTracking({ userId }) {
             <div className="p-4 bg-white rounded-xl border">
               <p className="text-sm text-gray-500 mb-1">הכנסה</p>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-orange-600">₪{trackingData.actual_income.toLocaleString()}</span>
-                <span className="text-gray-400">/</span>
-                <span className="text-lg font-bold text-blue-600">₪{(currentPlan?.expected_income || 0).toLocaleString()}</span>
+                <span className="font-bold text-orange-600">₪{trackingData.actual_income.toLocaleString()}</span>
+                <span className="text-slate-400">/</span>
+                <span className="font-bold text-blue-600">₪{(currentPlan?.expected_income || 0).toLocaleString()}</span>
               </div>
               <div className="flex gap-2 mt-1 text-xs">
                 <Badge className="bg-orange-100 text-orange-700 border-0">ביצוע</Badge>
@@ -705,11 +705,11 @@ export default function ExpenseTracking({ userId }) {
             <div className="p-4 bg-white rounded-xl border">
               <p className="text-sm text-gray-500 mb-1">הוצאות קבועות</p>
               <div className="flex items-center gap-2">
-                <span className={`text-lg font-bold ${totalFixedActual > plannedFixed ? 'text-red-600' : 'text-orange-600'}`}>
+                <span className={`font-bold ${totalFixedActual > plannedFixed ? 'text-red-600' : 'text-orange-600'}`}>
                   ₪{totalFixedActual.toLocaleString()}
                 </span>
-                <span className="text-gray-400">/</span>
-                <span className="text-lg font-bold text-blue-600">₪{plannedFixed.toLocaleString()}</span>
+                <span className="text-slate-400">/</span>
+                <span className="font-bold text-blue-600">₪{plannedFixed.toLocaleString()}</span>
               </div>
               <div className="flex gap-2 mt-1 text-xs">
                 <Badge className="bg-orange-100 text-orange-700 border-0">ביצוע</Badge>
@@ -719,11 +719,11 @@ export default function ExpenseTracking({ userId }) {
             <div className="p-4 bg-white rounded-xl border">
               <p className="text-sm text-gray-500 mb-1">יתרת הוצאות</p>
               <div className="flex items-center gap-2">
-                <span className={`text-lg font-bold ${totalVariableActual > plannedVariable ? 'text-red-600' : 'text-orange-600'}`}>
+                <span className={`font-bold ${totalVariableActual > plannedVariable ? 'text-red-600' : 'text-orange-600'}`}>
                   ₪{totalVariableActual.toLocaleString()}
                 </span>
-                <span className="text-gray-400">/</span>
-                <span className="text-lg font-bold text-blue-600">₪{plannedVariable.toLocaleString()}</span>
+                <span className="text-slate-400">/</span>
+                <span className="font-bold text-blue-600">₪{plannedVariable.toLocaleString()}</span>
               </div>
               <div className="flex gap-2 mt-1 text-xs">
                 <Badge className="bg-orange-100 text-orange-700 border-0">ביצוע</Badge>
@@ -733,11 +733,11 @@ export default function ExpenseTracking({ userId }) {
             <div className="p-4 bg-white rounded-xl border">
               <p className="text-sm text-gray-500 mb-1">סה״כ הוצאות</p>
               <div className="flex items-center gap-2">
-                <span className={`text-lg font-bold ${(totalFixedActual + totalVariableActual) > (plannedFixed + plannedVariable) ? 'text-red-600' : 'text-orange-600'}`}>
+                <span className={`font-bold ${(totalFixedActual + totalVariableActual) > (plannedFixed + plannedVariable) ? 'text-red-600' : 'text-orange-600'}`}>
                   ₪{(totalFixedActual + totalVariableActual).toLocaleString()}
                 </span>
-                <span className="text-gray-400">/</span>
-                <span className="text-lg font-bold text-blue-600">₪{(plannedFixed + plannedVariable).toLocaleString()}</span>
+                <span className="text-slate-400">/</span>
+                <span className="font-bold text-blue-600">₪{(plannedFixed + plannedVariable).toLocaleString()}</span>
               </div>
               <div className="flex gap-2 mt-1 text-xs">
                 <Badge className="bg-orange-100 text-orange-700 border-0">ביצוע</Badge>
