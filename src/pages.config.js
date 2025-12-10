@@ -4,6 +4,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import FinancialManagement from './pages/FinancialManagement';
 import Investments from './pages/Investments';
 import FinancialFreedom from './pages/FinancialFreedom';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -18,4 +19,5 @@ export const PAGES = {
 export const pagesConfig = {
     mainPage: "Home",
     Pages: PAGES,
+    Layout: __Layout,
 };
