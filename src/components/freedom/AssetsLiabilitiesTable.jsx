@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CashFlowSection from './CashFlowSection';
 
 const ASSET_CATEGORIES = {
@@ -87,7 +86,7 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
   });
   const queryClient = useQueryClient();
 
-  const { data: plan, isLoading } = useQuery({
+  const { data: plan } = useQuery({
     queryKey: ['financialPlan', userId, planType],
     queryFn: async () => {
       const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: planType });

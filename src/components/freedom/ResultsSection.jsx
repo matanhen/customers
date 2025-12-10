@@ -42,7 +42,7 @@ export default function ResultsSection({ userId }) {
   const pensionInfo = pensionData.find(p => p.gender === gender && p.fund_type === 'pension');
   const kerenInfo = pensionData.find(p => p.gender === gender && p.fund_type === 'keren_hishtalmut');
 
-  // Calculate pension allowance exactly as in PensionManager
+  // Calculate pension allowance
   const calculatePensionAllowance = (data) => {
     if (!data) return 0;
     const currentAge = data.current_age || 30;
@@ -74,7 +74,7 @@ export default function ResultsSection({ userId }) {
       finalAmount = finalAmount * (1 + monthlyReturn);
     }
 
-    return Math.round(finalAmount / 210); // Monthly pension
+    return Math.round(finalAmount / 210);
   };
 
   // Calculate results for a specific plan
@@ -90,7 +90,6 @@ export default function ResultsSection({ userId }) {
     const isFinancialFreedom = goalSettings.goal_type === 'financial_freedom';
     const retirementAge = pensionInfo?.retirement_age || 67;
 
-    // Get pension allowance from PensionManager calculation
     const monthlyPensionAllowance = calculatePensionAllowance(pensionInfo);
 
     const assets = plan.assets || {};
@@ -123,11 +122,10 @@ export default function ResultsSection({ userId }) {
     const kerenReturn = kerenInfo?.annual_return || 5;
     const includeKeren = plan.keren_withdrawal_option === 'at_target';
 
-    // Real estate rental income with mortgage
+    // Real estate
     const realEstateAssets = assets.real_estate || {};
     const realEstateLiabilities = liabilities.real_estate || {};
     
-    // Get rental properties info and calculate total real estate value
     const rentalProperties = [];
     let totalRealEstateValue = 0;
     Object.entries(realEstateAssets).forEach(([key, item]) => {
@@ -148,13 +146,13 @@ export default function ResultsSection({ userId }) {
       }
     });
 
-    // Function to calculate net rental at specific age
     const getNetRentalAtAge = (age) => {
       const yearsFromNow = age - currentAge;
       let totalNet = 0;
       
       rentalProperties.forEach(prop => {
         const appreciatedRent = prop.monthlyRent * Math.pow(1.025, yearsFromNow);
+        
         let mortgagePayment = prop.mortgagePayment;
         if (prop.mortgageEndDate) {
           const endYear = new Date(prop.mortgageEndDate).getFullYear();
@@ -163,13 +161,13 @@ export default function ResultsSection({ userId }) {
             mortgagePayment = 0;
           }
         }
+        
         totalNet += appreciatedRent - mortgagePayment;
       });
       
       return Math.round(totalNet);
     };
 
-    // Function to calculate real estate value at specific age
     const getRealEstateValueAtAge = (age) => {
       const yearsFromNow = age - currentAge;
       return Math.round(totalRealEstateValue * Math.pow(1.025, yearsFromNow));
@@ -178,14 +176,12 @@ export default function ResultsSection({ userId }) {
     const effectiveReturn = (avgReturn - 0.5) / 100;
     const kerenEffectiveReturn = kerenReturn / 100;
 
-    // Find the earliest age where EXACT target passive income can be sustained until 80
     let financialFreedomAge = 80;
     let canAchieveGoal = false;
 
     for (let testAge = currentAge + 1; testAge <= 80; testAge++) {
       const yearsToTest = testAge - currentAge;
 
-      // Project assets at test age (with deposits continuing until test age)
       let stocksAtAge = totalStockValue;
       let altAtAge = totalAltValue;
       let kerenAtAge = kerenValue;
@@ -198,7 +194,6 @@ export default function ResultsSection({ userId }) {
         }
       }
 
-      // Can we sustain EXACT target income from test age to 80?
       let remainingStocks = stocksAtAge;
       let remainingAlt = altAtAge;
       let remainingKeren = includeKeren ? kerenAtAge : 0;
@@ -210,18 +205,15 @@ export default function ResultsSection({ userId }) {
         const oldAge = futureAge >= 70 ? 2300 : 0;
         const fixedIncome = rental + pension + oldAge;
         
-        // Must achieve EXACT target passive income, not less
         const neededFromAssets = Math.max(0, targetPassiveIncome - fixedIncome);
         const yearlyNeed = neededFromAssets * 12;
 
-        // Assets continue to grow but no new deposits after reaching freedom
         remainingStocks = remainingStocks * (1 + effectiveReturn / 2);
         remainingAlt = remainingAlt * (1 + effectiveReturn / 2);
         if (includeKeren) {
           remainingKeren = remainingKeren * (1 + kerenEffectiveReturn / 2);
         }
 
-        // Withdraw from assets (priority: stocks, alt, keren)
         if (yearlyNeed > 0) {
           if (remainingStocks >= yearlyNeed) {
             remainingStocks -= yearlyNeed;
@@ -255,7 +247,6 @@ export default function ResultsSection({ userId }) {
       }
     }
 
-    // Calculate projected assets at financial freedom age
     const yearsToFreedom = financialFreedomAge - currentAge;
     let projectedStocks = totalStockValue;
     let projectedAlt = totalAltValue;
@@ -269,7 +260,6 @@ export default function ResultsSection({ userId }) {
       }
     }
 
-    // Build withdrawal plan
     const withdrawalPlan = [];
     let remainingStocks = projectedStocks;
     let remainingAlt = projectedAlt;
@@ -284,7 +274,6 @@ export default function ResultsSection({ userId }) {
     }
     ageRanges.push({ start: Math.max(financialFreedomAge, 70), end: 80 });
 
-    // Filter and merge overlapping ranges
     const filteredRanges = ageRanges.filter(r => r.start < r.end && r.start >= financialFreedomAge);
 
     for (const range of filteredRanges) {
@@ -348,7 +337,6 @@ export default function ResultsSection({ userId }) {
       }
     }
 
-    // For home goal
     let homeSavingsPlan = null;
     if (!isFinancialFreedom) {
       const yearsToTarget = targetAge - currentAge;
@@ -392,7 +380,6 @@ export default function ResultsSection({ userId }) {
 
   const results = useMemo(() => calculatePlanResults(currentPlan), [currentPlan, goalSettings, pensionInfo, kerenInfo, gender]);
 
-  // Calculate results for all plans to find the best one
   const allResults = useMemo(() => {
     return planButtons.map(btn => {
       const plan = allPlans.find(p => p.plan_type === btn.value);
@@ -408,7 +395,6 @@ export default function ResultsSection({ userId }) {
     });
   }, [allPlans, goalSettings, pensionInfo, kerenInfo, gender]);
 
-  // Best plan is the one with earliest achievement age
   const bestPlan = allResults.reduce((best, current) => {
     if (current.canAchieve && (!best.canAchieve || current.achieveAge < best.achieveAge)) {
       return current;
@@ -458,7 +444,7 @@ export default function ResultsSection({ userId }) {
         ))}
       </div>
 
-      {/* Best Plan Recommendation */}
+      {/* Best Plan */}
       {bestPlan && bestPlan.canAchieve && (
         <Card className="border-0 shadow-xl bg-gradient-to-r from-[#c8a863]/20 to-[#105330]/10 overflow-hidden">
           <div className="h-1.5 bg-gradient-to-r from-[#c8a863] to-[#105330]" />
@@ -550,9 +536,7 @@ export default function ResultsSection({ userId }) {
                   </p>
                   {results.canAchieveGoal && results.financialFreedomAge > results.targetAge && (
                     <p className="text-amber-600 mt-2 font-medium">
-                      💡 שים לב: גיל ההגעה ({results.financialFreedomAge}) מאוחר יותר מגיל היעד שהגדרת ({results.targetAge}). 
-                      הוסף ₪{Math.round((results.targetPassiveIncome * 12 * (results.financialFreedomAge - results.targetAge)) / ((results.targetAge - results.currentAge) * 12)).toLocaleString()} 
-                      לחיסכון החודשי כדי להגיע ליעד בזמן.
+                      💡 שים לב: גיל ההגעה ({results.financialFreedomAge}) מאוחר יותר מגיל היעד שהגדרת ({results.targetAge})
                     </p>
                   )}
                 </div>
@@ -631,20 +615,6 @@ export default function ResultsSection({ userId }) {
                       </div>
                     </div>
                   ))}
-
-                  <div className="p-4 bg-amber-50 rounded-xl">
-                    <p className="text-amber-700 font-medium">
-                      💡 החל מגיל 70 תתווסף קצבת זקנה של ₪2,300 לחודש
-                    </p>
-                  </div>
-
-                  {results.netRentalIncome > 0 && (
-                    <div className="p-4 bg-blue-50 rounded-xl">
-                      <p className="text-blue-700 font-medium">
-                        🏠 הכנסה נטו מדירה להשקעה כוללת עליית ערך של 2.5% בשנה בשכירות, ומתעדכנת כאשר המשכנתא מסתיימת
-                      </p>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -652,7 +622,7 @@ export default function ResultsSection({ userId }) {
         </>
       )}
 
-      {/* Home Goal Results */}
+      {/* Home Goal */}
       {results && goalSettings?.goal_type === 'home' && results.homeSavingsPlan && (
         <Card className="border-0 shadow-xl bg-white/95 overflow-hidden">
           <div className="h-1.5 bg-gradient-to-r from-[#105330] to-[#c8a863]" />
@@ -699,9 +669,6 @@ export default function ResultsSection({ userId }) {
                       ? `אתה בדרך הנכונה! תוכל להגיע ליעד תוך ${results.homeSavingsPlan.yearsToTarget} שנים`
                       : `כדי להגיע ליעד בזמן, יש להגדיל את החיסכון החודשי ל-₪${results.homeSavingsPlan.monthlySavingsNeeded.toLocaleString()}`
                     }
-                  </p>
-                  <p className={`text-sm mt-1 ${results.homeSavingsPlan.canAchieve ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    השקע את הכסף בתיק השקעות עם תשואה שנתית של 7% בממוצע להגעה מהירה יותר ליעד
                   </p>
                 </div>
               </div>
