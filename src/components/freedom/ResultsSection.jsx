@@ -154,10 +154,7 @@ export default function ResultsSection({ userId }) {
       let totalNet = 0;
       
       rentalProperties.forEach(prop => {
-        // Apply 2.5% annual appreciation to rent
         const appreciatedRent = prop.monthlyRent * Math.pow(1.025, yearsFromNow);
-        
-        // Check if mortgage ended
         let mortgagePayment = prop.mortgagePayment;
         if (prop.mortgageEndDate) {
           const endYear = new Date(prop.mortgageEndDate).getFullYear();
@@ -166,14 +163,13 @@ export default function ResultsSection({ userId }) {
             mortgagePayment = 0;
           }
         }
-        
         totalNet += appreciatedRent - mortgagePayment;
       });
       
       return Math.round(totalNet);
     };
 
-    // Function to calculate real estate value at specific age (2.5% appreciation)
+    // Function to calculate real estate value at specific age
     const getRealEstateValueAtAge = (age) => {
       const yearsFromNow = age - currentAge;
       return Math.round(totalRealEstateValue * Math.pow(1.025, yearsFromNow));
