@@ -1,0 +1,371 @@
+import React, { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  TrendingUp, TrendingDown, Save, ChevronDown, ChevronUp,
+  DollarSign, Receipt
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+
+const FIXED_EXPENSES = [
+  'ביטוחי רכב',
+  'טסט',
+  'משכנתא',
+  'ביטוח משכנתא',
+  'שכירות',
+  'מנויים',
+  'ביטוחים (ללא רכב)',
+  'ועד בית',
+  'ארנונה',
+  'החזר הלוואות',
+  'הוראות קבע',
+];
+
+const VARIABLE_EXPENSES = [
+  'מים',
+  'חשמל',
+  'גז',
+  'תספורת וקוסמטיקה',
+  'חינוך',
+  'חוגים וקייטנות',
+  'בריאות',
+  'תיקוני רכב',
+  'עמלות וריביות בנקים',
+  'טיפולי שיניים',
+  'אופטיקה',
+  'חגים ויהדות',
+  'טלפון נייד',
+  'סופר פארם',
+  'דברים לבית',
+  'ביטוח לאומי',
+  'מזון',
+  'דלק וחניה',
+  'תחבורה ציבורית',
+  'סיגריות',
+  'עוזרת / בייביסיטר',
+  'ביט',
+  'מזומן',
+  'בילויים',
+  'בגדים ונעליים',
+  'תרומות',
+  'התפתחות אישית',
+  'חופשה / טיול',
+  'בעלי חיים',
+  'מתנות ואירועים',
+];
+
+export default function FinancialReflection({ userId }) {
+  const [incomes, setIncomes] = useState({ month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 });
+  const [fixedExpenses, setFixedExpenses] = useState({});
+  const [variableExpenses, setVariableExpenses] = useState({});
+  const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
+  const queryClient = useQueryClient();
+
+  const { data: reflection } = useQuery({
+    queryKey: ['financialReflection', userId],
+    queryFn: async () => {
+      const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
+      return results[0];
+    },
+    enabled: !!userId,
+  });
+
+  useEffect(() => {
+    if (reflection) {
+      setIncomes(reflection.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 });
+      setFixedExpenses(reflection.fixed_expenses || {});
+      setVariableExpenses(reflection.variable_expenses || {});
+    }
+  }, [reflection]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const data = {
+        user_id: userId,
+        incomes,
+        fixed_expenses: fixedExpenses,
+        variable_expenses: variableExpenses,
+      };
+      if (reflection) {
+        return base44.entities.FinancialReflection.update(reflection.id, data);
+      }
+      return base44.entities.FinancialReflection.create(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financialReflection', userId] });
+    },
+  });
+
+  const toggleSection = (section) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  // Calculate average from all 6 months (treat missing/0 as 0)
+  const calculateIncomeAverage = () => {
+    const months = ['month1', 'month2', 'month3', 'month4', 'month5', 'month6'];
+    const total = months.reduce((sum, m) => sum + (incomes[m] || 0), 0);
+    return Math.round(total / 6);
+  };
+
+  // Calculate expense average from all 3 months (treat missing/0 as 0)
+  const calculateExpenseAverage = (category, type) => {
+    const expenses = type === 'fixed' ? fixedExpenses : variableExpenses;
+    const categoryData = expenses[category] || {};
+    const months = ['month1', 'month2', 'month3'];
+    const total = months.reduce((sum, m) => sum + (categoryData[m] || 0), 0);
+    return Math.round(total / 3);
+  };
+
+  const getTotalFixedAverage = () => {
+    return FIXED_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'fixed'), 0);
+  };
+
+  const getTotalVariableAverage = () => {
+    return VARIABLE_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'variable'), 0);
+  };
+
+  const incomeAverage = calculateIncomeAverage();
+  const fixedAverage = getTotalFixedAverage();
+  const variableAverage = getTotalVariableAverage();
+  const totalExpenseAverage = fixedAverage + variableAverage;
+  const cashFlowAverage = incomeAverage - totalExpenseAverage;
+
+  const updateExpense = (category, month, value, type) => {
+    if (type === 'fixed') {
+      setFixedExpenses(prev => ({
+        ...prev,
+        [category]: {
+          ...(prev[category] || {}),
+          [month]: parseFloat(value) || 0,
+        },
+      }));
+    } else {
+      setVariableExpenses(prev => ({
+        ...prev,
+        [category]: {
+          ...(prev[category] || {}),
+          [month]: parseFloat(value) || 0,
+        },
+      }));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards - Only 3 cards now */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card className="border-0 shadow-xl shadow-emerald-100/50 bg-gradient-to-br from-emerald-50 to-teal-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-emerald-500/10">
+                <DollarSign className="w-8 h-8 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm text-emerald-600 font-medium">ממוצע הכנסות</p>
+                <p className="text-2xl font-bold text-emerald-700">₪{incomeAverage.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-xl shadow-rose-100/50 bg-gradient-to-br from-rose-50 to-pink-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-rose-500/10">
+                <Receipt className="w-8 h-8 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-sm text-rose-600 font-medium">ממוצע הוצאות</p>
+                <p className="text-2xl font-bold text-rose-700">₪{totalExpenseAverage.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={`border-0 shadow-xl ${cashFlowAverage >= 0 ? 'shadow-indigo-100/50 bg-gradient-to-br from-indigo-50 to-purple-50' : 'shadow-red-100/50 bg-gradient-to-br from-red-50 to-orange-50'}`}>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-2xl ${cashFlowAverage >= 0 ? 'bg-indigo-500/10' : 'bg-red-500/10'}`}>
+                {cashFlowAverage >= 0 ? (
+                  <TrendingUp className="w-8 h-8 text-indigo-600" />
+                ) : (
+                  <TrendingDown className="w-8 h-8 text-red-600" />
+                )}
+              </div>
+              <div>
+                <p className={`text-sm font-medium ${cashFlowAverage >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>תזרים ממוצע</p>
+                <p className={`text-2xl font-bold ${cashFlowAverage >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                  ₪{cashFlowAverage.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Income Section */}
+      <Collapsible open={openSections.income} onOpenChange={() => toggleSection('income')}>
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-slate-50/50 transition-colors border-b border-slate-100">
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-emerald-500/10">
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <span className="text-slate-800">הכנסות - 6 חודשים אחרונים</span>
+                </span>
+                {openSections.income ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((month) => (
+                  <div key={month} className="space-y-2">
+                    <Label className="text-slate-500 text-sm">חודש {month}</Label>
+                    <Input
+                      type="number"
+                      value={incomes[`month${month}`] || ''}
+                      onChange={(e) => setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 })}
+                      placeholder="סכום"
+                      className="border-slate-200"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200/50">
+                <p className="font-semibold text-emerald-700">
+                  ממוצע הכנסות: ₪{incomeAverage.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Fixed Expenses Section */}
+      <Collapsible open={openSections.fixed} onOpenChange={() => toggleSection('fixed')}>
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-slate-50/50 transition-colors border-b border-slate-100">
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-blue-500/10">
+                    <Receipt className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <span className="text-slate-800">הוצאות קבועות - 3 חודשים אחרונים</span>
+                </span>
+                {openSections.fixed ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                {FIXED_EXPENSES.map((category) => {
+                  const avg = calculateExpenseAverage(category, 'fixed');
+                  return (
+                    <div key={category} className="grid grid-cols-5 gap-4 items-center p-3 bg-slate-50/50 rounded-xl">
+                      <Label className="col-span-2 font-medium text-slate-700">{category}</Label>
+                      {[1, 2, 3].map((month) => (
+                        <Input
+                          key={month}
+                          type="number"
+                          value={fixedExpenses[category]?.[`month${month}`] || ''}
+                          onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'fixed')}
+                          placeholder={`חודש ${month}`}
+                          className="border-slate-200"
+                        />
+                      ))}
+                      <p className="text-sm font-semibold text-blue-600">
+                        ממוצע: ₪{avg.toLocaleString()}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/50">
+                <p className="font-semibold text-blue-700">
+                  סה״כ ממוצע הוצאות קבועות: ₪{fixedAverage.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Variable Expenses Section */}
+      <Collapsible open={openSections.variable} onOpenChange={() => toggleSection('variable')}>
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-slate-50/50 transition-colors border-b border-slate-100">
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-purple-500/10">
+                    <Receipt className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <span className="text-slate-800">יתרת הוצאות - 3 חודשים אחרונים</span>
+                </span>
+                {openSections.variable ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-6">
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {VARIABLE_EXPENSES.map((category) => {
+                  const avg = calculateExpenseAverage(category, 'variable');
+                  return (
+                    <div key={category} className="grid grid-cols-5 gap-4 items-center p-3 bg-slate-50/50 rounded-xl">
+                      <Label className="col-span-2 font-medium text-slate-700">{category}</Label>
+                      {[1, 2, 3].map((month) => (
+                        <Input
+                          key={month}
+                          type="number"
+                          value={variableExpenses[category]?.[`month${month}`] || ''}
+                          onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'variable')}
+                          placeholder={`חודש ${month}`}
+                          className="border-slate-200"
+                        />
+                      ))}
+                      <p className="text-sm font-semibold text-purple-600">
+                        ממוצע: ₪{avg.toLocaleString()}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200/50">
+                <p className="font-semibold text-purple-700">
+                  סה״כ ממוצע יתרת הוצאות: ₪{variableAverage.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 px-8"
+        >
+          <Save className="w-4 h-4 ml-2" />
+          {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
+        </Button>
+      </div>
+    </div>
+  );
+}
