@@ -37,7 +37,15 @@ export default function Layout({ children, currentPageName }) {
     try {
       let currentUser = await base44.auth.me();
       
-      // Always check AllowedUser to verify authorization
+      // If user already has a valid user_type, allow access immediately
+      if (currentUser.user_type && ['client', 'advisor', 'admin'].includes(currentUser.user_type)) {
+        setUser(currentUser);
+        setEditName(currentUser.full_name || '');
+        setIsLoading(false);
+        return;
+      }
+      
+      // No user_type - check AllowedUser
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
       // User not in AllowedUser - not authorized
@@ -47,20 +55,17 @@ export default function Layout({ children, currentPageName }) {
         return;
       }
       
+      // Found in AllowedUser - update user_type
       const allowedUser = allowedUsers[0];
-      
-      // If user doesn't have user_type yet, or it's different from AllowedUser, update it
-      if (!currentUser.user_type || currentUser.user_type !== allowedUser.user_type) {
-        try {
-          await base44.entities.User.update(currentUser.id, { 
-            user_type: allowedUser.user_type,
-            full_name: currentUser.full_name || allowedUser.full_name || ''
-          });
-          // Reload user to get updated data
-          currentUser = await base44.auth.me();
-        } catch (updateError) {
-          console.log('Failed to update user type', updateError);
-        }
+      try {
+        await base44.entities.User.update(currentUser.id, { 
+          user_type: allowedUser.user_type,
+          full_name: currentUser.full_name || allowedUser.full_name || ''
+        });
+        // Reload user to get updated data
+        currentUser = await base44.auth.me();
+      } catch (updateError) {
+        console.log('Failed to update user type', updateError);
       }
       
       setUser(currentUser);
