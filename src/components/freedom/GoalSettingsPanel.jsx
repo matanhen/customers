@@ -83,7 +83,7 @@ export default function GoalSettingsPanel({ userId }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6">
           {/* Gender Selection */}
           <div className="space-y-2">
             <Label className="text-[#105330] font-semibold flex items-center gap-2">
@@ -133,26 +133,26 @@ export default function GoalSettingsPanel({ userId }) {
           </div>
 
           {/* Current Age */}
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-[140px]">
             <Label className="text-[#105330] font-semibold">גיל נוכחי</Label>
             <div className="relative">
               <Input
                 type="number"
                 value={currentAge || ''}
                 disabled
-                className="bg-[#105330]/5 border-[#105330]/20 rounded-xl py-4 text-center font-bold text-base"
+                className="bg-[#105330]/5 border-[#105330]/20 rounded-xl py-3 text-center font-bold text-base"
               />
             </div>
           </div>
 
           {/* Target Age */}
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-[140px]">
             <Label className="text-[#105330] font-semibold">גיל יעד</Label>
             <Input
               type="number"
               value={settings.target_age || ''}
               onChange={(e) => setSettings({ ...settings, target_age: parseInt(e.target.value) || 0 })}
-              className="border-[#105330]/30 rounded-xl py-4 bg-white text-center font-bold text-base focus:ring-2 focus:ring-[#105330]/30 transition-all"
+              className="border-[#105330]/30 rounded-xl py-3 bg-white text-center font-bold text-base focus:ring-2 focus:ring-[#105330]/30 transition-all"
             />
           </div>
 

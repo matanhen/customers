@@ -18,6 +18,7 @@ export default function Layout({ children, currentPageName }) {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -33,8 +34,7 @@ export default function Layout({ children, currentPageName }) {
       // Check if user has a user_type set
       if (!currentUser.user_type) {
         // User is not registered in the system
-        await base44.auth.logout();
-        alert('אתה לא רשום במערכת');
+        setIsUnauthorized(true);
         return;
       }
       setUser(currentUser);
@@ -95,6 +95,40 @@ export default function Layout({ children, currentPageName }) {
 
   if (isAdmin) {
     menuItems.push({ name: 'ניהול מערכת', page: 'AdminDashboard', icon: UserCog });
+  }
+
+  // Show unauthorized screen if user is not registered
+  if (isUnauthorized) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-red-200">
+            <div className="h-2 bg-gradient-to-r from-red-500 to-orange-500" />
+            <div className="p-10 text-center">
+              <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
+                <X className="w-10 h-10 text-red-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-slate-800 mb-3">הכניסה ללקוחות בלבד</h1>
+              <p className="text-slate-600 mb-8 leading-relaxed">
+                אתה לא רשום במערכת. רק לקוחות רשומים יכולים להיכנס לאפליקציה.
+                <br />
+                אנא פנה למנהל המערכת להוספתך כלקוח.
+              </p>
+              <Button
+                onClick={async () => {
+                  await base44.auth.logout();
+                  window.location.reload();
+                }}
+                className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330] shadow-lg px-8 py-6 text-lg rounded-xl"
+              >
+                <LogOut className="w-5 h-5 ml-2" />
+                יציאה
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
