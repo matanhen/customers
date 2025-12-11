@@ -67,13 +67,12 @@ export default function AdvisorDashboard() {
       return clientUser;
     }
     
-    // Fallback to assignment data if user not found (pending user)
+    // Fallback to assignment data if user not found
     return {
-      id: assignment.client_email, // Use email as temp ID
+      id: assignment.client_id || assignment.client_email,
       email: assignment.client_email,
       full_name: assignment.client_name,
-      created_date: assignment.created_date,
-      isPending: true
+      created_date: assignment.created_date
     };
   }).filter(Boolean);
 
