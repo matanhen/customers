@@ -35,7 +35,7 @@ export default function Layout({ children, currentPageName }) {
 
   const loadUser = async () => {
     try {
-      const currentUser = await base44.auth.me();
+      let currentUser = await base44.auth.me();
       
       // Always check AllowedUser to verify authorization
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
@@ -56,10 +56,8 @@ export default function Layout({ children, currentPageName }) {
             user_type: allowedUser.user_type,
             full_name: currentUser.full_name || allowedUser.full_name || ''
           });
-          currentUser.user_type = allowedUser.user_type;
-          if (!currentUser.full_name && allowedUser.full_name) {
-            currentUser.full_name = allowedUser.full_name;
-          }
+          // Reload user to get updated data
+          currentUser = await base44.auth.me();
         } catch (updateError) {
           console.log('Failed to update user type', updateError);
         }
