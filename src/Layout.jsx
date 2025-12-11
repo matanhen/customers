@@ -19,12 +19,17 @@ export default function Layout({ children, currentPageName }) {
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadUser();
     const clientData = sessionStorage.getItem('viewingClient');
     if (clientData) {
-      setViewingClient(JSON.parse(clientData));
+      try {
+        setViewingClient(JSON.parse(clientData));
+      } catch (e) {
+        sessionStorage.removeItem('viewingClient');
+      }
     }
   }, []);
 
@@ -36,6 +41,7 @@ export default function Layout({ children, currentPageName }) {
       if (currentUser.user_type) {
         setUser(currentUser);
         setEditName(currentUser.full_name || '');
+        setIsLoading(false);
         return;
       }
       
@@ -45,6 +51,7 @@ export default function Layout({ children, currentPageName }) {
       if (allowedUsers.length === 0) {
         // User not in allowed list - not registered by admin
         setIsUnauthorized(true);
+        setIsLoading(false);
         return;
       }
       
@@ -62,8 +69,10 @@ export default function Layout({ children, currentPageName }) {
       
       setUser(currentUser);
       setEditName(currentUser.full_name || '');
+      setIsLoading(false);
     } catch (e) {
-      console.log('User not logged in');
+      console.log('User not logged in', e);
+      setIsLoading(false);
     }
   };
 
@@ -118,6 +127,18 @@ export default function Layout({ children, currentPageName }) {
 
   if (isAdmin) {
     menuItems.push({ name: 'ניהול מערכת', page: 'AdminDashboard', icon: UserCog });
+  }
+
+  // Show loading screen
+  if (isLoading) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#105330] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#105330] font-semibold">טוען...</p>
+        </div>
+      </div>
+    );
   }
 
   // Show unauthorized screen if user is not registered
