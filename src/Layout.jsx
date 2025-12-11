@@ -32,6 +32,13 @@ export default function Layout({ children, currentPageName }) {
     try {
       const currentUser = await base44.auth.me();
       
+      // If user already has a user_type (admin/advisor/client), allow access
+      if (currentUser.user_type) {
+        setUser(currentUser);
+        setEditName(currentUser.full_name || '');
+        return;
+      }
+      
       // Check if user is in allowed users list
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
@@ -43,16 +50,14 @@ export default function Layout({ children, currentPageName }) {
       
       const allowedUser = allowedUsers[0];
       
-      // Update user_type if not set or different
-      if (!currentUser.user_type || currentUser.user_type !== allowedUser.user_type) {
-        await base44.entities.User.update(currentUser.id, { 
-          user_type: allowedUser.user_type,
-          full_name: currentUser.full_name || allowedUser.full_name
-        });
-        currentUser.user_type = allowedUser.user_type;
-        if (!currentUser.full_name && allowedUser.full_name) {
-          currentUser.full_name = allowedUser.full_name;
-        }
+      // Set user_type from allowed user
+      await base44.entities.User.update(currentUser.id, { 
+        user_type: allowedUser.user_type,
+        full_name: currentUser.full_name || allowedUser.full_name
+      });
+      currentUser.user_type = allowedUser.user_type;
+      if (!currentUser.full_name && allowedUser.full_name) {
+        currentUser.full_name = allowedUser.full_name;
       }
       
       setUser(currentUser);
