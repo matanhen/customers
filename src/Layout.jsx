@@ -35,9 +35,10 @@ export default function Layout({ children, currentPageName }) {
 
   const loadUser = async () => {
     try {
+      // First, get current user (this creates User entity automatically)
       const currentUser = await base44.auth.me();
       
-      // If user already has a user_type (admin/advisor/client), allow access
+      // If user already has a user_type, allow access immediately
       if (currentUser.user_type) {
         setUser(currentUser);
         setEditName(currentUser.full_name || '');
@@ -45,23 +46,29 @@ export default function Layout({ children, currentPageName }) {
         return;
       }
       
-      // Check if user is in allowed users list
+      // User exists but doesn't have user_type - check if they're in AllowedUser
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
       if (allowedUsers.length === 0) {
-        // User not in allowed list - not registered by admin
+        // User not in allowed list - delete them and show unauthorized
+        try {
+          await base44.entities.User.delete(currentUser.id);
+        } catch (deleteError) {
+          console.log('Could not delete unauthorized user', deleteError);
+        }
         setIsUnauthorized(true);
         setIsLoading(false);
         return;
       }
       
+      // User is in AllowedUser - update their User entity with user_type
       const allowedUser = allowedUsers[0];
-      
-      // Set user_type from allowed user
       await base44.entities.User.update(currentUser.id, { 
         user_type: allowedUser.user_type,
         full_name: currentUser.full_name || allowedUser.full_name
       });
+      
+      // Update local user object
       currentUser.user_type = allowedUser.user_type;
       if (!currentUser.full_name && allowedUser.full_name) {
         currentUser.full_name = allowedUser.full_name;
