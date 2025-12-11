@@ -48,6 +48,7 @@ export default function AdminDashboard() {
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [userFilter, setUserFilter] = useState('all'); // all, clients, advisors, admins
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -107,7 +108,21 @@ export default function AdminDashboard() {
   });
 
   const createClientMutation = useMutation({
-    mutationFn: (data) => base44.entities.AllowedUser.create(data),
+    mutationFn: async (data) => {
+      // First create in AllowedUser for authorization
+      await base44.entities.AllowedUser.create({
+        email: data.email,
+        full_name: data.full_name,
+        user_type: 'client'
+      });
+      
+      // Then create the actual User record
+      return base44.entities.User.create({
+        email: data.email,
+        full_name: data.full_name,
+        user_type: 'client'
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
@@ -119,8 +134,20 @@ export default function AdminDashboard() {
 
   const clients = allUsers.filter(u => u.user_type === 'client' || !u.user_type);
   const advisors = allUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
+  const admins = allUsers.filter(u => u.user_type === 'admin');
 
-  const filteredUsers = allUsers.filter(u =>
+  // Filter by user type first
+  let displayedUsers = allUsers;
+  if (userFilter === 'clients') {
+    displayedUsers = clients;
+  } else if (userFilter === 'advisors') {
+    displayedUsers = allUsers.filter(u => u.user_type === 'advisor');
+  } else if (userFilter === 'admins') {
+    displayedUsers = admins;
+  }
+
+  // Then apply search filter
+  const filteredUsers = displayedUsers.filter(u =>
     u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -261,9 +288,43 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Search */}
+      {/* Filter Tabs */}
       <Card className="mb-6 border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
         <CardContent className="p-5">
+          <div className="flex gap-2 mb-4 flex-wrap">
+            <Button
+              onClick={() => setUserFilter('all')}
+              variant={userFilter === 'all' ? 'default' : 'outline'}
+              className={`rounded-xl ${userFilter === 'all' ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white' : 'border-slate-200 text-slate-600'}`}
+            >
+              <Users className="w-4 h-4 ml-2" />
+              כולם ({allUsers.length})
+            </Button>
+            <Button
+              onClick={() => setUserFilter('clients')}
+              variant={userFilter === 'clients' ? 'default' : 'outline'}
+              className={`rounded-xl ${userFilter === 'clients' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white' : 'border-emerald-200 text-emerald-600'}`}
+            >
+              <User className="w-4 h-4 ml-2" />
+              לקוחות ({clients.length})
+            </Button>
+            <Button
+              onClick={() => setUserFilter('advisors')}
+              variant={userFilter === 'advisors' ? 'default' : 'outline'}
+              className={`rounded-xl ${userFilter === 'advisors' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' : 'border-blue-200 text-blue-600'}`}
+            >
+              <Briefcase className="w-4 h-4 ml-2" />
+              יועצים ({allUsers.filter(u => u.user_type === 'advisor').length})
+            </Button>
+            <Button
+              onClick={() => setUserFilter('admins')}
+              variant={userFilter === 'admins' ? 'default' : 'outline'}
+              className={`rounded-xl ${userFilter === 'admins' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white' : 'border-purple-200 text-purple-600'}`}
+            >
+              <Shield className="w-4 h-4 ml-2" />
+              מנהלים ({admins.length})
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <Input
@@ -283,7 +344,10 @@ export default function AdminDashboard() {
             <div className="p-2 rounded-xl bg-indigo-100">
               <UserCog className="w-5 h-5 text-indigo-600" />
             </div>
-            כל המשתמשים ({filteredUsers.length})
+            {userFilter === 'all' && `כל המשתמשים (${filteredUsers.length})`}
+            {userFilter === 'clients' && `לקוחות (${filteredUsers.length})`}
+            {userFilter === 'advisors' && `יועצים (${filteredUsers.length})`}
+            {userFilter === 'admins' && `מנהלים (${filteredUsers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
