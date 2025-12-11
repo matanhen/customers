@@ -64,18 +64,20 @@ export default function AdminDashboard() {
     }
   };
 
-  const { data: allUsers = [], isLoading } = useQuery({
+  const { data: allUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['allUsers'],
     queryFn: () => base44.entities.User.list(),
     enabled: !!user,
   });
 
   // Get allowed users that haven't logged in yet
-  const { data: allowedUsers = [] } = useQuery({
+  const { data: allowedUsers = [], isLoading: loadingAllowed } = useQuery({
     queryKey: ['allowedUsers'],
     queryFn: () => base44.entities.AllowedUser.list(),
     enabled: !!user,
   });
+
+  const isLoading = loadingUsers || loadingAllowed;
 
   // Get all assignments
   const { data: assignments = [] } = useQuery({
@@ -117,30 +119,22 @@ export default function AdminDashboard() {
   const createClientMutation = useMutation({
     mutationFn: async (data) => {
       // Create AllowedUser
-      await base44.entities.AllowedUser.create({
+      const allowedUser = await base44.entities.AllowedUser.create({
         email: data.email,
         full_name: data.full_name,
         user_type: 'client'
       });
 
-      // Create User entity immediately
-      const newUser = await base44.entities.User.create({
-        email: data.email,
-        full_name: data.full_name,
-        role: 'user',
-        user_type: 'client'
-      });
-
-      // Create assignment with actual user ID
+      // Create assignment (client_id will be updated when user logs in)
       await base44.entities.ClientAdvisorAssignment.create({
-        client_id: newUser.id,
+        client_id: '',
         client_email: data.email,
         client_name: data.full_name,
         advisor_id: data.advisor_id || user.id,
         advisor_email: user.email
       });
 
-      return newUser;
+      return allowedUser;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
@@ -153,20 +147,23 @@ export default function AdminDashboard() {
     },
   });
 
-  // Merge Users and AllowedUsers
+  // Merge Users and AllowedUsers - show all allowed users (both logged in and pending)
   const userEmails = new Set(allUsers.map(u => u.email));
   const pendingAllowedUsers = allowedUsers
     .filter(au => !userEmails.has(au.email))
     .map(au => ({
-      ...au,
+      id: au.id,
+      email: au.email,
+      full_name: au.full_name,
+      user_type: au.user_type,
       isPending: true,
-      allowedUserId: au.id, // Store the AllowedUser ID separately
+      allowedUserId: au.id,
       created_date: au.created_date
     }));
 
   const combinedUsers = [...allUsers, ...pendingAllowedUsers];
 
-  const clients = combinedUsers.filter(u => u.user_type === 'client' || !u.user_type);
+  const clients = combinedUsers.filter(u => u.user_type === 'client');
   const advisors = combinedUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
   const admins = combinedUsers.filter(u => u.user_type === 'admin');
 
@@ -186,9 +183,12 @@ export default function AdminDashboard() {
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Get advisor for a client from assignments
-  const getClientAssignment = (clientId) => {
-    return assignments.find(a => a.client_id === clientId);
+  // Get advisor for a client from assignments (by ID or email)
+  const getClientAssignment = (client) => {
+    if (client.isPending) {
+      return assignments.find(a => a.client_email === client.email);
+    }
+    return assignments.find(a => a.client_id === client.id || a.client_email === client.email);
   };
 
   const handleChangeUserType = (userId, newType) => {
@@ -198,7 +198,7 @@ export default function AdminDashboard() {
   const handleAssignClient = async () => {
     if (selectedClient) {
       // Remove existing assignment first
-      const existingAssignment = getClientAssignment(selectedClient.id);
+      const existingAssignment = getClientAssignment(selectedClient);
       if (existingAssignment) {
         await deleteAssignmentMutation.mutateAsync(existingAssignment.id);
       }
@@ -207,7 +207,7 @@ export default function AdminDashboard() {
       if (selectedAdvisor && selectedAdvisor !== 'none') {
         const selectedAdvisorUser = advisors.find(a => a.id === selectedAdvisor);
         await createAssignmentMutation.mutateAsync({
-          client_id: selectedClient.id,
+          client_id: selectedClient.isPending ? '' : selectedClient.id,
           client_email: selectedClient.email,
           client_name: selectedClient.full_name || '',
           advisor_id: selectedAdvisor,
@@ -215,11 +215,13 @@ export default function AdminDashboard() {
         });
       }
 
-      // Also update user entity for backwards compatibility
-      updateUserMutation.mutate({
-        userId: selectedClient.id,
-        data: { advisor_id: selectedAdvisor === 'none' ? null : selectedAdvisor, user_type: 'client' }
-      });
+      // Also update user entity if not pending
+      if (!selectedClient.isPending) {
+        updateUserMutation.mutate({
+          userId: selectedClient.id,
+          data: { advisor_id: selectedAdvisor === 'none' ? null : selectedAdvisor, user_type: 'client' }
+        });
+      }
 
       setShowAssignDialog(false);
       setSelectedClient(null);
@@ -227,19 +229,21 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRemoveAdvisor = async (clientId) => {
-    const existingAssignment = getClientAssignment(clientId);
+  const handleRemoveAdvisor = async (client) => {
+    const existingAssignment = getClientAssignment(client);
     if (existingAssignment) {
       await deleteAssignmentMutation.mutateAsync(existingAssignment.id);
     }
-    updateUserMutation.mutate({
-      userId: clientId,
-      data: { advisor_id: null }
-    });
+    if (!client.isPending) {
+      updateUserMutation.mutate({
+        userId: client.id,
+        data: { advisor_id: null }
+      });
+    }
   };
 
-  const getAdvisorName = (clientId) => {
-    const assignment = getClientAssignment(clientId);
+  const getAdvisorName = (client) => {
+    const assignment = getClientAssignment(client);
     if (assignment) {
       const advisor = advisors.find(a => a.id === assignment.advisor_id);
       return advisor?.full_name || advisor?.email || assignment.advisor_email || 'לא משויך';
@@ -431,22 +435,17 @@ export default function AdminDashboard() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {u.isPending && (
-                        <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
-                          יתווסף בהתחברות
-                        </Badge>
-                      )}
-                      {!u.isPending && (u.user_type === 'client' || !u.user_type) && (
-                        getClientAssignment(u.id) ? (
+                      {u.user_type === 'client' && (
+                        getClientAssignment(u) ? (
                           <div className="flex items-center gap-2">
                             <Badge className="bg-emerald-100 text-emerald-700 border-0 px-3 py-1">
                               <Check className="w-3 h-3 ml-1" />
-                              {getAdvisorName(u.id)}
+                              {getAdvisorName(u)}
                             </Badge>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleRemoveAdvisor(u.id)}
+                              onClick={() => handleRemoveAdvisor(u)}
                               className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
                             >
                               <Unlink className="w-4 h-4" />
@@ -480,20 +479,20 @@ export default function AdminDashboard() {
                             >
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            {(u.user_type === 'client' || !u.user_type) && (
+                            {u.user_type === 'client' && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
                                   setSelectedClient(u);
-                                  const assignment = getClientAssignment(u.id);
+                                  const assignment = getClientAssignment(u);
                                   setSelectedAdvisor(assignment?.advisor_id || 'none');
                                   setShowAssignDialog(true);
                                 }}
                                 className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl"
                               >
                                 <Link2 className="w-4 h-4 ml-1" />
-                                {getClientAssignment(u.id) ? 'החלף יועץ' : 'שייך ליועץ'}
+                                {getClientAssignment(u) ? 'החלף יועץ' : 'שייך ליועץ'}
                               </Button>
                             )}
                           </>
