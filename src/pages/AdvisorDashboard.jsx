@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Users, Search, Eye, 
-  Mail, Phone, Calendar
+  Mail, Calendar
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,12 +172,6 @@ export default function AdvisorDashboard() {
                           <Mail className="w-4 h-4" />
                           {client.email}
                         </span>
-                        {client.phone && (
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="w-4 h-4" />
-                            {client.phone}
-                          </span>
-                        )}
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-4 h-4" />
                           {format(new Date(client.created_date), 'dd/MM/yyyy')}

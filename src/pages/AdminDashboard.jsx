@@ -115,16 +115,30 @@ export default function AdminDashboard() {
   });
 
   const createClientMutation = useMutation({
-    mutationFn: (data) => {
-      return base44.entities.AllowedUser.create({
+    mutationFn: async (data) => {
+      // Create AllowedUser first
+      const allowedUser = await base44.entities.AllowedUser.create({
         email: data.email,
         full_name: data.full_name,
         user_type: 'client'
       });
+
+      // Create assignment to current admin
+      await base44.entities.ClientAdvisorAssignment.create({
+        client_id: allowedUser.id,
+        client_email: data.email,
+        client_name: data.full_name,
+        advisor_id: user.id,
+        advisor_email: user.email
+      });
+
+      return allowedUser;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
+      queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
       setShowAddClientDialog(false);
       setNewClientName('');
       setNewClientEmail('');
