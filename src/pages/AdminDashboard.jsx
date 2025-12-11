@@ -107,9 +107,10 @@ export default function AdminDashboard() {
   });
 
   const createClientMutation = useMutation({
-    mutationFn: (data) => base44.entities.User.create(data),
+    mutationFn: (data) => base44.entities.AllowedUser.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
       setShowAddClientDialog(false);
       setNewClientName('');
       setNewClientEmail('');

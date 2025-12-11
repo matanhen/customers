@@ -31,12 +31,30 @@ export default function Layout({ children, currentPageName }) {
   const loadUser = async () => {
     try {
       const currentUser = await base44.auth.me();
-      // Check if user has a user_type set
-      if (!currentUser.user_type) {
-        // User is not registered in the system
+      
+      // Check if user is in allowed users list
+      const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
+      
+      if (allowedUsers.length === 0) {
+        // User not in allowed list - not registered by admin
         setIsUnauthorized(true);
         return;
       }
+      
+      const allowedUser = allowedUsers[0];
+      
+      // Update user_type if not set or different
+      if (!currentUser.user_type || currentUser.user_type !== allowedUser.user_type) {
+        await base44.entities.User.update(currentUser.id, { 
+          user_type: allowedUser.user_type,
+          full_name: currentUser.full_name || allowedUser.full_name
+        });
+        currentUser.user_type = allowedUser.user_type;
+        if (!currentUser.full_name && allowedUser.full_name) {
+          currentUser.full_name = allowedUser.full_name;
+        }
+      }
+      
       setUser(currentUser);
       setEditName(currentUser.full_name || '');
     } catch (e) {
