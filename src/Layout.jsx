@@ -49,7 +49,12 @@ export default function Layout({ children, currentPageName }) {
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
       if (allowedUsers.length === 0) {
-        // Not authorized - no user_type and not in AllowedUser
+        // Not authorized - delete User entity and show unauthorized
+        try {
+          await base44.entities.User.delete(currentUser.id);
+        } catch (deleteError) {
+          console.log('Failed to delete unauthorized user', deleteError);
+        }
         setIsUnauthorized(true);
         setIsLoading(false);
         return;
