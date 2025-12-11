@@ -138,6 +138,7 @@ export default function AdminDashboard() {
     .map(au => ({
       ...au,
       isPending: true,
+      allowedUserId: au.id, // Store the AllowedUser ID separately
       created_date: au.created_date
     }));
 
@@ -478,11 +479,11 @@ export default function AdminDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`האם למחוק את ${u.full_name || u.email}?`)) {
                               if (u.isPending) {
-                                // Delete from AllowedUser
-                                base44.entities.AllowedUser.delete(u.id);
+                                // Delete from AllowedUser using the correct ID
+                                await base44.entities.AllowedUser.delete(u.allowedUserId);
                                 queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
                               } else {
                                 deleteUserMutation.mutate(u.id);
