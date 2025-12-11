@@ -35,43 +35,30 @@ export default function Layout({ children, currentPageName }) {
 
   const loadUser = async () => {
     try {
-      // First, get current user (this creates User entity automatically)
       const currentUser = await base44.auth.me();
       
-      // If user already has a user_type, allow access immediately
-      if (currentUser.user_type) {
-        setUser(currentUser);
-        setEditName(currentUser.full_name || '');
-        setIsLoading(false);
-        return;
-      }
-      
-      // User exists but doesn't have user_type - check if they're in AllowedUser
+      // Check if user is in AllowedUser list first
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
+      // User not in AllowedUser - unauthorized access
       if (allowedUsers.length === 0) {
-        // User not in allowed list - delete them and show unauthorized
-        try {
-          await base44.entities.User.delete(currentUser.id);
-        } catch (deleteError) {
-          console.log('Could not delete unauthorized user', deleteError);
-        }
         setIsUnauthorized(true);
         setIsLoading(false);
         return;
       }
       
-      // User is in AllowedUser - update their User entity with user_type
       const allowedUser = allowedUsers[0];
-      await base44.entities.User.update(currentUser.id, { 
-        user_type: allowedUser.user_type,
-        full_name: currentUser.full_name || allowedUser.full_name
-      });
       
-      // Update local user object
-      currentUser.user_type = allowedUser.user_type;
-      if (!currentUser.full_name && allowedUser.full_name) {
-        currentUser.full_name = allowedUser.full_name;
+      // User is authorized - ensure User entity has correct user_type
+      if (!currentUser.user_type || currentUser.user_type !== allowedUser.user_type) {
+        await base44.entities.User.update(currentUser.id, { 
+          user_type: allowedUser.user_type,
+          full_name: currentUser.full_name || allowedUser.full_name
+        });
+        currentUser.user_type = allowedUser.user_type;
+        if (!currentUser.full_name && allowedUser.full_name) {
+          currentUser.full_name = allowedUser.full_name;
+        }
       }
       
       setUser(currentUser);
