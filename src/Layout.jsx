@@ -37,41 +37,39 @@ export default function Layout({ children, currentPageName }) {
     try {
       const currentUser = await base44.auth.me();
       
-      // If user already has user_type (client/advisor/admin), allow immediate access
-      if (currentUser.user_type) {
-        setUser(currentUser);
-        setEditName(currentUser.full_name || '');
-        setIsLoading(false);
-        return;
-      }
-      
-      // User doesn't have user_type - check if they're in AllowedUser (pending login)
+      // Always check AllowedUser list to verify authorization
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
+      // User not in AllowedUser - not authorized
       if (allowedUsers.length === 0) {
-        // Not in AllowedUser and no user_type - unauthorized
         setIsUnauthorized(true);
         setIsLoading(false);
         return;
       }
       
-      // User is in AllowedUser - set their user_type from AllowedUser
       const allowedUser = allowedUsers[0];
-      await base44.entities.User.update(currentUser.id, { 
-        user_type: allowedUser.user_type,
-        full_name: currentUser.full_name || allowedUser.full_name
-      });
       
-      currentUser.user_type = allowedUser.user_type;
-      if (!currentUser.full_name && allowedUser.full_name) {
-        currentUser.full_name = allowedUser.full_name;
+      // If user doesn't have user_type yet, or it's different from AllowedUser, update it
+      if (!currentUser.user_type || currentUser.user_type !== allowedUser.user_type) {
+        try {
+          await base44.entities.User.update(currentUser.id, { 
+            user_type: allowedUser.user_type,
+            full_name: currentUser.full_name || allowedUser.full_name || ''
+          });
+          currentUser.user_type = allowedUser.user_type;
+          if (!currentUser.full_name && allowedUser.full_name) {
+            currentUser.full_name = allowedUser.full_name;
+          }
+        } catch (updateError) {
+          console.log('Failed to update user type', updateError);
+        }
       }
       
       setUser(currentUser);
       setEditName(currentUser.full_name || '');
       setIsLoading(false);
     } catch (e) {
-      console.log('User not logged in', e);
+      console.log('Error loading user', e);
       setIsLoading(false);
     }
   };
