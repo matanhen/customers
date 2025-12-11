@@ -127,16 +127,25 @@ export default function AdminDashboard() {
         phone: 0
       });
 
-      // Create assignment (client_id will be updated when user logs in)
+      // Create User entity immediately
+      const newUser = await base44.entities.User.create({
+        email: data.email,
+        full_name: data.full_name,
+        user_type: 'client',
+        advisor_id: 0,
+        phone: 0
+      });
+
+      // Create assignment with the actual user ID
       await base44.entities.ClientAdvisorAssignment.create({
-        client_id: '',
+        client_id: newUser.id,
         client_email: data.email,
         client_name: data.full_name,
         advisor_id: data.advisor_id || user.id,
         advisor_email: user.email
       });
 
-      return allowedUser;
+      return newUser;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
