@@ -39,11 +39,14 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showAddClientDialog, setShowAddClientDialog] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [selectedAdvisor, setSelectedAdvisor] = useState('');
   const [editUser, setEditUser] = useState(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const queryClient = useQueryClient();
 
@@ -178,9 +181,18 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-purple-700 to-indigo-700 bg-clip-text text-transparent">ניהול מערכת</h1>
-        <p className="text-slate-500 mt-2 text-lg">ניהול משתמשים, הגדרת תפקידים ושיוך לקוחות ליועצים</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-purple-700 to-indigo-700 bg-clip-text text-transparent">ניהול מערכת</h1>
+          <p className="text-slate-500 mt-2 text-lg">ניהול משתמשים, הגדרת תפקידים ושיוך לקוחות ליועצים</p>
+        </div>
+        <Button 
+          onClick={() => setShowAddClientDialog(true)}
+          className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg"
+        >
+          <Users className="w-4 h-4 ml-2" />
+          הוסף לקוח חדש
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -348,6 +360,18 @@ export default function AdminDashboard() {
                             {getClientAssignment(u.id) ? 'החלף יועץ' : 'שייך ליועץ'}
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`האם למחוק את ${u.full_name || u.email}?`)) {
+                              deleteUserMutation.mutate(u.id);
+                            }
+                          }}
+                          className="border-red-200 text-red-600 hover:bg-red-50 rounded-xl"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -446,6 +470,56 @@ export default function AdminDashboard() {
               className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330] rounded-xl shadow-lg"
             >
               {updateUserMutation.isPending ? 'שומר...' : 'שמור'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Client Dialog */}
+      <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
+        <DialogContent className="sm:max-w-md border-0 shadow-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-slate-800">הוספת לקוח חדש</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[#105330] font-semibold">שם מלא</Label>
+              <Input
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                placeholder="הזן שם מלא"
+                className="border-[#105330]/30 rounded-xl py-6"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[#105330] font-semibold">אימייל</Label>
+              <Input
+                type="email"
+                value={newClientEmail}
+                onChange={(e) => setNewClientEmail(e.target.value)}
+                placeholder="הזן אימייל"
+                className="border-[#105330]/30 rounded-xl py-6"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddClientDialog(false)} className="rounded-xl border-slate-200">
+              ביטול
+            </Button>
+            <Button 
+              onClick={() => {
+                if (newClientName && newClientEmail) {
+                  createClientMutation.mutate({
+                    full_name: newClientName,
+                    email: newClientEmail,
+                    user_type: 'client'
+                  });
+                }
+              }}
+              disabled={!newClientName || !newClientEmail || createClientMutation.isPending}
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl shadow-lg"
+            >
+              {createClientMutation.isPending ? 'יוצר...' : 'הוסף לקוח'}
             </Button>
           </DialogFooter>
         </DialogContent>

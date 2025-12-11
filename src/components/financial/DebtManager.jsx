@@ -17,7 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function DebtManager({ userId }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingDebt, setEditingDebt] = useState(null);
-  const [stockToDelete, setStockToDelete] = useState(null);
   const [showStrategyDialog, setShowStrategyDialog] = useState(false);
   const [debtForm, setDebtForm] = useState({
     name: '',
@@ -25,6 +24,7 @@ export default function DebtManager({ userId }) {
     total_amount: 0,
     remaining_amount: 0,
     interest_rate: 0,
+    minimum_payment: 0,
     current_payment: 0,
     payoff_strategy: 'avalanche'
   });
@@ -70,6 +70,7 @@ export default function DebtManager({ userId }) {
       total_amount: 0,
       remaining_amount: 0,
       interest_rate: 0,
+      minimum_payment: 0,
       current_payment: 0,
       payoff_strategy: 'avalanche'
     });
@@ -145,7 +146,11 @@ export default function DebtManager({ userId }) {
           }
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-[#105330] hover:bg-[#0d4027]">
+            <Button className="bg-[#105330] hover:bg-[#0d4027]" onClick={() => {
+              setShowAddDialog(true);
+              resetForm();
+              setEditingDebt(null);
+            }}>
               <Plus className="w-4 h-4 ml-2" />
               הוסף חוב
             </Button>
@@ -160,7 +165,7 @@ export default function DebtManager({ userId }) {
                 <Input
                   value={debtForm.name}
                   onChange={(e) => setDebtForm({ ...debtForm, name: e.target.value })}
-                  placeholder="לדוגמה: הלוואה מבנק הפועלים"
+                  placeholder="לדוגמה: ביטוח חיים"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -209,14 +214,25 @@ export default function DebtManager({ userId }) {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>תשלום חודשי</Label>
-                <Input
-                  type="number"
-                  value={debtForm.current_payment || ''}
-                  onChange={(e) => setDebtForm({ ...debtForm, current_payment: parseFloat(e.target.value) || 0 })}
-                  placeholder="2500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>תשלום מינימום</Label>
+                  <Input
+                    type="number"
+                    value={debtForm.minimum_payment || ''}
+                    onChange={(e) => setDebtForm({ ...debtForm, minimum_payment: parseFloat(e.target.value) || 0 })}
+                    placeholder="2000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>תשלום חודשי</Label>
+                  <Input
+                    type="number"
+                    value={debtForm.current_payment || ''}
+                    onChange={(e) => setDebtForm({ ...debtForm, current_payment: parseFloat(e.target.value) || 0 })}
+                    placeholder="2500"
+                  />
+                </div>
               </div>
               <Button onClick={handleSubmit} className="w-full bg-[#105330] hover:bg-[#0d4027]">
                 {editingDebt ? 'עדכן' : 'הוסף'} חוב

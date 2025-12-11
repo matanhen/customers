@@ -30,6 +30,13 @@ export default function Layout({ children, currentPageName }) {
   const loadUser = async () => {
     try {
       const currentUser = await base44.auth.me();
+      // Check if user has a user_type set
+      if (!currentUser.user_type) {
+        // User is not registered in the system
+        await base44.auth.logout();
+        alert('אתה לא רשום במערכת');
+        return;
+      }
       setUser(currentUser);
       setEditName(currentUser.full_name || '');
     } catch (e) {

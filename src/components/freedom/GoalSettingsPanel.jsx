@@ -104,29 +104,29 @@ export default function GoalSettingsPanel({ userId }) {
           {/* Goal Type */}
           <div className="space-y-2">
             <Label className="text-[#105330] font-semibold">מה המטרה?</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button
                 type="button"
                 onClick={() => setSettings({ ...settings, goal_type: 'home' })}
-                className={`flex-1 rounded-xl py-5 transition-all duration-300 ${
+                className={`flex-1 rounded-xl py-7 text-base transition-all duration-300 ${
                   settings.goal_type === 'home' 
                     ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg scale-105' 
                     : 'bg-white border-2 border-[#105330]/30 text-[#105330] hover:bg-[#105330]/5 hover:scale-102'
                 }`}
               >
-                <Home className="w-4 h-4 ml-1" />
+                <Home className="w-5 h-5 ml-1" />
                 בית
               </Button>
               <Button
                 type="button"
                 onClick={() => setSettings({ ...settings, goal_type: 'financial_freedom' })}
-                className={`flex-1 rounded-xl py-5 transition-all duration-300 ${
+                className={`flex-1 rounded-xl py-7 text-base transition-all duration-300 ${
                   settings.goal_type === 'financial_freedom' 
                     ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg scale-105' 
                     : 'bg-white border-2 border-[#105330]/30 text-[#105330] hover:bg-[#105330]/5 hover:scale-102'
                 }`}
               >
-                <Coins className="w-4 h-4 ml-1" />
+                <Coins className="w-5 h-5 ml-1" />
                 חופש כלכלי
               </Button>
             </div>
@@ -140,7 +140,7 @@ export default function GoalSettingsPanel({ userId }) {
                 type="number"
                 value={currentAge || ''}
                 disabled
-                className="bg-[#105330]/5 border-[#105330]/20 rounded-xl py-6 text-center font-bold text-lg"
+                className="bg-[#105330]/5 border-[#105330]/20 rounded-xl py-4 text-center font-bold text-base"
               />
             </div>
           </div>
@@ -152,7 +152,7 @@ export default function GoalSettingsPanel({ userId }) {
               type="number"
               value={settings.target_age || ''}
               onChange={(e) => setSettings({ ...settings, target_age: parseInt(e.target.value) || 0 })}
-              className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg focus:ring-2 focus:ring-[#105330]/30 transition-all"
+              className="border-[#105330]/30 rounded-xl py-4 bg-white text-center font-bold text-base focus:ring-2 focus:ring-[#105330]/30 transition-all"
             />
           </div>
 
