@@ -99,6 +99,23 @@ export default function AdminDashboard() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId) => base44.entities.User.delete(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+    },
+  });
+
+  const createClientMutation = useMutation({
+    mutationFn: (data) => base44.entities.User.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      setShowAddClientDialog(false);
+      setNewClientName('');
+      setNewClientEmail('');
+    },
+  });
+
   const clients = allUsers.filter(u => u.user_type === 'client' || !u.user_type);
   const advisors = allUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
 
