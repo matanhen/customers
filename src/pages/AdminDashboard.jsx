@@ -122,7 +122,9 @@ export default function AdminDashboard() {
       const allowedUser = await base44.entities.AllowedUser.create({
         email: data.email,
         full_name: data.full_name,
-        user_type: 'client'
+        user_type: 'client',
+        advisor_id: 0,
+        phone: 0
       });
 
       // Create assignment (client_id will be updated when user logs in)
