@@ -57,16 +57,23 @@ export default function AdvisorDashboard() {
 
   // Get clients that are assigned to this advisor (from assignments entity)
   const clients = assignments.map(assignment => {
-    const clientUser = allUsers.find(u => u.id === assignment.client_id);
+    // Try to find by client_id first, then by email
+    let clientUser = allUsers.find(u => u.id === assignment.client_id);
+    if (!clientUser) {
+      clientUser = allUsers.find(u => u.email === assignment.client_email);
+    }
+    
     if (clientUser) {
       return clientUser;
     }
-    // Fallback to assignment data if user not found
+    
+    // Fallback to assignment data if user not found (pending user)
     return {
-      id: assignment.client_id,
+      id: assignment.client_email, // Use email as temp ID
       email: assignment.client_email,
       full_name: assignment.client_name,
-      created_date: assignment.created_date
+      created_date: assignment.created_date,
+      isPending: true
     };
   }).filter(Boolean);
 

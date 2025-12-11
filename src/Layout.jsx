@@ -62,6 +62,19 @@ export default function Layout({ children, currentPageName }) {
           user_type: allowedUser.user_type,
           full_name: currentUser.full_name || allowedUser.full_name || ''
         });
+        
+        // Update ClientAdvisorAssignment with actual user ID
+        const assignments = await base44.entities.ClientAdvisorAssignment.filter({ 
+          client_email: currentUser.email 
+        });
+        for (const assignment of assignments) {
+          if (!assignment.client_id || assignment.client_id === '') {
+            await base44.entities.ClientAdvisorAssignment.update(assignment.id, {
+              client_id: currentUser.id
+            });
+          }
+        }
+        
         // Reload user to get updated data
         currentUser = await base44.auth.me();
       } catch (updateError) {

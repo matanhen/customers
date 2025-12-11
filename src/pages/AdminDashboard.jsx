@@ -123,12 +123,12 @@ export default function AdminDashboard() {
         user_type: 'client'
       });
 
-      // Create assignment to current admin
+      // Create assignment to current admin (client_id will be set when user logs in)
       await base44.entities.ClientAdvisorAssignment.create({
-        client_id: allowedUser.id,
+        client_id: '',
         client_email: data.email,
         client_name: data.full_name,
-        advisor_id: user.id,
+        advisor_id: data.advisor_id || user.id,
         advisor_email: user.email
       });
 
@@ -637,6 +637,21 @@ export default function AdminDashboard() {
                 className="border-[#105330]/30 rounded-xl py-6"
               />
             </div>
+            <div className="space-y-2">
+              <Label className="text-[#105330] font-semibold">שיוך ליועץ</Label>
+              <Select value={selectedAdvisor} onValueChange={setSelectedAdvisor}>
+                <SelectTrigger className="border-[#105330]/30 rounded-xl py-6">
+                  <SelectValue placeholder="בחר יועץ" />
+                </SelectTrigger>
+                <SelectContent>
+                  {advisors.map((advisor) => (
+                    <SelectItem key={advisor.id} value={advisor.id}>
+                      {advisor.full_name || advisor.email} {advisor.user_type === 'admin' && '(מנהל)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddClientDialog(false)} className="rounded-xl border-slate-200">
@@ -644,15 +659,16 @@ export default function AdminDashboard() {
             </Button>
             <Button 
               onClick={() => {
-                if (newClientName && newClientEmail) {
+                if (newClientName && newClientEmail && selectedAdvisor) {
                   createClientMutation.mutate({
                     full_name: newClientName,
                     email: newClientEmail,
-                    user_type: 'client'
+                    user_type: 'client',
+                    advisor_id: selectedAdvisor
                   });
                 }
               }}
-              disabled={!newClientName || !newClientEmail || createClientMutation.isPending}
+              disabled={!newClientName || !newClientEmail || !selectedAdvisor || createClientMutation.isPending}
               className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl shadow-lg"
             >
               {createClientMutation.isPending ? 'יוצר...' : 'הוסף לקוח'}
