@@ -37,42 +37,32 @@ export default function Layout({ children, currentPageName }) {
     try {
       const currentUser = await base44.auth.me();
       
-      // Step 1: If user already has user_type (client/advisor/admin), allow access immediately
-      if (currentUser.user_type && ['client', 'advisor', 'admin'].includes(currentUser.user_type)) {
-        setUser(currentUser);
-        setEditName(currentUser.full_name || '');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Step 2: No user_type - check if they're in AllowedUser (pending first login)
+      // Always check AllowedUser to verify authorization
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
+      // User not in AllowedUser - not authorized
       if (allowedUsers.length === 0) {
-        // Not authorized - delete User entity and show unauthorized
-        try {
-          await base44.entities.User.delete(currentUser.id);
-        } catch (deleteError) {
-          console.log('Failed to delete unauthorized user', deleteError);
-        }
         setIsUnauthorized(true);
         setIsLoading(false);
         return;
       }
       
-      // Step 3: Found in AllowedUser - provision user_type from there
       const allowedUser = allowedUsers[0];
-      try {
-        await base44.entities.User.update(currentUser.id, { 
-          user_type: allowedUser.user_type,
-          full_name: currentUser.full_name || allowedUser.full_name || ''
-        });
-        currentUser.user_type = allowedUser.user_type;
-        if (!currentUser.full_name && allowedUser.full_name) {
-          currentUser.full_name = allowedUser.full_name;
+      
+      // If user doesn't have user_type yet, or it's different from AllowedUser, update it
+      if (!currentUser.user_type || currentUser.user_type !== allowedUser.user_type) {
+        try {
+          await base44.entities.User.update(currentUser.id, { 
+            user_type: allowedUser.user_type,
+            full_name: currentUser.full_name || allowedUser.full_name || ''
+          });
+          currentUser.user_type = allowedUser.user_type;
+          if (!currentUser.full_name && allowedUser.full_name) {
+            currentUser.full_name = allowedUser.full_name;
+          }
+        } catch (updateError) {
+          console.log('Failed to update user type', updateError);
         }
-      } catch (updateError) {
-        console.log('Failed to update user type', updateError);
       }
       
       setUser(currentUser);
