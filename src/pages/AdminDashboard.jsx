@@ -77,6 +77,36 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
 
+  // Create User entities for AllowedUsers that don't have one yet
+  useEffect(() => {
+    if (!user || loadingUsers || loadingAllowed || allUsers.length === 0 || allowedUsers.length === 0) return;
+
+    const syncUsers = async () => {
+      const userEmails = new Set(allUsers.map(u => u.email));
+      const missingUsers = allowedUsers.filter(au => !userEmails.has(au.email));
+
+      for (const allowedUser of missingUsers) {
+        try {
+          await base44.entities.User.create({
+            email: allowedUser.email,
+            full_name: allowedUser.full_name,
+            user_type: allowedUser.user_type,
+            advisor_id: 0,
+            phone: 0
+          });
+        } catch (e) {
+          console.log('Failed to create user', e);
+        }
+      }
+
+      if (missingUsers.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      }
+    };
+
+    syncUsers();
+  }, [user, allUsers, allowedUsers, loadingUsers, loadingAllowed]);
+
   const isLoading = loadingUsers || loadingAllowed;
 
   // Get all assignments
