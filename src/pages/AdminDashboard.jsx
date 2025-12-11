@@ -70,6 +70,13 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
 
+  // Get allowed users that haven't logged in yet
+  const { data: allowedUsers = [] } = useQuery({
+    queryKey: ['allowedUsers'],
+    queryFn: () => base44.entities.AllowedUser.list(),
+    enabled: !!user,
+  });
+
   // Get all assignments
   const { data: assignments = [] } = useQuery({
     queryKey: ['allAssignments'],
@@ -108,16 +115,8 @@ export default function AdminDashboard() {
   });
 
   const createClientMutation = useMutation({
-    mutationFn: async (data) => {
-      // First create in AllowedUser for authorization
-      await base44.entities.AllowedUser.create({
-        email: data.email,
-        full_name: data.full_name,
-        user_type: 'client'
-      });
-      
-      // Then create the actual User record
-      return base44.entities.User.create({
+    mutationFn: (data) => {
+      return base44.entities.AllowedUser.create({
         email: data.email,
         full_name: data.full_name,
         user_type: 'client'
@@ -132,16 +131,28 @@ export default function AdminDashboard() {
     },
   });
 
-  const clients = allUsers.filter(u => u.user_type === 'client' || !u.user_type);
-  const advisors = allUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
-  const admins = allUsers.filter(u => u.user_type === 'admin');
+  // Merge Users and AllowedUsers
+  const userEmails = new Set(allUsers.map(u => u.email));
+  const pendingAllowedUsers = allowedUsers
+    .filter(au => !userEmails.has(au.email))
+    .map(au => ({
+      ...au,
+      isPending: true,
+      created_date: au.created_date
+    }));
+
+  const combinedUsers = [...allUsers, ...pendingAllowedUsers];
+
+  const clients = combinedUsers.filter(u => u.user_type === 'client' || !u.user_type);
+  const advisors = combinedUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
+  const admins = combinedUsers.filter(u => u.user_type === 'admin');
 
   // Filter by user type first
-  let displayedUsers = allUsers;
+  let displayedUsers = combinedUsers;
   if (userFilter === 'clients') {
     displayedUsers = clients;
   } else if (userFilter === 'advisors') {
-    displayedUsers = allUsers.filter(u => u.user_type === 'advisor');
+    displayedUsers = combinedUsers.filter(u => u.user_type === 'advisor');
   } else if (userFilter === 'admins') {
     displayedUsers = admins;
   }
@@ -366,25 +377,43 @@ export default function AdminDashboard() {
               <TableBody>
                 {filteredUsers.map((u) => (
                   <TableRow key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                    <TableCell className="font-semibold text-slate-800">{u.full_name || 'ללא שם'}</TableCell>
+                    <TableCell className="font-semibold text-slate-800">
+                      {u.full_name || 'ללא שם'}
+                      {u.isPending && (
+                        <Badge className="mr-2 bg-amber-100 text-amber-700 text-xs">
+                          ממתין להתחברות
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-slate-600">{u.email}</TableCell>
                     <TableCell>
-                      <Select
-                        value={u.user_type || 'client'}
-                        onValueChange={(value) => handleChangeUserType(u.id, value)}
-                      >
-                        <SelectTrigger className="w-32 border-slate-200 rounded-xl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="client">לקוח</SelectItem>
-                          <SelectItem value="advisor">יועץ</SelectItem>
-                          <SelectItem value="admin">מנהל</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {u.isPending ? (
+                        <Badge className="bg-slate-100 text-slate-600">
+                          {u.user_type === 'client' ? 'לקוח' : u.user_type === 'advisor' ? 'יועץ' : 'מנהל'}
+                        </Badge>
+                      ) : (
+                        <Select
+                          value={u.user_type || 'client'}
+                          onValueChange={(value) => handleChangeUserType(u.id, value)}
+                        >
+                          <SelectTrigger className="w-32 border-slate-200 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="client">לקוח</SelectItem>
+                            <SelectItem value="advisor">יועץ</SelectItem>
+                            <SelectItem value="admin">מנהל</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                     <TableCell>
-                      {(u.user_type === 'client' || !u.user_type) && (
+                      {u.isPending && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+                          יתווסף בהתחברות
+                        </Badge>
+                      )}
+                      {!u.isPending && (u.user_type === 'client' || !u.user_type) && (
                         getClientAssignment(u.id) ? (
                           <div className="flex items-center gap-2">
                             <Badge className="bg-emerald-100 text-emerald-700 border-0 px-3 py-1">
@@ -413,41 +442,51 @@ export default function AdminDashboard() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditUser(u);
-                            setEditName(u.full_name || '');
-                            setEditEmail(u.email || '');
-                            setShowEditDialog(true);
-                          }}
-                          className="border-[#105330]/30 text-[#105330] hover:bg-[#105330]/10 rounded-xl"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        {(u.user_type === 'client' || !u.user_type) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedClient(u);
-                              const assignment = getClientAssignment(u.id);
-                              setSelectedAdvisor(assignment?.advisor_id || 'none');
-                              setShowAssignDialog(true);
-                            }}
-                            className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl"
-                          >
-                            <Link2 className="w-4 h-4 ml-1" />
-                            {getClientAssignment(u.id) ? 'החלף יועץ' : 'שייך ליועץ'}
-                          </Button>
+                        {!u.isPending && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditUser(u);
+                                setEditName(u.full_name || '');
+                                setEditEmail(u.email || '');
+                                setShowEditDialog(true);
+                              }}
+                              className="border-[#105330]/30 text-[#105330] hover:bg-[#105330]/10 rounded-xl"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {(u.user_type === 'client' || !u.user_type) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedClient(u);
+                                  const assignment = getClientAssignment(u.id);
+                                  setSelectedAdvisor(assignment?.advisor_id || 'none');
+                                  setShowAssignDialog(true);
+                                }}
+                                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl"
+                              >
+                                <Link2 className="w-4 h-4 ml-1" />
+                                {getClientAssignment(u.id) ? 'החלף יועץ' : 'שייך ליועץ'}
+                              </Button>
+                            )}
+                          </>
                         )}
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
                             if (confirm(`האם למחוק את ${u.full_name || u.email}?`)) {
-                              deleteUserMutation.mutate(u.id);
+                              if (u.isPending) {
+                                // Delete from AllowedUser
+                                base44.entities.AllowedUser.delete(u.id);
+                                queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
+                              } else {
+                                deleteUserMutation.mutate(u.id);
+                              }
                             }
                           }}
                           className="border-red-200 text-red-600 hover:bg-red-50 rounded-xl"
