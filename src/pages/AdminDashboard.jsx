@@ -140,9 +140,26 @@ export default function AdminDashboard() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (userId) => base44.entities.User.delete(userId),
+    mutationFn: async ({ userId, allowedUserId, email }) => {
+      // Delete from User entity
+      if (userId) {
+        await base44.entities.User.delete(userId);
+      }
+      // Delete from AllowedUser
+      if (allowedUserId) {
+        await base44.entities.AllowedUser.delete(allowedUserId);
+      }
+      // Delete assignments
+      const userAssignments = await base44.entities.ClientAdvisorAssignment.filter({ client_email: email });
+      for (const assignment of userAssignments) {
+        await base44.entities.ClientAdvisorAssignment.delete(assignment.id);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
+      queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
     },
   });
 
@@ -228,8 +245,17 @@ export default function AdminDashboard() {
     return assignments.find(a => a.client_id === client.id || a.client_email === client.email);
   };
 
-  const handleChangeUserType = (userId, newType) => {
-    updateUserMutation.mutate({ userId, data: { user_type: newType } });
+  const handleChangeUserType = async (userId, allowedUserId, newType) => {
+    // Update User entity
+    if (userId) {
+      await base44.entities.User.update(userId, { user_type: newType });
+    }
+    // Update AllowedUser
+    if (allowedUserId) {
+      await base44.entities.AllowedUser.update(allowedUserId, { user_type: newType });
+    }
+    queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+    queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
   };
 
   const handleAssignClient = async () => {
@@ -432,12 +458,22 @@ export default function AdminDashboard() {
                     </TableCell>
                     <TableCell className="text-slate-600">{u.email}</TableCell>
                     <TableCell>
-                      <Badge className="bg-slate-100 text-slate-600">
-                        {u.user_type === 'client' ? 'לקוח' : u.user_type === 'advisor' ? 'יועץ' : 'מנהל'}
-                      </Badge>
+                      <Select 
+                        value={u.user_type} 
+                        onValueChange={(newType) => handleChangeUserType(u.id, u.allowedUserId, newType)}
+                      >
+                        <SelectTrigger className="w-32 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="client">לקוח</SelectItem>
+                          <SelectItem value="advisor">יועץ</SelectItem>
+                          <SelectItem value="admin">מנהל</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
-                      {u.user_type === 'client' && (
+                      {u.user_type === 'client' ? (
                         getClientAssignment(u) ? (
                           <div className="flex items-center gap-2">
                             <Badge className="bg-emerald-100 text-emerald-700 border-0 px-3 py-1">
@@ -447,7 +483,12 @@ export default function AdminDashboard() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleRemoveAdvisor(u)}
+                              onClick={async () => {
+                                const assignment = getClientAssignment(u);
+                                if (assignment) {
+                                  await deleteAssignmentMutation.mutateAsync(assignment.id);
+                                }
+                              }}
                               className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
                             >
                               <Unlink className="w-4 h-4" />
@@ -459,7 +500,7 @@ export default function AdminDashboard() {
                             לא משויך
                           </Badge>
                         )
-                      )}
+                      ) : '-'}
                     </TableCell>
                     <TableCell className="text-slate-500">
                       {format(new Date(u.created_date), 'dd/MM/yyyy')}
@@ -500,18 +541,14 @@ export default function AdminDashboard() {
                           size="sm"
                           onClick={async () => {
                             if (confirm(`האם למחוק את ${u.full_name || u.email}?`)) {
-                              if (u.allowedUserId) {
-                                // Delete from AllowedUser
-                                await base44.entities.AllowedUser.delete(u.allowedUserId);
-                                queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
-                              }
-                              // Also delete assignments
-                              const assignment = getClientAssignment(u);
-                              if (assignment) {
-                                await base44.entities.ClientAdvisorAssignment.delete(assignment.id);
-                              }
+                              await deleteUserMutation.mutateAsync({
+                                userId: u.id,
+                                allowedUserId: u.allowedUserId,
+                                email: u.email
+                              });
                             }
                           }}
+                          disabled={deleteUserMutation.isPending}
                           className="border-red-200 text-red-600 hover:bg-red-50 rounded-xl"
                         >
                           <X className="w-4 h-4" />
