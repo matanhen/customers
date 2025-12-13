@@ -77,30 +77,59 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
 
-  // Create User entities for AllowedUsers that don't have one yet
+  // Sync User entities with AllowedUsers and remove duplicates
   useEffect(() => {
-    if (!user || loadingUsers || loadingAllowed || allUsers.length === 0 || allowedUsers.length === 0) return;
+    if (!user || loadingUsers || loadingAllowed) return;
 
     const syncUsers = async () => {
-      const userEmails = new Set(allUsers.map(u => u.email));
-      const missingUsers = allowedUsers.filter(au => !userEmails.has(au.email));
-
-      for (const allowedUser of missingUsers) {
-        try {
-          await base44.entities.User.create({
-            email: allowedUser.email,
-            full_name: allowedUser.full_name,
-            user_type: allowedUser.user_type,
-            advisor_id: 0,
-            phone: 0
-          });
-        } catch (e) {
-          console.log('Failed to create user', e);
+      // Remove duplicate users by email (keep the first one)
+      const emailMap = new Map();
+      const duplicates = [];
+      
+      for (const u of allUsers) {
+        if (emailMap.has(u.email)) {
+          duplicates.push(u.id);
+        } else {
+          emailMap.set(u.email, u);
         }
       }
 
-      if (missingUsers.length > 0) {
+      // Delete duplicates
+      for (const dupId of duplicates) {
+        try {
+          await base44.entities.User.delete(dupId);
+        } catch (e) {
+          console.log('Failed to delete duplicate', e);
+        }
+      }
+
+      if (duplicates.length > 0) {
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+        return;
+      }
+
+      // Create User entities for AllowedUsers that don't have one yet
+      if (allowedUsers.length > 0) {
+        const userEmails = new Set(allUsers.map(u => u.email));
+        const missingUsers = allowedUsers.filter(au => !userEmails.has(au.email));
+
+        for (const allowedUser of missingUsers) {
+          try {
+            await base44.entities.User.create({
+              email: allowedUser.email,
+              full_name: allowedUser.full_name,
+              user_type: allowedUser.user_type,
+              advisor_id: 0,
+              phone: 0
+            });
+          } catch (e) {
+            console.log('Failed to create user', e);
+          }
+        }
+
+        if (missingUsers.length > 0) {
+          queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+        }
       }
     };
 
@@ -139,29 +168,36 @@ export default function AdminDashboard() {
     },
   });
 
-  const deleteUserMutation = useMutation({
-    mutationFn: async ({ userId, allowedUserId, email }) => {
-      // Delete from User entity
-      if (userId) {
-        await base44.entities.User.delete(userId);
-      }
-      // Delete from AllowedUser
-      if (allowedUserId) {
-        await base44.entities.AllowedUser.delete(allowedUserId);
-      }
-      // Delete assignments
-      const userAssignments = await base44.entities.ClientAdvisorAssignment.filter({ client_email: email });
+  const handleDeleteUser = async (u) => {
+    if (!confirm(`האם למחוק את ${u.full_name || u.email}?`)) return;
+
+    try {
+      // Delete assignments first
+      const userAssignments = await base44.entities.ClientAdvisorAssignment.filter({ client_email: u.email });
       for (const assignment of userAssignments) {
         await base44.entities.ClientAdvisorAssignment.delete(assignment.id);
       }
-    },
-    onSuccess: () => {
+
+      // Delete from User entity
+      if (u.id && !u.allowedUserId) {
+        await base44.entities.User.delete(u.id);
+      }
+
+      // Delete from AllowedUser
+      if (u.allowedUserId) {
+        await base44.entities.AllowedUser.delete(u.allowedUserId);
+      }
+
+      // Refresh data
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
       queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
-    },
-  });
+    } catch (e) {
+      console.error('Error deleting user:', e);
+      alert('שגיאה במחיקת המשתמש');
+    }
+  };
 
   const createClientMutation = useMutation({
     mutationFn: async (data) => {
@@ -539,16 +575,7 @@ export default function AdminDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={async () => {
-                            if (confirm(`האם למחוק את ${u.full_name || u.email}?`)) {
-                              await deleteUserMutation.mutateAsync({
-                                userId: u.id,
-                                allowedUserId: u.allowedUserId,
-                                email: u.email
-                              });
-                            }
-                          }}
-                          disabled={deleteUserMutation.isPending}
+                          onClick={() => handleDeleteUser(u)}
                           className="border-red-200 text-red-600 hover:bg-red-50 rounded-xl"
                         >
                           <X className="w-4 h-4" />

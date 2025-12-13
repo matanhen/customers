@@ -55,26 +55,17 @@ export default function AdvisorDashboard() {
 
   const isLoading = loadingAssignments || loadingUsers;
 
-  // Get clients that are assigned to this advisor (from assignments entity)
-  const clients = assignments.map(assignment => {
-    // Try to find by client_id first, then by email
-    let clientUser = allUsers.find(u => u.id === assignment.client_id);
-    if (!clientUser) {
-      clientUser = allUsers.find(u => u.email === assignment.client_email);
-    }
-    
-    if (clientUser) {
+  // Get clients that are assigned to this advisor (only show users that exist in the system)
+  const clients = assignments
+    .map(assignment => {
+      // Try to find by client_id first, then by email
+      let clientUser = allUsers.find(u => u.id === assignment.client_id);
+      if (!clientUser) {
+        clientUser = allUsers.find(u => u.email === assignment.client_email);
+      }
       return clientUser;
-    }
-    
-    // Fallback to assignment data if user not found
-    return {
-      id: assignment.client_id || assignment.client_email,
-      email: assignment.client_email,
-      full_name: assignment.client_name,
-      created_date: assignment.created_date
-    };
-  }).filter(Boolean);
+    })
+    .filter(Boolean); // Remove null/undefined entries
 
   const filteredClients = clients.filter(client =>
     client.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
