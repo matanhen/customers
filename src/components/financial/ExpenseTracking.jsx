@@ -270,10 +270,11 @@ export default function ExpenseTracking({ userId }) {
 
   const weeklyVariableBudget = plannedVariable / 4;
   const currentDay = new Date().getDate();
-  const currentWeek = Math.ceil(currentDay / 7);
+  // Week 1 starts on the 10th of each month
+  const currentWeek = currentDay < 10 ? 0 : Math.ceil((currentDay - 9) / 7);
   const expectedVariableSpent = weeklyVariableBudget * currentWeek;
   const isOnTrack = totalVariableActual <= expectedVariableSpent;
-  const weeklyUsedPercent = weeklyVariableBudget > 0 ? Math.round((totalVariableActual / expectedVariableSpent) * 100) : 0;
+  const weeklyUsedPercent = weeklyVariableBudget > 0 && expectedVariableSpent > 0 ? Math.round((totalVariableActual / expectedVariableSpent) * 100) : 0;
 
   // Recommendations
   const getRecommendations = () => {
