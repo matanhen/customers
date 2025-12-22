@@ -125,9 +125,6 @@ export default function AdvisorDashboard() {
         </CardContent>
       </Card>
 
-      {/* Notifications */}
-      <AdvisorNotifications advisorId={user?.id} clients={clients} />
-
       <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
         <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100/50">
           <CardTitle className="flex items-center gap-3 text-slate-800">
@@ -189,6 +186,9 @@ export default function AdvisorDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Notifications */}
+      <AdvisorNotifications advisorId={user?.id} clients={clients} />
     </div>
   );
 }

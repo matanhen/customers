@@ -9,12 +9,22 @@ import { Badge } from '@/components/ui/badge';
 export default function AdvisorNotifications({ advisorId, clients = [] }) {
   const queryClient = useQueryClient();
 
-  const { data: notifications = [] } = useQuery({
+  const { data: allNotifications = [] } = useQuery({
     queryKey: ['notifications', advisorId],
     queryFn: () => base44.entities.Notification.filter({ advisor_id: advisorId, is_dismissed: false }),
     enabled: !!advisorId,
     refetchInterval: 60000,
   });
+
+  // Deduplicate notifications - keep only one per client+type combination
+  const notificationMap = new Map();
+  allNotifications.forEach(notif => {
+    const key = `${notif.client_id}-${notif.type}`;
+    if (!notificationMap.has(key)) {
+      notificationMap.set(key, notif);
+    }
+  });
+  const notifications = Array.from(notificationMap.values());
 
   const { data: monthlyPlans = [] } = useQuery({
     queryKey: ['allMonthlyPlans'],
@@ -63,7 +73,7 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
           const daysSinceLogin = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));
 
           if (daysSinceLogin > 30) {
-            const existingNotif = notifications.find(
+            const existingNotif = allNotifications.find(
               n => n.client_id === client.id && n.type === 'inactive_user' && !n.is_dismissed
             );
             const alreadyQueued = notificationsToCreate.find(
@@ -87,7 +97,7 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
             p => p.user_id === client.id && p.month === currentMonth
           );
           if (!hasCurrentPlan) {
-            const existingNotif = notifications.find(
+            const existingNotif = allNotifications.find(
               n => n.client_id === client.id && n.type === 'missing_monthly_plan' && !n.is_dismissed
             );
             const alreadyQueued = notificationsToCreate.find(
