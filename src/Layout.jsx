@@ -225,10 +225,20 @@ export default function Layout({ children, currentPageName }) {
           {/* Main Nav Row */}
           <div className="flex items-center justify-between px-4 lg:px-8 py-3">
             {/* Logo */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <h1 className="text-xl lg:text-2xl font-bold text-white">
                 צעירים מתעשרים
               </h1>
+              {/* Academy Button - Mobile */}
+              <a
+                href="https://academy.matanhen.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 font-medium bg-[#1f9d47] text-white shadow-lg hover:bg-[#1a8a3f]"
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span className="text-sm">האקדמיה</span>
+              </a>
             </div>
 
             {/* Desktop Navigation */}
