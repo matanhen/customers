@@ -52,19 +52,25 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
       const today = new Date();
       const dayOfMonth = today.getDate();
 
+      // Track which notifications we need to create (deduplicated)
+      const notificationsToCreate = [];
+
       for (const client of clients) {
         // Check for inactive users (no login for 30 days)
         const clientUser = allUsers.find(u => u.id === client.id);
         if (clientUser) {
           const lastLogin = clientUser.updated_date ? new Date(clientUser.updated_date) : new Date(clientUser.created_date);
           const daysSinceLogin = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));
-          
+
           if (daysSinceLogin > 30) {
             const existingNotif = notifications.find(
               n => n.client_id === client.id && n.type === 'inactive_user' && !n.is_dismissed
             );
-            if (!existingNotif) {
-              createNotificationMutation.mutate({
+            const alreadyQueued = notificationsToCreate.find(
+              n => n.client_id === client.id && n.type === 'inactive_user'
+            );
+            if (!existingNotif && !alreadyQueued) {
+              notificationsToCreate.push({
                 advisor_id: advisorId,
                 client_id: client.id,
                 client_name: client.full_name || client.email,
@@ -84,8 +90,11 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
             const existingNotif = notifications.find(
               n => n.client_id === client.id && n.type === 'missing_monthly_plan' && !n.is_dismissed
             );
-            if (!existingNotif) {
-              createNotificationMutation.mutate({
+            const alreadyQueued = notificationsToCreate.find(
+              n => n.client_id === client.id && n.type === 'missing_monthly_plan'
+            );
+            if (!existingNotif && !alreadyQueued) {
+              notificationsToCreate.push({
                 advisor_id: advisorId,
                 client_id: client.id,
                 client_name: client.full_name || client.email,
@@ -95,6 +104,11 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
             }
           }
         }
+      }
+
+      // Create notifications sequentially to avoid race conditions
+      for (const notif of notificationsToCreate) {
+        createNotificationMutation.mutate(notif);
       }
     };
 
