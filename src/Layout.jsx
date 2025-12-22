@@ -4,7 +4,7 @@ import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
 import { 
   Home, TrendingUp, PiggyBank, Target,
-  Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save
+  Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save, GraduationCap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -133,6 +133,7 @@ export default function Layout({ children, currentPageName }) {
     { name: 'התנהלות כלכלית', page: 'FinancialManagement', icon: PiggyBank },
     { name: 'השקעות', page: 'Investments', icon: TrendingUp },
     { name: 'תכנון חופש כלכלי', page: 'FinancialFreedom', icon: Target },
+    { name: 'האקדמיה', externalUrl: 'https://academy.matanhen.com', icon: GraduationCap },
   ];
 
   if (isAdvisor || isAdmin) {
@@ -235,6 +236,22 @@ export default function Layout({ children, currentPageName }) {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPageName === item.page;
+
+                if (item.externalUrl) {
+                  return (
+                    <a
+                      key={item.name}
+                      href={item.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-white/80 hover:bg-white/10 hover:text-white"
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.name}</span>
+                    </a>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.page}
@@ -360,6 +377,23 @@ export default function Layout({ children, currentPageName }) {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPageName === item.page;
+
+                if (item.externalUrl) {
+                  return (
+                    <a
+                      key={item.name}
+                      href={item.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-white/80 hover:bg-white/10"
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="font-medium">{item.name}</span>
+                    </a>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.page}
