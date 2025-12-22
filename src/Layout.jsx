@@ -244,7 +244,7 @@ export default function Layout({ children, currentPageName }) {
                       href={item.externalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-white/80 hover:bg-white/10 hover:text-white"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium bg-[#1f9d47] text-white shadow-lg hover:bg-[#1a8a3f]"
                     >
                       <Icon className="w-4 h-4" />
                       <span>{item.name}</span>
@@ -386,7 +386,7 @@ export default function Layout({ children, currentPageName }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-white/80 hover:bg-white/10"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-[#1f9d47] text-white shadow-lg hover:bg-[#1a8a3f]"
                     >
                       <Icon className="w-5 h-5" />
                       <span className="font-medium">{item.name}</span>
