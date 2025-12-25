@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, subMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { 
-  ChevronLeft, ChevronRight, Save, Wallet, 
+  ChevronLeft, ChevronRight, Wallet, 
   PiggyBank, Target, AlertCircle, CheckCircle,
   TrendingUp, Shield, Sparkles
 } from 'lucide-react';
@@ -387,18 +387,6 @@ export default function MonthlyPlanning({ userId }) {
 
       {/* Financial Goals */}
       <FinancialGoals userId={userId} monthlyDreamsSavings={planData.dreams_savings} />
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSave}
-          disabled={saveMutation.isPending}
-          className="bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600"
-        >
-          <Save className="w-4 h-4 ml-2" />
-          {saveMutation.isPending ? 'שומר...' : 'שמור תכנון'}
-        </Button>
-      </div>
     </div>
   );
 }
