@@ -88,14 +88,14 @@ export default function MonthlyPlanning({ userId }) {
 
     // Auto-save when planData changes
     useEffect(() => {
-    if (!currentPlan && !prevPlan) return; // Don't save on initial load
+    if (!currentPlan) return; // Only auto-save if plan already exists
 
     const timeoutId = setTimeout(() => {
       saveMutation.mutate(planData);
     }, 1000); // Debounce for 1 second
 
     return () => clearTimeout(timeoutId);
-    }, [planData]);
+    }, [planData, currentPlan]);
 
   const totalExpenses = planData.fixed_expenses + planData.variable_expenses + planData.savings;
   const expensesPercentage = planData.expected_income > 0 
