@@ -84,11 +84,18 @@ export default function MonthlyPlanning({ userId }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monthlyPlans', userId] });
     },
-  });
+    });
 
-  const handleSave = () => {
-    saveMutation.mutate(planData);
-  };
+    // Auto-save when planData changes
+    useEffect(() => {
+    if (!currentPlan && !prevPlan) return; // Don't save on initial load
+
+    const timeoutId = setTimeout(() => {
+      saveMutation.mutate(planData);
+    }, 1000); // Debounce for 1 second
+
+    return () => clearTimeout(timeoutId);
+    }, [planData]);
 
   const totalExpenses = planData.fixed_expenses + planData.variable_expenses + planData.savings;
   const expensesPercentage = planData.expected_income > 0 

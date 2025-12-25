@@ -4,10 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { 
-  ChevronLeft, ChevronRight, Save, Wallet, Receipt,
-  Plus, Trash2, AlertTriangle, CheckCircle, TrendingDown,
-  Target, Clock
-} from 'lucide-react';
+        ChevronLeft, ChevronRight, Wallet, Receipt,
+        Plus, Trash2, AlertTriangle, CheckCircle, TrendingDown,
+        Target, Clock
+      } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,11 +148,18 @@ export default function ExpenseTracking({ userId }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenseTracking', userId] });
     },
-  });
+    });
 
-  const handleSave = () => {
-    saveMutation.mutate(trackingData);
-  };
+    // Auto-save when trackingData changes
+    useEffect(() => {
+    if (!currentTracking && !prevTracking) return; // Don't save on initial load
+
+    const timeoutId = setTimeout(() => {
+      saveMutation.mutate(trackingData);
+    }, 1000); // Debounce for 1 second
+
+    return () => clearTimeout(timeoutId);
+    }, [trackingData]);
 
   const updateFixedExpense = (category, value) => {
     setTrackingData(prev => ({
@@ -747,19 +754,7 @@ export default function ExpenseTracking({ userId }) {
             </div>
           </div>
         </CardContent>
-      </Card>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSave}
-          disabled={saveMutation.isPending}
-          className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330]"
-        >
-          <Save className="w-4 h-4 ml-2" />
-          {saveMutation.isPending ? 'שומר...' : 'שמור מעקב'}
-        </Button>
-      </div>
-    </div>
-  );
-}
+        </Card>
+        </div>
+        );
+        }
