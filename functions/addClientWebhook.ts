@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
     try {
@@ -15,11 +15,8 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Missing required fields: name and email' }, { status: 400 });
         }
 
-        // Initialize Base44 client with service role
-        const base44 = createClient(
-            Deno.env.get('BASE44_APP_URL') || '',
-            Deno.env.get('BASE44_APP_ID') || ''
-        );
+        // Initialize Base44 client
+        const base44 = createClientFromRequest(req);
 
         // Check if user already exists
         const existingAllowed = await base44.asServiceRole.entities.AllowedUser.filter({ email });
