@@ -379,13 +379,13 @@ export default function AdminDashboard() {
                 </p>
                 <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-slate-200">
                   <code className="flex-1 text-sm text-slate-700 break-all">
-                    {window.location.origin}/api/functions/addClientWebhook?secret=YOUR_WEBHOOK_SECRET
+                    {window.location.origin}/api/functions/addClientWebhook
                   </code>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/api/functions/addClientWebhook?secret=YOUR_WEBHOOK_SECRET`);
+                      navigator.clipboard.writeText(`${window.location.origin}/api/functions/addClientWebhook`);
                       alert('הכתובת הועתקה ללוח!');
                     }}
                     className="text-indigo-600 hover:bg-indigo-50"
@@ -393,9 +393,6 @@ export default function AdminDashboard() {
                     <Copy className="w-4 h-4" />
                   </Button>
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  החלף את YOUR_WEBHOOK_SECRET בערך האמיתי של WEBHOOK_SECRET מהגדרות הסביבה
-                </p>
               </div>
             </div>
           </CardContent>

@@ -2,15 +2,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
     try {
-        // Verify webhook secret from query parameter
-        const url = new URL(req.url);
-        const secret = url.searchParams.get('secret');
-        const expectedSecret = Deno.env.get('WEBHOOK_SECRET');
-
-        if (!secret || secret !== expectedSecret) {
-            return Response.json({ error: 'Unauthorized - Invalid webhook secret' }, { status: 401 });
-        }
-
         // Parse request body
         const body = await req.json();
         const { name, email } = body;
