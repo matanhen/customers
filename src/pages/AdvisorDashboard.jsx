@@ -36,7 +36,7 @@ export default function AdvisorDashboard() {
   const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
     queryKey: ['advisorAssignments', user?.id],
     queryFn: async () => {
-      const allAssignments = await base44.asServiceRole.entities.ClientAdvisorAssignment.list();
+      const allAssignments = await base44.entities.ClientAdvisorAssignment.list();
       return allAssignments.filter(a => a.advisor_id === user?.id);
     },
     enabled: !!user?.id && (isAdvisor || isAdmin),
@@ -47,7 +47,7 @@ export default function AdvisorDashboard() {
   // Get all users to match with assignments
   const { data: allUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['allUsersForAdvisor'],
-    queryFn: () => base44.asServiceRole.entities.User.list(),
+    queryFn: () => base44.entities.User.list(),
     enabled: !!user?.id,
     refetchInterval: 5000,
     staleTime: 0,
