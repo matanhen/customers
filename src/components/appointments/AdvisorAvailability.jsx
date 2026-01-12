@@ -87,12 +87,21 @@ export default function AdvisorAvailability({ user }) {
     enabled: !!user,
   });
 
-  // Get all appointments for conflict checking
+  // Get all appointments for conflict checking and showing client names
   const { data: allAppointments = [] } = useQuery({
     queryKey: ['allAppointments', user.id],
     queryFn: () => base44.entities.Appointment.filter({ advisor_id: user.id }),
     enabled: !!user,
   });
+
+  // Find client name for a booked slot
+  const getClientNameForSlot = (slot) => {
+    if (!slot.is_booked) return null;
+    const appointment = allAppointments.find(
+      apt => apt.availability_slot_id === slot.id && apt.status === 'scheduled'
+    );
+    return appointment?.client_name || 'לקוח';
+  };
 
   const createSlotMutation = useMutation({
     mutationFn: (data) => base44.entities.AvailabilitySlot.create({
@@ -273,7 +282,7 @@ export default function AdvisorAvailability({ user }) {
                           </Badge>
                           {slot.is_booked && (
                             <Badge className="bg-red-100 text-red-700 border-0">
-                              תפוס
+                              תפוס - {getClientNameForSlot(slot)}
                             </Badge>
                           )}
                           {!slot.is_booked && (
