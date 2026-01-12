@@ -35,6 +35,7 @@ export default function AdvisorAvailability({ user }) {
     end_time: '',
     location_type: 'office'
   });
+  const [conflictError, setConflictError] = useState('');
   const queryClient = useQueryClient();
 
   const { data: availabilitySlots = [] } = useQuery({
@@ -52,6 +53,13 @@ export default function AdvisorAvailability({ user }) {
     enabled: !!user,
   });
 
+  // Get all appointments for conflict checking
+  const { data: allAppointments = [] } = useQuery({
+    queryKey: ['allAppointments', user.id],
+    queryFn: () => base44.entities.Appointment.filter({ advisor_id: user.id }),
+    enabled: !!user,
+  });
+
   const createSlotMutation = useMutation({
     mutationFn: (data) => base44.entities.AvailabilitySlot.create({
       ...data,
@@ -60,7 +68,9 @@ export default function AdvisorAvailability({ user }) {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['advisorSlots'] });
+      queryClient.invalidateQueries({ queryKey: ['allAppointments'] });
       setShowAddDialog(false);
+      setConflictError('');
       setNewSlot({
         date: '',
         start_time: '',
@@ -77,8 +87,75 @@ export default function AdvisorAvailability({ user }) {
     },
   });
 
+  // Auto-calculate end time when start time changes (default 1 hour)
+  const handleStartTimeChange = (startTime) => {
+    setNewSlot({ ...newSlot, start_time: startTime });
+    
+    if (startTime && !newSlot.end_time) {
+      // Calculate end time (1 hour later)
+      const [hours, minutes] = startTime.split(':').map(Number);
+      const endHours = (hours + 1) % 24;
+      const endTime = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      setNewSlot(prev => ({ ...prev, start_time: startTime, end_time: endTime }));
+    }
+  };
+
+  // Check for time conflicts
+  const checkConflicts = (newDate, newStart, newEnd) => {
+    const newStartMinutes = timeToMinutes(newStart);
+    const newEndMinutes = timeToMinutes(newEnd);
+
+    // Check existing slots
+    for (const slot of availabilitySlots) {
+      if (slot.date === newDate) {
+        const slotStartMinutes = timeToMinutes(slot.start_time);
+        const slotEndMinutes = timeToMinutes(slot.end_time);
+        
+        // Check if times overlap
+        if (
+          (newStartMinutes >= slotStartMinutes && newStartMinutes < slotEndMinutes) ||
+          (newEndMinutes > slotStartMinutes && newEndMinutes <= slotEndMinutes) ||
+          (newStartMinutes <= slotStartMinutes && newEndMinutes >= slotEndMinutes)
+        ) {
+          return `כבר קיימת זמינות ב-${slot.start_time} - ${slot.end_time}`;
+        }
+      }
+    }
+
+    // Check scheduled appointments
+    for (const appointment of allAppointments) {
+      if (appointment.date === newDate && appointment.status === 'scheduled') {
+        const apptStartMinutes = timeToMinutes(appointment.start_time);
+        const apptEndMinutes = timeToMinutes(appointment.end_time);
+        
+        if (
+          (newStartMinutes >= apptStartMinutes && newStartMinutes < apptEndMinutes) ||
+          (newEndMinutes > apptStartMinutes && newEndMinutes <= apptEndMinutes) ||
+          (newStartMinutes <= apptStartMinutes && newEndMinutes >= apptEndMinutes)
+        ) {
+          return `כבר קיימת פגישה מתוכננת ב-${appointment.start_time} - ${appointment.end_time}`;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const timeToMinutes = (time) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
   const handleAddSlot = () => {
     if (newSlot.date && newSlot.start_time && newSlot.end_time) {
+      // Check for conflicts
+      const conflict = checkConflicts(newSlot.date, newSlot.start_time, newSlot.end_time);
+      if (conflict) {
+        setConflictError(conflict);
+        return;
+      }
+      
+      setConflictError('');
       createSlotMutation.mutate(newSlot);
     }
   };
@@ -207,7 +284,10 @@ export default function AdvisorAvailability({ user }) {
               <Input
                 type="date"
                 value={newSlot.date}
-                onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
+                onChange={(e) => {
+                  setNewSlot({ ...newSlot, date: e.target.value });
+                  setConflictError('');
+                }}
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
@@ -217,18 +297,29 @@ export default function AdvisorAvailability({ user }) {
                 <Input
                   type="time"
                   value={newSlot.start_time}
-                  onChange={(e) => setNewSlot({ ...newSlot, start_time: e.target.value })}
+                  onChange={(e) => {
+                    handleStartTimeChange(e.target.value);
+                    setConflictError('');
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label>שעת סיום</Label>
+                <Label>שעת סיום (ברירת מחדל: שעה לאחר ההתחלה)</Label>
                 <Input
                   type="time"
                   value={newSlot.end_time}
-                  onChange={(e) => setNewSlot({ ...newSlot, end_time: e.target.value })}
+                  onChange={(e) => {
+                    setNewSlot({ ...newSlot, end_time: e.target.value });
+                    setConflictError('');
+                  }}
                 />
               </div>
             </div>
+            {conflictError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {conflictError}
+              </div>
+            )}
             <div className="space-y-2">
               <Label>סוג פגישה</Label>
               <Select 
