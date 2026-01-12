@@ -49,11 +49,13 @@ const generateEndTimeSlots = () => {
       slots.push(timeString);
     }
   }
-  // 00:00 - 01:00
-  for (let minute = 0; minute <= 60; minute += 5) {
+  // 00:00 - 00:55
+  for (let minute = 0; minute < 60; minute += 5) {
     const timeString = `00:${String(minute).padStart(2, '0')}`;
     slots.push(timeString);
   }
+  // 01:00
+  slots.push('01:00');
   return slots;
 };
 
