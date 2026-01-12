@@ -77,7 +77,7 @@ export default function AdvisorDashboard() {
   const combinedUsers = [...allUsers, ...allowedUsersNotInSystem];
 
   // Get clients that are assigned to this advisor
-  const clients = assignments
+  const clientsWithDuplicates = assignments
     .map(assignment => {
       // Try to find by client_id first, then by email
       let clientUser = combinedUsers.find(u => u.id === assignment.client_id);
@@ -87,6 +87,16 @@ export default function AdvisorDashboard() {
       return clientUser;
     })
     .filter(Boolean); // Remove null/undefined entries
+
+  // Remove duplicates by email - keep only first occurrence
+  const seenEmails = new Set();
+  const clients = clientsWithDuplicates.filter(client => {
+    if (seenEmails.has(client.email)) {
+      return false;
+    }
+    seenEmails.add(client.email);
+    return true;
+  });
 
   const filteredClients = clients.filter(client =>
     client.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
