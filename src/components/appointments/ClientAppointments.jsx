@@ -323,7 +323,7 @@ export default function ClientAppointments({ user, isAdvisor = false }) {
               {pastAppointments.map((appointment) => (
                 <div key={appointment.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
                       <Badge variant={appointment.status === 'completed' ? 'default' : 'outline'}>
                         {appointment.status === 'completed' ? 'התקיימה' : 'בוטלה'}
                       </Badge>
@@ -333,6 +333,12 @@ export default function ClientAppointments({ user, isAdvisor = false }) {
                       <span className="text-sm text-slate-500">
                         {appointment.start_time}
                       </span>
+                      {isAdvisor && appointment.client_name && (
+                        <Badge variant="outline" className="gap-1">
+                          <User className="w-3 h-3" />
+                          {appointment.client_name}
+                        </Badge>
+                      )}
                       <Badge variant="outline" className="gap-1">
                         {appointment.location_type === 'office' ? (
                           <>
