@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Calendar, Clock, MapPin, Video, 
-  CheckCircle, XCircle, AlertCircle
+  CheckCircle, XCircle, AlertCircle, User
 } from 'lucide-react';
 import { format, parseISO, differenceInHours } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -207,6 +207,12 @@ export default function ClientAppointments({ user, isAdvisor = false }) {
                           <Clock className="w-4 h-4 text-slate-400" />
                           {appointment.start_time} - {appointment.end_time}
                         </div>
+                        {isAdvisor && appointment.client_name && (
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-slate-400" />
+                            <span className="font-semibold">{appointment.client_name}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     {!isAdvisor && (
