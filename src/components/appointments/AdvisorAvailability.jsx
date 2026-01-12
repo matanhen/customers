@@ -296,6 +296,7 @@ export default function AdvisorAvailability({ user }) {
                 <Label>שעת התחלה</Label>
                 <Input
                   type="time"
+                  step="300"
                   value={newSlot.start_time}
                   onChange={(e) => {
                     handleStartTimeChange(e.target.value);
@@ -307,6 +308,7 @@ export default function AdvisorAvailability({ user }) {
                 <Label>שעת סיום (ברירת מחדל: שעה לאחר ההתחלה)</Label>
                 <Input
                   type="time"
+                  step="300"
                   value={newSlot.end_time}
                   onChange={(e) => {
                     setNewSlot({ ...newSlot, end_time: e.target.value });
