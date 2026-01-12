@@ -27,6 +27,18 @@ import {
 import { format, parseISO } from 'date-fns';
 import { he } from 'date-fns/locale';
 
+// Generate time slots in 5-minute intervals
+const generateTimeSlots = () => {
+  const slots = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 5) {
+      const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      slots.push(timeString);
+    }
+  }
+  return slots;
+};
+
 export default function AdvisorAvailability({ user }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newSlot, setNewSlot] = useState({
@@ -37,6 +49,7 @@ export default function AdvisorAvailability({ user }) {
   });
   const [conflictError, setConflictError] = useState('');
   const queryClient = useQueryClient();
+  const timeSlots = generateTimeSlots();
 
   const { data: availabilitySlots = [] } = useQuery({
     queryKey: ['advisorSlots', user.id],
@@ -294,27 +307,45 @@ export default function AdvisorAvailability({ user }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>שעת התחלה</Label>
-                <Input
-                  type="time"
-                  step="300"
+                <Select
                   value={newSlot.start_time}
-                  onChange={(e) => {
-                    handleStartTimeChange(e.target.value);
+                  onValueChange={(value) => {
+                    handleStartTimeChange(value);
                     setConflictError('');
                   }}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="בחר שעה" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {timeSlots.map((time) => (
+                      <SelectItem key={time} value={time}>
+                        {time}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>שעת סיום (ברירת מחדל: שעה לאחר ההתחלה)</Label>
-                <Input
-                  type="time"
-                  step="300"
+                <Select
                   value={newSlot.end_time}
-                  onChange={(e) => {
-                    setNewSlot({ ...newSlot, end_time: e.target.value });
+                  onValueChange={(value) => {
+                    setNewSlot({ ...newSlot, end_time: value });
                     setConflictError('');
                   }}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="בחר שעה" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {timeSlots.map((time) => (
+                      <SelectItem key={time} value={time}>
+                        {time}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {conflictError && (
