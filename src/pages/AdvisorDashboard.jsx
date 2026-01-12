@@ -53,15 +53,36 @@ export default function AdvisorDashboard() {
     staleTime: 0,
   });
 
-  const isLoading = loadingAssignments || loadingUsers;
+  // Get allowed users that haven't logged in yet
+  const { data: allowedUsers = [], isLoading: loadingAllowed } = useQuery({
+    queryKey: ['allowedUsersForAdvisor'],
+    queryFn: () => base44.entities.AllowedUser.list(),
+    enabled: !!user?.id,
+  });
 
-  // Get clients that are assigned to this advisor (only show users that exist in the system)
+  const isLoading = loadingAssignments || loadingUsers || loadingAllowed;
+
+  // Merge Users and AllowedUsers - create combined list
+  const userEmails = new Set(allUsers.map(u => u.email));
+  const allowedUsersNotInSystem = allowedUsers
+    .filter(au => !userEmails.has(au.email))
+    .map(au => ({
+      id: au.id,
+      email: au.email,
+      full_name: au.full_name,
+      user_type: au.user_type,
+      created_date: au.created_date
+    }));
+
+  const combinedUsers = [...allUsers, ...allowedUsersNotInSystem];
+
+  // Get clients that are assigned to this advisor
   const clients = assignments
     .map(assignment => {
       // Try to find by client_id first, then by email
-      let clientUser = allUsers.find(u => u.id === assignment.client_id);
+      let clientUser = combinedUsers.find(u => u.id === assignment.client_id);
       if (!clientUser) {
-        clientUser = allUsers.find(u => u.email === assignment.client_email);
+        clientUser = combinedUsers.find(u => u.email === assignment.client_email);
       }
       return clientUser;
     })
