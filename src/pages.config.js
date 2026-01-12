@@ -4,6 +4,7 @@ import FinancialFreedom from './pages/FinancialFreedom';
 import FinancialManagement from './pages/FinancialManagement';
 import Home from './pages/Home';
 import Investments from './pages/Investments';
+import Appointments from './pages/Appointments';
 import __Layout from './Layout.jsx';
 
 
@@ -14,6 +15,7 @@ export const PAGES = {
     "FinancialManagement": FinancialManagement,
     "Home": Home,
     "Investments": Investments,
+    "Appointments": Appointments,
 }
 
 export const pagesConfig = {

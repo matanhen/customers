@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
 import { 
-  Home, TrendingUp, PiggyBank, Target,
-  Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save, GraduationCap
-} from 'lucide-react';
+        Home, TrendingUp, PiggyBank, Target, Calendar,
+        Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save, GraduationCap
+      } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -133,6 +133,7 @@ export default function Layout({ children, currentPageName }) {
     { name: 'התנהלות כלכלית', page: 'FinancialManagement', icon: PiggyBank },
     { name: 'השקעות', page: 'Investments', icon: TrendingUp },
     { name: 'תכנון חופש כלכלי', page: 'FinancialFreedom', icon: Target },
+    { name: 'קביעת פגישה', page: 'Appointments', icon: Calendar },
     { name: 'האקדמיה', externalUrl: 'https://academy.matanhen.com', icon: GraduationCap },
   ];
 

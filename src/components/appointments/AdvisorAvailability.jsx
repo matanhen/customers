@@ -1,0 +1,264 @@
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Plus, Trash2, MapPin, Video, 
+  Calendar, Clock
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { format, parseISO } from 'date-fns';
+import { he } from 'date-fns/locale';
+
+export default function AdvisorAvailability({ user }) {
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newSlot, setNewSlot] = useState({
+    date: '',
+    start_time: '',
+    end_time: '',
+    location_type: 'office'
+  });
+  const queryClient = useQueryClient();
+
+  const { data: availabilitySlots = [] } = useQuery({
+    queryKey: ['advisorSlots', user.id],
+    queryFn: async () => {
+      const slots = await base44.entities.AvailabilitySlot.filter({ 
+        advisor_id: user.id 
+      });
+      const today = new Date().toISOString().split('T')[0];
+      return slots.filter(s => s.date >= today).sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.start_time.localeCompare(b.start_time);
+      });
+    },
+    enabled: !!user,
+  });
+
+  const createSlotMutation = useMutation({
+    mutationFn: (data) => base44.entities.AvailabilitySlot.create({
+      ...data,
+      advisor_id: user.id,
+      is_booked: false
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['advisorSlots'] });
+      setShowAddDialog(false);
+      setNewSlot({
+        date: '',
+        start_time: '',
+        end_time: '',
+        location_type: 'office'
+      });
+    },
+  });
+
+  const deleteSlotMutation = useMutation({
+    mutationFn: (id) => base44.entities.AvailabilitySlot.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['advisorSlots'] });
+    },
+  });
+
+  const handleAddSlot = () => {
+    if (newSlot.date && newSlot.start_time && newSlot.end_time) {
+      createSlotMutation.mutate(newSlot);
+    }
+  };
+
+  const groupSlotsByDate = (slots) => {
+    return slots.reduce((acc, slot) => {
+      if (!acc[slot.date]) acc[slot.date] = [];
+      acc[slot.date].push(slot);
+      return acc;
+    }, {});
+  };
+
+  const groupedSlots = groupSlotsByDate(availabilitySlots);
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-emerald-100">
+                <Calendar className="w-5 h-5 text-emerald-600" />
+              </div>
+              הזמינויות שלי
+            </CardTitle>
+            <Button 
+              onClick={() => setShowAddDialog(true)}
+              className="bg-[#105330] hover:bg-[#0d4027]"
+            >
+              <Plus className="w-4 h-4 ml-2" />
+              הוסף זמינות
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {availabilitySlots.length === 0 ? (
+            <div className="text-center py-12">
+              <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500 mb-4">טרם הגדרת זמינויות לפגישות</p>
+              <Button onClick={() => setShowAddDialog(true)} className="bg-[#105330]">
+                הוסף זמינות ראשונה
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(groupedSlots).map(([date, slots]) => (
+                <div key={date}>
+                  <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    {format(parseISO(date), 'EEEE, d בMMMM yyyy', { locale: he })}
+                  </h3>
+                  <div className="space-y-2">
+                    {slots.map((slot) => (
+                      <div 
+                        key={slot.id}
+                        className={`p-4 rounded-xl border-2 flex items-center justify-between ${
+                          slot.is_booked 
+                            ? 'bg-slate-100 border-slate-300' 
+                            : 'bg-white border-emerald-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-slate-500" />
+                            <span className="font-semibold">
+                              {slot.start_time} - {slot.end_time}
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="gap-1">
+                            {slot.location_type === 'office' ? (
+                              <>
+                                <MapPin className="w-3 h-3" />
+                                במשרד
+                              </>
+                            ) : (
+                              <>
+                                <Video className="w-3 h-3" />
+                                זום
+                              </>
+                            )}
+                          </Badge>
+                          {slot.is_booked && (
+                            <Badge className="bg-red-100 text-red-700 border-0">
+                              תפוס
+                            </Badge>
+                          )}
+                          {!slot.is_booked && (
+                            <Badge className="bg-emerald-100 text-emerald-700 border-0">
+                              פנוי
+                            </Badge>
+                          )}
+                        </div>
+                        {!slot.is_booked && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm('האם למחוק זמינות זו?')) {
+                                deleteSlotMutation.mutate(slot.id);
+                              }
+                            }}
+                            className="text-red-500 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Slot Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>הוספת זמינות חדשה</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>תאריך</Label>
+              <Input
+                type="date"
+                value={newSlot.date}
+                onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>שעת התחלה</Label>
+                <Input
+                  type="time"
+                  value={newSlot.start_time}
+                  onChange={(e) => setNewSlot({ ...newSlot, start_time: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>שעת סיום</Label>
+                <Input
+                  type="time"
+                  value={newSlot.end_time}
+                  onChange={(e) => setNewSlot({ ...newSlot, end_time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>סוג פגישה</Label>
+              <Select 
+                value={newSlot.location_type} 
+                onValueChange={(value) => setNewSlot({ ...newSlot, location_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="office">במשרד</SelectItem>
+                  <SelectItem value="zoom">זום</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              ביטול
+            </Button>
+            <Button 
+              onClick={handleAddSlot}
+              disabled={!newSlot.date || !newSlot.start_time || !newSlot.end_time || createSlotMutation.isPending}
+              className="bg-[#105330] hover:bg-[#0d4027]"
+            >
+              {createSlotMutation.isPending ? 'מוסיף...' : 'הוסף זמינות'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
