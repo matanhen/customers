@@ -27,10 +27,10 @@ import {
 import { format, parseISO } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-// Generate time slots in 5-minute intervals
+// Generate time slots in 5-minute intervals (8:00 - 23:55)
 const generateTimeSlots = () => {
   const slots = [];
-  for (let hour = 0; hour < 24; hour++) {
+  for (let hour = 8; hour < 24; hour++) {
     for (let minute = 0; minute < 60; minute += 5) {
       const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
       slots.push(timeString);
