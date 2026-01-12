@@ -27,14 +27,32 @@ import {
 import { format, parseISO } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-// Generate time slots in 5-minute intervals (8:00 - 23:55)
-const generateTimeSlots = () => {
+// Generate start time slots in 5-minute intervals (8:00 - 23:55)
+const generateStartTimeSlots = () => {
   const slots = [];
   for (let hour = 8; hour < 24; hour++) {
     for (let minute = 0; minute < 60; minute += 5) {
       const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
       slots.push(timeString);
     }
+  }
+  return slots;
+};
+
+// Generate end time slots in 5-minute intervals (8:00 - 23:55, then 00:00 - 01:00)
+const generateEndTimeSlots = () => {
+  const slots = [];
+  // 8:00 - 23:55
+  for (let hour = 8; hour < 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 5) {
+      const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      slots.push(timeString);
+    }
+  }
+  // 00:00 - 01:00
+  for (let minute = 0; minute <= 60; minute += 5) {
+    const timeString = `00:${String(minute).padStart(2, '0')}`;
+    slots.push(timeString);
   }
   return slots;
 };
@@ -49,7 +67,8 @@ export default function AdvisorAvailability({ user }) {
   });
   const [conflictError, setConflictError] = useState('');
   const queryClient = useQueryClient();
-  const timeSlots = generateTimeSlots();
+  const startTimeSlots = generateStartTimeSlots();
+  const endTimeSlots = generateEndTimeSlots();
 
   const { data: availabilitySlots = [] } = useQuery({
     queryKey: ['advisorSlots', user.id],
@@ -318,7 +337,7 @@ export default function AdvisorAvailability({ user }) {
                     <SelectValue placeholder="בחר שעה" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {timeSlots.map((time) => (
+                    {startTimeSlots.map((time) => (
                       <SelectItem key={time} value={time}>
                         {time}
                       </SelectItem>
@@ -339,7 +358,7 @@ export default function AdvisorAvailability({ user }) {
                     <SelectValue placeholder="בחר שעה" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {timeSlots.map((time) => (
+                    {endTimeSlots.map((time) => (
                       <SelectItem key={time} value={time}>
                         {time}
                       </SelectItem>
