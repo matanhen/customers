@@ -209,8 +209,8 @@ export default function MonthlyPlanning({ userId }) {
               />
               <p className={`text-sm font-medium ${isOver ? 'text-red-600' : isUnder ? 'text-amber-600' : 'text-green-600'}`}>
                 {expensesPercentage}% מההכנסה
-                {isOver && ' - חריגה!'}
-                {isUnder && ` - נשארו ${100 - expensesPercentage}%`}
+                {isOver && ` - חריגה של ₪${(totalExpenses - planData.expected_income).toLocaleString()}`}
+                {isUnder && ` - נשארו ${100 - expensesPercentage}% (₪${(planData.expected_income - totalExpenses).toLocaleString()})`}
               </p>
             </div>
           </CardContent>
