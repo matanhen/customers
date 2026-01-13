@@ -6,7 +6,7 @@ import { he } from 'date-fns/locale';
 import { 
   ChevronLeft, ChevronRight, Wallet, 
   PiggyBank, Target, AlertCircle, CheckCircle,
-  TrendingUp, Shield, Sparkles
+  TrendingUp, Shield, Sparkles, Save
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -86,16 +86,9 @@ export default function MonthlyPlanning({ userId }) {
     },
     });
 
-    // Auto-save when planData changes
-    useEffect(() => {
-    if (!currentPlan) return; // Only auto-save if plan already exists
-
-    const timeoutId = setTimeout(() => {
-      saveMutation.mutate(planData);
-    }, 1000); // Debounce for 1 second
-
-    return () => clearTimeout(timeoutId);
-    }, [planData, currentPlan]);
+  const handleSave = () => {
+    saveMutation.mutate(planData);
+  };
 
   const totalExpenses = planData.fixed_expenses + planData.variable_expenses + planData.savings;
   const expensesPercentage = planData.expected_income > 0 
@@ -152,6 +145,20 @@ export default function MonthlyPlanning({ userId }) {
               <ChevronLeft className="w-5 h-5" />
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Save Button */}
+      <Card className="border-2 border-[#105330] bg-gradient-to-r from-[#105330]/5 to-[#c8a863]/5">
+        <CardContent className="p-4">
+          <Button 
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            className="w-full bg-[#105330] hover:bg-[#0d4027] text-white font-semibold py-6 text-lg"
+          >
+            <Save className="w-5 h-5 ml-2" />
+            {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
+          </Button>
         </CardContent>
       </Card>
 
