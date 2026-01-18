@@ -175,6 +175,7 @@ export default function ResultsSection({ userId }) {
 
     const effectiveReturn = (avgReturn - 0.5) / 100;
     const kerenEffectiveReturn = kerenReturn / 100;
+    const postTargetReturn = 0.06; // 6% growth after stopping deposits
 
     let financialFreedomAge = 80;
     let canAchieveGoal = false;
@@ -198,6 +199,7 @@ export default function ResultsSection({ userId }) {
       let remainingAlt = altAtAge;
       let remainingKeren = includeKeren ? kerenAtAge : 0;
       let canSustain = true;
+      let meetsTargetIncome = false;
 
       for (let futureAge = testAge; futureAge <= 80; futureAge++) {
         const rental = getNetRentalAtAge(futureAge);
@@ -208,13 +210,20 @@ export default function ResultsSection({ userId }) {
         const neededFromAssets = Math.max(0, targetPassiveIncome - fixedIncome);
         const yearlyNeed = neededFromAssets * 12;
 
-        remainingStocks = remainingStocks * (1 + effectiveReturn / 2);
-        remainingAlt = remainingAlt * (1 + effectiveReturn / 2);
+        // Apply 6% growth even after stopping deposits
+        remainingStocks = remainingStocks * (1 + postTargetReturn);
+        remainingAlt = remainingAlt * (1 + postTargetReturn);
         if (includeKeren) {
-          remainingKeren = remainingKeren * (1 + kerenEffectiveReturn / 2);
+          remainingKeren = remainingKeren * (1 + postTargetReturn);
         }
 
         if (yearlyNeed > 0) {
+          // Check if we can withdraw the full target amount
+          const totalAvailable = remainingStocks + remainingAlt + remainingKeren;
+          if (totalAvailable >= yearlyNeed && futureAge === testAge) {
+            meetsTargetIncome = true;
+          }
+
           if (remainingStocks >= yearlyNeed) {
             remainingStocks -= yearlyNeed;
           } else {
@@ -237,10 +246,16 @@ export default function ResultsSection({ userId }) {
               }
             }
           }
+        } else {
+          // Fixed income covers target, so we meet the target
+          if (futureAge === testAge) {
+            meetsTargetIncome = true;
+          }
         }
       }
 
-      if (canSustain) {
+      // Only consider this age if we can actually withdraw the target amount
+      if (canSustain && meetsTargetIncome) {
         financialFreedomAge = testAge;
         canAchieveGoal = true;
         break;
@@ -578,6 +593,22 @@ export default function ResultsSection({ userId }) {
                 <div className="p-4 bg-emerald-50 rounded-xl">
                   <p className="text-sm text-emerald-600 font-medium">קצבת פנסיה (מגיל {results.retirementAge})</p>
                   <p className="text-xl font-bold text-emerald-800">₪{results.monthlyPensionAllowance.toLocaleString()}/חודש</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Important Note */}
+          <Card className="border-0 shadow-xl bg-blue-50/50 border-l-4 border-blue-500">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-semibold mb-1">הערה חשובה:</p>
+                  <p>
+                    החישוב מבוסס על תשואה ממוצעת של 6% בשנה (גם לאחר הפסקת ההפקדות). 
+                    בגיל הפרישה מומלץ להוריד סיכון בתיק ההשקעות ולהתאים את התמהיל לסיכון נמוך יותר.
+                  </p>
                 </div>
               </div>
             </CardContent>
