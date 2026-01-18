@@ -288,8 +288,8 @@ export default function ResultsSection({ userId }) {
       
       const neededFromAssets = Math.max(0, targetPassiveIncome - totalFixed);
       
+      // If fixed income alone covers the target, we're done
       if (neededFromAssets <= 0) {
-        // Fixed income covers everything
         const sources = [];
         if (rental > 0) sources.push({ source: 'הכנסה נטו מדירה להשקעה', amount: Math.round(rental) });
         if (pension > 0) sources.push({ source: `קצבה חודשית מפנסיה`, amount: pension });
@@ -304,70 +304,110 @@ export default function ResultsSection({ userId }) {
         break;
       }
       
-      // Calculate how many months each asset can last
-      let monthsFromStocks = remainingStocks > 0 ? Math.floor(remainingStocks / neededFromAssets) : 0;
-      let monthsFromAlt = remainingAlt > 0 ? Math.floor(remainingAlt / neededFromAssets) : 0;
-      let monthsFromKeren = (remainingKeren > 0 && includeKeren) ? Math.floor(remainingKeren / neededFromAssets) : 0;
+      // Find the next "milestone" age where income changes (retirement or 70)
+      let nextMilestone = 80;
+      if (withdrawalAge < retirementAge) {
+        nextMilestone = Math.min(nextMilestone, retirementAge);
+      }
+      if (withdrawalAge < 70) {
+        nextMilestone = Math.min(nextMilestone, 70);
+      }
+      
+      // Calculate how long current asset levels can last until the milestone
+      const monthsToMilestone = (nextMilestone - withdrawalAge) * 12;
+      const totalNeededToMilestone = neededFromAssets * monthsToMilestone;
       
       const sources = [];
       if (rental > 0) sources.push({ source: 'הכנסה נטו מדירה להשקעה', amount: Math.round(rental) });
       if (pension > 0) sources.push({ source: `קצבה חודשית מפנסיה`, amount: pension });
       if (oldAge > 0) sources.push({ source: 'קצבת זקנה', amount: oldAge });
       
-      // Determine which asset to use and for how long
-      if (monthsFromStocks > 0) {
-        // Use stocks first
-        const yearsFromStocks = Math.floor(monthsFromStocks / 12);
-        const endAge = Math.min(withdrawalAge + yearsFromStocks, 80);
+      // Determine which assets to use
+      let monthsCanCover = 0;
+      
+      if (remainingStocks >= totalNeededToMilestone) {
+        // Stocks can cover until milestone
+        sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(neededFromAssets) });
+        withdrawalPlan.push({
+          ageRange: `${withdrawalAge}-${nextMilestone}`,
+          sources,
+          totalMonthly: targetPassiveIncome,
+          meetsTarget: true
+        });
+        remainingStocks -= totalNeededToMilestone;
+        withdrawalAge = nextMilestone;
+        
+      } else if (remainingStocks > 0) {
+        // Stocks partially cover
+        const monthsFromStocks = Math.floor(remainingStocks / neededFromAssets);
+        const endAge = Math.min(withdrawalAge + Math.floor(monthsFromStocks / 12), nextMilestone);
         
         sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(neededFromAssets) });
-        
         withdrawalPlan.push({
           ageRange: `${withdrawalAge}-${endAge}`,
           sources,
           totalMonthly: targetPassiveIncome,
           meetsTarget: true
         });
-        
-        remainingStocks -= neededFromAssets * (endAge - withdrawalAge) * 12;
+        remainingStocks = 0;
         withdrawalAge = endAge;
         
-      } else if (monthsFromAlt > 0) {
-        // Stocks depleted, use alternative investments
-        const yearsFromAlt = Math.floor(monthsFromAlt / 12);
-        const endAge = Math.min(withdrawalAge + yearsFromAlt, 80);
+      } else if (remainingAlt >= totalNeededToMilestone) {
+        // Alt investments can cover until milestone
+        sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(neededFromAssets) });
+        withdrawalPlan.push({
+          ageRange: `${withdrawalAge}-${nextMilestone}`,
+          sources,
+          totalMonthly: targetPassiveIncome,
+          meetsTarget: true
+        });
+        remainingAlt -= totalNeededToMilestone;
+        withdrawalAge = nextMilestone;
+        
+      } else if (remainingAlt > 0) {
+        // Alt investments partially cover
+        const monthsFromAlt = Math.floor(remainingAlt / neededFromAssets);
+        const endAge = Math.min(withdrawalAge + Math.floor(monthsFromAlt / 12), nextMilestone);
         
         sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(neededFromAssets) });
-        
         withdrawalPlan.push({
           ageRange: `${withdrawalAge}-${endAge}`,
           sources,
           totalMonthly: targetPassiveIncome,
           meetsTarget: true
         });
-        
-        remainingAlt -= neededFromAssets * (endAge - withdrawalAge) * 12;
+        remainingAlt = 0;
         withdrawalAge = endAge;
         
-      } else if (monthsFromKeren > 0) {
-        // Stocks and alt depleted, use keren hishtalmut (last resort)
-        const yearsFromKeren = Math.floor(monthsFromKeren / 12);
-        const endAge = Math.min(withdrawalAge + yearsFromKeren, 80);
+      } else if (remainingKeren >= totalNeededToMilestone && includeKeren) {
+        // Keren can cover until milestone
+        sources.push({ source: 'קרן השתלמות', amount: Math.round(neededFromAssets) });
+        withdrawalPlan.push({
+          ageRange: `${withdrawalAge}-${nextMilestone}`,
+          sources,
+          totalMonthly: targetPassiveIncome,
+          meetsTarget: true
+        });
+        remainingKeren -= totalNeededToMilestone;
+        withdrawalAge = nextMilestone;
         
-        sources.push({ source: 'קרן השתלמות (מומלץ למשוך רק בשלב מאוחר)', amount: Math.round(neededFromAssets) });
+      } else if (remainingKeren > 0 && includeKeren) {
+        // Keren partially covers
+        const monthsFromKeren = Math.floor(remainingKeren / neededFromAssets);
+        const endAge = Math.min(withdrawalAge + Math.floor(monthsFromKeren / 12), nextMilestone);
         
+        sources.push({ source: 'קרן השתלמות', amount: Math.round(neededFromAssets) });
         withdrawalPlan.push({
           ageRange: `${withdrawalAge}-${endAge}`,
           sources,
           totalMonthly: targetPassiveIncome,
           meetsTarget: true
         });
-        
-        remainingKeren -= neededFromAssets * (endAge - withdrawalAge) * 12;
+        remainingKeren = 0;
         withdrawalAge = endAge;
         
       } else {
-        // No assets left - can only rely on fixed income
+        // No more assets - stop here
         break;
       }
     }
