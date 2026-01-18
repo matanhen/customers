@@ -666,33 +666,18 @@ export default function ResultsSection({ userId }) {
               <CardContent>
                 <div className="space-y-4">
                   {results.withdrawalPlan.map((period, idx) => (
-                    <div key={idx} className={`p-5 rounded-xl border ${
-                      period.meetsTarget 
-                        ? 'bg-gradient-to-r from-emerald-50/50 to-green-50/50 border-emerald-200' 
-                        : 'bg-gradient-to-r from-amber-50/50 to-orange-50/50 border-amber-200'
-                    }`}>
+                    <div key={idx} className="p-5 rounded-xl border bg-gradient-to-r from-emerald-50/50 to-green-50/50 border-emerald-200">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <Badge className={`text-white text-lg px-4 py-1 ${
-                            period.meetsTarget ? 'bg-emerald-600' : 'bg-amber-600'
-                          }`}>
+                          <Badge className="text-white text-lg px-4 py-1 bg-emerald-600">
                             גיל {period.ageRange}
                           </Badge>
-                          {period.meetsTarget ? (
-                            <CheckCircle className="w-5 h-5 text-emerald-600" />
-                          ) : (
-                            <AlertTriangle className="w-5 h-5 text-amber-600" />
-                          )}
+                          <CheckCircle className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div className="text-left">
                           <span className="text-lg font-bold text-[#105330]">
                             ₪{period.totalMonthly.toLocaleString()}/חודש
                           </span>
-                          {!period.meetsTarget && (
-                            <p className="text-xs text-amber-600">
-                              חסרים ₪{(results.targetPassiveIncome - period.totalMonthly).toLocaleString()}
-                            </p>
-                          )}
                         </div>
                       </div>
                       <div className="space-y-2">
