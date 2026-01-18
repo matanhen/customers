@@ -314,40 +314,43 @@ export default function ResultsSection({ userId }) {
       const neededFromLiquid = Math.max(0, targetPassiveIncome - totalFixed);
       
       if (neededFromLiquid > 0) {
-        const yearsInRange = range.end - range.start;
+        let stillNeeded = neededFromLiquid;
         
-        if (remainingStocks > 0) {
-          const monthlyFromStocks = Math.min(neededFromLiquid, remainingStocks / (yearsInRange * 12));
+        // Try to withdraw from stocks first
+        if (remainingStocks > 0 && stillNeeded > 0) {
+          const monthlyFromStocks = Math.min(stillNeeded, remainingStocks / 12);
           if (monthlyFromStocks > 0) {
             sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(monthlyFromStocks) });
-            remainingStocks -= monthlyFromStocks * yearsInRange * 12;
+            stillNeeded -= monthlyFromStocks;
           }
         }
         
-        const stillNeeded = neededFromLiquid - (remainingStocks > 0 ? 0 : neededFromLiquid);
-        if (remainingStocks <= 0 && remainingAlt > 0 && stillNeeded > 0) {
-          const monthlyFromAlt = Math.min(stillNeeded, remainingAlt / (yearsInRange * 12));
+        // Then from alternative investments
+        if (remainingAlt > 0 && stillNeeded > 0) {
+          const monthlyFromAlt = Math.min(stillNeeded, remainingAlt / 12);
           if (monthlyFromAlt > 0) {
             sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(monthlyFromAlt) });
-            remainingAlt -= monthlyFromAlt * yearsInRange * 12;
+            stillNeeded -= monthlyFromAlt;
           }
         }
         
-        if (remainingStocks <= 0 && remainingAlt <= 0 && remainingKeren > 0 && includeKeren) {
-          const finalNeed = neededFromLiquid;
-          const monthlyFromKeren = Math.min(finalNeed, remainingKeren / (yearsInRange * 12));
+        // Finally from keren hishtalmut if enabled
+        if (remainingKeren > 0 && includeKeren && stillNeeded > 0) {
+          const monthlyFromKeren = Math.min(stillNeeded, remainingKeren / 12);
           if (monthlyFromKeren > 0) {
             sources.push({ source: 'קרן השתלמות', amount: Math.round(monthlyFromKeren) });
-            remainingKeren -= monthlyFromKeren * yearsInRange * 12;
+            stillNeeded -= monthlyFromKeren;
           }
         }
       }
 
       if (sources.length > 0) {
+        const totalMonthly = sources.reduce((sum, s) => sum + s.amount, 0);
         withdrawalPlan.push({
           ageRange: `${range.start}-${range.end}`,
           sources,
-          totalMonthly: sources.reduce((sum, s) => sum + s.amount, 0)
+          totalMonthly,
+          meetsTarget: totalMonthly >= targetPassiveIncome
         });
       }
     }
@@ -539,13 +542,13 @@ export default function ResultsSection({ userId }) {
                 <div>
                   <h3 className="text-xl font-bold text-slate-800 mb-2">
                     {results.canAchieveGoal
-                      ? `אתה יכול להגיע לחופש כלכלי החל מגיל ${results.financialFreedomAge}`
+                      ? `החל מגיל ${results.financialFreedomAge} תוכל למשוך לפחות ₪${results.targetPassiveIncome.toLocaleString()} בחודש`
                       : `לפי התכנון הנוכחי, לא ניתן להגיע להכנסה פאסיבית של ₪${results.targetPassiveIncome.toLocaleString()} עד גיל 80`
                     }
                   </h3>
                   <p className="text-slate-600">
                     {results.canAchieveGoal
-                      ? `החל מגיל ${results.financialFreedomAge} תוכל למשוך ₪${results.targetPassiveIncome.toLocaleString()} בחודש עד גיל 80 באופן בטוח.`
+                      ? `זהו הגיל המוקדם ביותר שבו תוכל למשוך את הסכום המלא שהגדרת (₪${results.targetPassiveIncome.toLocaleString()}/חודש) ולשמור על משיכה זו עד גיל 80.`
                       : `כדי להגיע ליעד, מומלץ להגדיל את ההפקדה החודשית לתיק ההשקעות או לדחות את גיל היעד.`
                     }
                   </p>
@@ -627,14 +630,34 @@ export default function ResultsSection({ userId }) {
               <CardContent>
                 <div className="space-y-4">
                   {results.withdrawalPlan.map((period, idx) => (
-                    <div key={idx} className="p-5 bg-gradient-to-r from-[#105330]/5 to-[#c8a863]/5 rounded-xl border border-[#105330]/10">
+                    <div key={idx} className={`p-5 rounded-xl border ${
+                      period.meetsTarget 
+                        ? 'bg-gradient-to-r from-emerald-50/50 to-green-50/50 border-emerald-200' 
+                        : 'bg-gradient-to-r from-amber-50/50 to-orange-50/50 border-amber-200'
+                    }`}>
                       <div className="flex items-center justify-between mb-3">
-                        <Badge className="bg-[#105330] text-white text-lg px-4 py-1">
-                          גיל {period.ageRange}
-                        </Badge>
-                        <span className="text-lg font-bold text-[#105330]">
-                          סה״כ: ₪{period.totalMonthly.toLocaleString()}/חודש
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-white text-lg px-4 py-1 ${
+                            period.meetsTarget ? 'bg-emerald-600' : 'bg-amber-600'
+                          }`}>
+                            גיל {period.ageRange}
+                          </Badge>
+                          {period.meetsTarget ? (
+                            <CheckCircle className="w-5 h-5 text-emerald-600" />
+                          ) : (
+                            <AlertTriangle className="w-5 h-5 text-amber-600" />
+                          )}
+                        </div>
+                        <div className="text-left">
+                          <span className="text-lg font-bold text-[#105330]">
+                            ₪{period.totalMonthly.toLocaleString()}/חודש
+                          </span>
+                          {!period.meetsTarget && (
+                            <p className="text-xs text-amber-600">
+                              חסרים ₪{(results.targetPassiveIncome - period.totalMonthly).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {period.sources.map((source, sIdx) => (
