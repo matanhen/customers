@@ -339,7 +339,7 @@ export default function ResultsSection({ userId }) {
           
           let monthlyNeed = neededFromAssets;
           
-          // Withdraw from stocks
+          // Priority 1: Withdraw from stocks first
           if (simStocks > 0 && monthlyNeed > 0) {
             const fromStocks = Math.min(monthlyNeed, simStocks);
             simStocks -= fromStocks;
@@ -347,7 +347,7 @@ export default function ResultsSection({ userId }) {
             monthlyNeed -= fromStocks;
           }
           
-          // Then alt
+          // Priority 2: Then from alternative investments
           if (simAlt > 0 && monthlyNeed > 0) {
             const fromAlt = Math.min(monthlyNeed, simAlt);
             simAlt -= fromAlt;
@@ -355,7 +355,7 @@ export default function ResultsSection({ userId }) {
             monthlyNeed -= fromAlt;
           }
           
-          // Finally keren
+          // Priority 3: ONLY if needed, withdraw from keren hishtalmut (last resort)
           if (simKeren > 0 && includeKeren && monthlyNeed > 0) {
             const fromKeren = Math.min(monthlyNeed, simKeren);
             simKeren -= fromKeren;
@@ -366,7 +366,7 @@ export default function ResultsSection({ userId }) {
           monthCount++;
         }
         
-        // Calculate average monthly amounts
+        // Calculate average monthly amounts - show in priority order
         if (monthCount > 0) {
           if (totalFromStocks > 0) {
             sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(totalFromStocks / monthCount) });
@@ -375,7 +375,7 @@ export default function ResultsSection({ userId }) {
             sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(totalFromAlt / monthCount) });
           }
           if (totalFromKeren > 0 && includeKeren) {
-            sources.push({ source: 'קרן השתלמות', amount: Math.round(totalFromKeren / monthCount) });
+            sources.push({ source: 'קרן השתלמות (מומלץ למשוך רק בשלב מאוחר)', amount: Math.round(totalFromKeren / monthCount) });
           }
         }
         
