@@ -451,6 +451,103 @@ export default function ResultsSection({ userId }) {
       };
     }
 
+    // Calculate additional monthly deposit needed if financial freedom age > target age
+    let additionalMonthlyNeeded = 0;
+    if (isFinancialFreedom && canAchieveGoal && financialFreedomAge > targetAge) {
+      // Binary search to find the additional monthly deposit needed
+      let low = 0;
+      let high = 50000;
+      let bestAmount = 0;
+      
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const testMonthlyDeposit = totalMonthlyDeposit + mid;
+        
+        // Test if this deposit amount allows reaching target at targetAge
+        const yearsToTarget = targetAge - currentAge;
+        let testStocks = totalStockValue;
+        let testAlt = totalAltValue;
+        let testKeren = kerenValue;
+        
+        for (let y = 0; y < yearsToTarget; y++) {
+          testStocks = testStocks * (1 + effectiveReturn) + (testMonthlyDeposit * 12);
+          testAlt = testAlt * (1 + effectiveReturn);
+          if (includeKeren) {
+            testKeren = testKeren * (1 + kerenEffectiveReturn) + (kerenMonthly * 12);
+          }
+        }
+        
+        // Simulate withdrawal from targetAge to 80 without growth
+        let canAchieve = true;
+        let simStocks = testStocks;
+        let simAlt = testAlt;
+        let simKeren = includeKeren ? testKeren : 0;
+        
+        for (let futureAge = targetAge; futureAge <= 80 && canAchieve; futureAge++) {
+          const rental = getNetRentalAtAge(futureAge);
+          const pension = futureAge >= retirementAge ? monthlyPensionAllowance : 0;
+          const oldAge = futureAge >= 70 ? 2300 : 0;
+          const fixedIncome = rental + pension + oldAge;
+          const neededFromAssets = Math.max(0, targetPassiveIncome - fixedIncome);
+          
+          for (let month = 0; month < 12; month++) {
+            if (simStocks === 0 && simAlt === 0 && simKeren === 0) {
+              if (fixedIncome < targetPassiveIncome) {
+                canAchieve = false;
+                break;
+              }
+            }
+            
+            if (neededFromAssets > 0) {
+              let monthlyNeed = neededFromAssets;
+              
+              if (simStocks >= monthlyNeed) {
+                simStocks -= monthlyNeed;
+                monthlyNeed = 0;
+              } else if (simStocks > 0) {
+                monthlyNeed -= simStocks;
+                simStocks = 0;
+              }
+              
+              if (monthlyNeed > 0) {
+                if (simAlt >= monthlyNeed) {
+                  simAlt -= monthlyNeed;
+                  monthlyNeed = 0;
+                } else if (simAlt > 0) {
+                  monthlyNeed -= simAlt;
+                  simAlt = 0;
+                }
+              }
+              
+              if (monthlyNeed > 0) {
+                if (simKeren >= monthlyNeed) {
+                  simKeren -= monthlyNeed;
+                  monthlyNeed = 0;
+                } else if (simKeren > 0) {
+                  monthlyNeed -= simKeren;
+                  simKeren = 0;
+                }
+              }
+              
+              if (monthlyNeed > 0) {
+                canAchieve = false;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (canAchieve) {
+          bestAmount = mid;
+          high = mid - 1;
+        } else {
+          low = mid + 1;
+        }
+      }
+      
+      additionalMonthlyNeeded = Math.ceil(bestAmount / 100) * 100; // Round up to nearest 100
+    }
+
     return {
       currentAge,
       targetAge,
@@ -468,7 +565,8 @@ export default function ResultsSection({ userId }) {
       withdrawalPlan,
       homeSavingsPlan,
       retirementAge,
-      totalMonthlyDeposit
+      totalMonthlyDeposit,
+      additionalMonthlyNeeded
     };
   };
 
@@ -629,9 +727,14 @@ export default function ResultsSection({ userId }) {
                     }
                   </p>
                   {results.canAchieveGoal && results.financialFreedomAge > results.targetAge && (
-                    <p className="text-amber-600 mt-2 font-medium">
-                      💡 שים לב: גיל ההגעה ({results.financialFreedomAge}) מאוחר יותר מגיל היעד שהגדרת ({results.targetAge})
-                    </p>
+                    <div className="text-amber-600 mt-2 font-medium">
+                      <p>💡 שים לב: גיל ההגעה ({results.financialFreedomAge}) מאוחר יותר מגיל היעד שהגדרת ({results.targetAge})</p>
+                      {results.additionalMonthlyNeeded > 0 && (
+                        <p className="mt-1">
+                          כדי להגיע ליעד בגיל {results.targetAge}, תצטרך להוסיף ₪{results.additionalMonthlyNeeded.toLocaleString()} להפקדה החודשית לתיק ההשקעות
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
