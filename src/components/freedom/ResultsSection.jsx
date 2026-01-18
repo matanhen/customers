@@ -218,28 +218,33 @@ export default function ResultsSection({ userId }) {
             simKeren = simKeren * (1 + monthlyGrowth);
           }
           
-          // Try to withdraw monthly need
-          if (neededFromAssets > 0) {
-            let monthlyNeed = neededFromAssets;
+          // Check if we can withdraw the FULL target amount
+          const totalAvailable = simStocks + simAlt + simKeren;
+          if (totalAvailable < neededFromAssets) {
+            canSustainFullIncome = false;
+            break;
+          }
+          
+          // Withdraw the full amount needed
+          let monthlyNeed = neededFromAssets;
+          
+          if (simStocks >= monthlyNeed) {
+            simStocks -= monthlyNeed;
+          } else {
+            monthlyNeed -= simStocks;
+            simStocks = 0;
             
-            if (simStocks >= monthlyNeed) {
-              simStocks -= monthlyNeed;
+            if (simAlt >= monthlyNeed) {
+              simAlt -= monthlyNeed;
             } else {
-              monthlyNeed -= simStocks;
-              simStocks = 0;
+              monthlyNeed -= simAlt;
+              simAlt = 0;
               
-              if (simAlt >= monthlyNeed) {
-                simAlt -= monthlyNeed;
+              if (simKeren >= monthlyNeed) {
+                simKeren -= monthlyNeed;
               } else {
-                monthlyNeed -= simAlt;
-                simAlt = 0;
-                
-                if (simKeren >= monthlyNeed) {
-                  simKeren -= monthlyNeed;
-                } else {
-                  canSustainFullIncome = false;
-                  break;
-                }
+                canSustainFullIncome = false;
+                break;
               }
             }
           }
