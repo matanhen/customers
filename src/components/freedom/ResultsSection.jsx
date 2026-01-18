@@ -275,15 +275,15 @@ export default function ResultsSection({ userId }) {
 
     // Calculate detailed withdrawal plan - WITHOUT growth, pure withdrawals only
     const withdrawalPlan = [];
-    let currentAge = financialFreedomAge;
+    let withdrawalAge = financialFreedomAge;
     let remainingStocks = projectedStocks;
     let remainingAlt = projectedAlt;
     let remainingKeren = includeKeren ? projectedKeren : 0;
 
-    while (currentAge < 80) {
-      const rental = getNetRentalAtAge(currentAge);
-      const pension = currentAge >= retirementAge ? monthlyPensionAllowance : 0;
-      const oldAge = currentAge >= 70 ? 2300 : 0;
+    while (withdrawalAge < 80) {
+      const rental = getNetRentalAtAge(withdrawalAge);
+      const pension = withdrawalAge >= retirementAge ? monthlyPensionAllowance : 0;
+      const oldAge = withdrawalAge >= 70 ? 2300 : 0;
       const totalFixed = rental + pension + oldAge;
       
       const neededFromAssets = Math.max(0, targetPassiveIncome - totalFixed);
@@ -296,7 +296,7 @@ export default function ResultsSection({ userId }) {
         if (oldAge > 0) sources.push({ source: 'קצבת זקנה', amount: oldAge });
         
         withdrawalPlan.push({
-          ageRange: `${currentAge}-80`,
+          ageRange: `${withdrawalAge}-80`,
           sources,
           totalMonthly: Math.round(totalFixed),
           meetsTarget: true
@@ -318,53 +318,53 @@ export default function ResultsSection({ userId }) {
       if (monthsFromStocks > 0) {
         // Use stocks first
         const yearsFromStocks = Math.floor(monthsFromStocks / 12);
-        const endAge = Math.min(currentAge + yearsFromStocks, 80);
+        const endAge = Math.min(withdrawalAge + yearsFromStocks, 80);
         
         sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(neededFromAssets) });
         
         withdrawalPlan.push({
-          ageRange: `${currentAge}-${endAge}`,
+          ageRange: `${withdrawalAge}-${endAge}`,
           sources,
           totalMonthly: targetPassiveIncome,
           meetsTarget: true
         });
         
-        remainingStocks -= neededFromAssets * (endAge - currentAge) * 12;
-        currentAge = endAge;
+        remainingStocks -= neededFromAssets * (endAge - withdrawalAge) * 12;
+        withdrawalAge = endAge;
         
       } else if (monthsFromAlt > 0) {
         // Stocks depleted, use alternative investments
         const yearsFromAlt = Math.floor(monthsFromAlt / 12);
-        const endAge = Math.min(currentAge + yearsFromAlt, 80);
+        const endAge = Math.min(withdrawalAge + yearsFromAlt, 80);
         
         sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(neededFromAssets) });
         
         withdrawalPlan.push({
-          ageRange: `${currentAge}-${endAge}`,
+          ageRange: `${withdrawalAge}-${endAge}`,
           sources,
           totalMonthly: targetPassiveIncome,
           meetsTarget: true
         });
         
-        remainingAlt -= neededFromAssets * (endAge - currentAge) * 12;
-        currentAge = endAge;
+        remainingAlt -= neededFromAssets * (endAge - withdrawalAge) * 12;
+        withdrawalAge = endAge;
         
       } else if (monthsFromKeren > 0) {
         // Stocks and alt depleted, use keren hishtalmut (last resort)
         const yearsFromKeren = Math.floor(monthsFromKeren / 12);
-        const endAge = Math.min(currentAge + yearsFromKeren, 80);
+        const endAge = Math.min(withdrawalAge + yearsFromKeren, 80);
         
         sources.push({ source: 'קרן השתלמות (מומלץ למשוך רק בשלב מאוחר)', amount: Math.round(neededFromAssets) });
         
         withdrawalPlan.push({
-          ageRange: `${currentAge}-${endAge}`,
+          ageRange: `${withdrawalAge}-${endAge}`,
           sources,
           totalMonthly: targetPassiveIncome,
           meetsTarget: true
         });
         
-        remainingKeren -= neededFromAssets * (endAge - currentAge) * 12;
-        currentAge = endAge;
+        remainingKeren -= neededFromAssets * (endAge - withdrawalAge) * 12;
+        withdrawalAge = endAge;
         
       } else {
         // No assets left - can only rely on fixed income
