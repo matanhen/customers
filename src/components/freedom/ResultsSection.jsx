@@ -273,126 +273,102 @@ export default function ResultsSection({ userId }) {
       }
     }
 
-    // Calculate detailed withdrawal plan - simulate actual withdrawals
+    // Calculate detailed withdrawal plan - WITHOUT growth, pure withdrawals only
     const withdrawalPlan = [];
-    let tempStocks = projectedStocks;
-    let tempAlt = projectedAlt;
-    let tempKeren = includeKeren ? projectedKeren : 0;
+    let currentAge = financialFreedomAge;
+    let remainingStocks = projectedStocks;
+    let remainingAlt = projectedAlt;
+    let remainingKeren = includeKeren ? projectedKeren : 0;
 
-    const ageRanges = [];
-    if (financialFreedomAge < retirementAge) {
-      ageRanges.push({ start: financialFreedomAge, end: retirementAge });
-    }
-    if (retirementAge < 70) {
-      ageRanges.push({ start: retirementAge, end: 70 });
-    }
-    if (financialFreedomAge >= 70 || retirementAge >= 70) {
-      ageRanges.push({ start: Math.max(financialFreedomAge, retirementAge, 70), end: 80 });
-    }
-
-    const filteredRanges = ageRanges.filter(r => r.start < r.end && r.start >= financialFreedomAge);
-
-    for (const range of filteredRanges) {
-      const yearsInRange = range.end - range.start;
-      const monthsInRange = yearsInRange * 12;
-      
-      // Calculate fixed income for this age range
-      const rental = getNetRentalAtAge(range.start);
-      const pension = range.start >= retirementAge ? monthlyPensionAllowance : 0;
-      const oldAge = range.start >= 70 ? 2300 : 0;
+    while (currentAge < 80) {
+      const rental = getNetRentalAtAge(currentAge);
+      const pension = currentAge >= retirementAge ? monthlyPensionAllowance : 0;
+      const oldAge = currentAge >= 70 ? 2300 : 0;
       const totalFixed = rental + pension + oldAge;
       
       const neededFromAssets = Math.max(0, targetPassiveIncome - totalFixed);
       
-      const sources = [];
-      
-      if (rental > 0) {
-        sources.push({ source: 'הכנסה נטו מדירה להשקעה', amount: Math.round(rental) });
-      }
-      if (pension > 0) {
-        sources.push({ source: `קצבה חודשית מפנסיה (מגיל ${retirementAge})`, amount: pension });
-      }
-      if (oldAge > 0) {
-        sources.push({ source: 'קצבת זקנה', amount: oldAge });
-      }
-
-      if (neededFromAssets > 0) {
-        // Track total withdrawals from each source
-        let totalFromStocks = 0;
-        let totalFromAlt = 0;
-        let totalFromKeren = 0;
-        let monthCount = 0;
+      if (neededFromAssets <= 0) {
+        // Fixed income covers everything
+        const sources = [];
+        if (rental > 0) sources.push({ source: 'הכנסה נטו מדירה להשקעה', amount: Math.round(rental) });
+        if (pension > 0) sources.push({ source: `קצבה חודשית מפנסיה`, amount: pension });
+        if (oldAge > 0) sources.push({ source: 'קצבת זקנה', amount: oldAge });
         
-        let simStocks = tempStocks;
-        let simAlt = tempAlt;
-        let simKeren = tempKeren;
-        
-        const monthlyGrowth = 0.06 / 12;
-        
-        for (let month = 0; month < monthsInRange; month++) {
-          // Apply growth
-          simStocks = simStocks * (1 + monthlyGrowth);
-          simAlt = simAlt * (1 + monthlyGrowth);
-          if (includeKeren) {
-            simKeren = simKeren * (1 + monthlyGrowth);
-          }
-          
-          let monthlyNeed = neededFromAssets;
-          
-          // Priority 1: Withdraw from stocks first
-          if (simStocks > 0 && monthlyNeed > 0) {
-            const fromStocks = Math.min(monthlyNeed, simStocks);
-            simStocks -= fromStocks;
-            totalFromStocks += fromStocks;
-            monthlyNeed -= fromStocks;
-          }
-          
-          // Priority 2: Then from alternative investments
-          if (simAlt > 0 && monthlyNeed > 0) {
-            const fromAlt = Math.min(monthlyNeed, simAlt);
-            simAlt -= fromAlt;
-            totalFromAlt += fromAlt;
-            monthlyNeed -= fromAlt;
-          }
-          
-          // Priority 3: ONLY if needed, withdraw from keren hishtalmut (last resort)
-          if (simKeren > 0 && includeKeren && monthlyNeed > 0) {
-            const fromKeren = Math.min(monthlyNeed, simKeren);
-            simKeren -= fromKeren;
-            totalFromKeren += fromKeren;
-            monthlyNeed -= fromKeren;
-          }
-          
-          monthCount++;
-        }
-        
-        // Calculate average monthly amounts - show in priority order
-        if (monthCount > 0) {
-          if (totalFromStocks > 0) {
-            sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(totalFromStocks / monthCount) });
-          }
-          if (totalFromAlt > 0) {
-            sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(totalFromAlt / monthCount) });
-          }
-          if (totalFromKeren > 0 && includeKeren) {
-            sources.push({ source: 'קרן השתלמות (מומלץ למשוך רק בשלב מאוחר)', amount: Math.round(totalFromKeren / monthCount) });
-          }
-        }
-        
-        // Update for next range
-        tempStocks = simStocks;
-        tempAlt = simAlt;
-        tempKeren = simKeren;
-      }
-
-      if (sources.length > 0) {
-        const totalMonthly = sources.reduce((sum, s) => sum + s.amount, 0);
         withdrawalPlan.push({
-          ageRange: `${range.start}-${range.end}`,
+          ageRange: `${currentAge}-80`,
           sources,
-          totalMonthly,
-          meetsTarget: Math.abs(totalMonthly - targetPassiveIncome) < 100 || totalMonthly >= targetPassiveIncome
+          totalMonthly: Math.round(totalFixed),
+          meetsTarget: true
         });
+        break;
+      }
+      
+      // Calculate how many months each asset can last
+      let monthsFromStocks = remainingStocks > 0 ? Math.floor(remainingStocks / neededFromAssets) : 0;
+      let monthsFromAlt = remainingAlt > 0 ? Math.floor(remainingAlt / neededFromAssets) : 0;
+      let monthsFromKeren = (remainingKeren > 0 && includeKeren) ? Math.floor(remainingKeren / neededFromAssets) : 0;
+      
+      const sources = [];
+      if (rental > 0) sources.push({ source: 'הכנסה נטו מדירה להשקעה', amount: Math.round(rental) });
+      if (pension > 0) sources.push({ source: `קצבה חודשית מפנסיה`, amount: pension });
+      if (oldAge > 0) sources.push({ source: 'קצבת זקנה', amount: oldAge });
+      
+      // Determine which asset to use and for how long
+      if (monthsFromStocks > 0) {
+        // Use stocks first
+        const yearsFromStocks = Math.floor(monthsFromStocks / 12);
+        const endAge = Math.min(currentAge + yearsFromStocks, 80);
+        
+        sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(neededFromAssets) });
+        
+        withdrawalPlan.push({
+          ageRange: `${currentAge}-${endAge}`,
+          sources,
+          totalMonthly: targetPassiveIncome,
+          meetsTarget: true
+        });
+        
+        remainingStocks -= neededFromAssets * (endAge - currentAge) * 12;
+        currentAge = endAge;
+        
+      } else if (monthsFromAlt > 0) {
+        // Stocks depleted, use alternative investments
+        const yearsFromAlt = Math.floor(monthsFromAlt / 12);
+        const endAge = Math.min(currentAge + yearsFromAlt, 80);
+        
+        sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(neededFromAssets) });
+        
+        withdrawalPlan.push({
+          ageRange: `${currentAge}-${endAge}`,
+          sources,
+          totalMonthly: targetPassiveIncome,
+          meetsTarget: true
+        });
+        
+        remainingAlt -= neededFromAssets * (endAge - currentAge) * 12;
+        currentAge = endAge;
+        
+      } else if (monthsFromKeren > 0) {
+        // Stocks and alt depleted, use keren hishtalmut (last resort)
+        const yearsFromKeren = Math.floor(monthsFromKeren / 12);
+        const endAge = Math.min(currentAge + yearsFromKeren, 80);
+        
+        sources.push({ source: 'קרן השתלמות (מומלץ למשוך רק בשלב מאוחר)', amount: Math.round(neededFromAssets) });
+        
+        withdrawalPlan.push({
+          ageRange: `${currentAge}-${endAge}`,
+          sources,
+          totalMonthly: targetPassiveIncome,
+          meetsTarget: true
+        });
+        
+        remainingKeren -= neededFromAssets * (endAge - currentAge) * 12;
+        currentAge = endAge;
+        
+      } else {
+        // No assets left - can only rely on fixed income
+        break;
       }
     }
 
@@ -650,8 +626,8 @@ export default function ResultsSection({ userId }) {
                 <div className="text-sm text-blue-800">
                   <p className="font-semibold mb-1">הערה חשובה:</p>
                   <p>
-                    החישוב מבוסס על תשואה ממוצעת של 6% בשנה (גם לאחר הפסקת ההפקדות). 
-                    בגיל הפרישה מומלץ להוריד סיכון בתיק ההשקעות ולהתאים את התמהיל לסיכון נמוך יותר.
+                    החישוב מבוסס על משיכה מתיק ההשקעות ללא רווחים נוספים, ככל שיהיו רווחים נוספים - התיק יוכל להחזיק לאורך יותר זמן. 
+                    בגיל הפרישה מומלץ להוריד סיכון בתיק ההשקעות ולהתאים את התמהיל לסיכון נמוך יותר, בכך התיק יוכל להניב בין 4-6% נוספים בשנה.
                   </p>
                 </div>
               </div>
