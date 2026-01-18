@@ -196,6 +196,7 @@ export default function ResultsSection({ userId }) {
       }
 
       // Check if at this age we can withdraw target income for all years until 80
+      // WITHOUT any growth - pure withdrawal simulation
       let canSustainFullIncome = true;
       let simStocks = stocksAtAge;
       let simAlt = altAtAge;
@@ -209,43 +210,55 @@ export default function ResultsSection({ userId }) {
         
         const neededFromAssets = Math.max(0, targetPassiveIncome - fixedIncome);
         
-        // Apply 6% annual growth (monthly)
-        const monthlyGrowth = postTargetReturn / 12;
+        // Simulate withdrawal for each month of this year - NO GROWTH
         for (let month = 0; month < 12; month++) {
-          simStocks = simStocks * (1 + monthlyGrowth);
-          simAlt = simAlt * (1 + monthlyGrowth);
-          if (includeKeren) {
-            simKeren = simKeren * (1 + monthlyGrowth);
+          // If no assets and fixed income doesn't meet target, fail
+          if (simStocks === 0 && simAlt === 0 && simKeren === 0) {
+            if (fixedIncome < targetPassiveIncome) {
+              canSustainFullIncome = false;
+              break;
+            }
           }
           
-          // Check if we can withdraw the FULL target amount
-          const totalAvailable = simStocks + simAlt + simKeren;
-          if (totalAvailable < neededFromAssets) {
-            canSustainFullIncome = false;
-            break;
-          }
-          
-          // Withdraw the full amount needed
-          let monthlyNeed = neededFromAssets;
-          
-          if (simStocks >= monthlyNeed) {
-            simStocks -= monthlyNeed;
-          } else {
-            monthlyNeed -= simStocks;
-            simStocks = 0;
+          // If we need to withdraw from assets
+          if (neededFromAssets > 0) {
+            let monthlyNeed = neededFromAssets;
             
-            if (simAlt >= monthlyNeed) {
-              simAlt -= monthlyNeed;
-            } else {
-              monthlyNeed -= simAlt;
-              simAlt = 0;
-              
+            // Priority 1: Withdraw from stocks
+            if (simStocks >= monthlyNeed) {
+              simStocks -= monthlyNeed;
+              monthlyNeed = 0;
+            } else if (simStocks > 0) {
+              monthlyNeed -= simStocks;
+              simStocks = 0;
+            }
+            
+            // Priority 2: Withdraw from alt
+            if (monthlyNeed > 0) {
+              if (simAlt >= monthlyNeed) {
+                simAlt -= monthlyNeed;
+                monthlyNeed = 0;
+              } else if (simAlt > 0) {
+                monthlyNeed -= simAlt;
+                simAlt = 0;
+              }
+            }
+            
+            // Priority 3: Withdraw from keren
+            if (monthlyNeed > 0) {
               if (simKeren >= monthlyNeed) {
                 simKeren -= monthlyNeed;
-              } else {
-                canSustainFullIncome = false;
-                break;
+                monthlyNeed = 0;
+              } else if (simKeren > 0) {
+                monthlyNeed -= simKeren;
+                simKeren = 0;
               }
+            }
+            
+            // If we still need money and don't have it - fail
+            if (monthlyNeed > 0) {
+              canSustainFullIncome = false;
+              break;
             }
           }
         }
