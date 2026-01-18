@@ -195,11 +195,11 @@ export default function ResultsSection({ userId }) {
         }
       }
 
-      let remainingStocks = stocksAtAge;
-      let remainingAlt = altAtAge;
-      let remainingKeren = includeKeren ? kerenAtAge : 0;
-      let canSustain = true;
-      let meetsTargetIncome = false;
+      // Check if at this age we can withdraw target income for all years until 80
+      let canSustainFullIncome = true;
+      let simStocks = stocksAtAge;
+      let simAlt = altAtAge;
+      let simKeren = includeKeren ? kerenAtAge : 0;
 
       for (let futureAge = testAge; futureAge <= 80; futureAge++) {
         const rental = getNetRentalAtAge(futureAge);
@@ -208,54 +208,47 @@ export default function ResultsSection({ userId }) {
         const fixedIncome = rental + pension + oldAge;
         
         const neededFromAssets = Math.max(0, targetPassiveIncome - fixedIncome);
-        const yearlyNeed = neededFromAssets * 12;
-
-        // Apply 6% growth even after stopping deposits
-        remainingStocks = remainingStocks * (1 + postTargetReturn);
-        remainingAlt = remainingAlt * (1 + postTargetReturn);
-        if (includeKeren) {
-          remainingKeren = remainingKeren * (1 + postTargetReturn);
-        }
-
-        if (yearlyNeed > 0) {
-          // Check if we can withdraw the full target amount
-          const totalAvailable = remainingStocks + remainingAlt + remainingKeren;
-          if (totalAvailable >= yearlyNeed && futureAge === testAge) {
-            meetsTargetIncome = true;
+        
+        // Apply 6% annual growth (monthly)
+        const monthlyGrowth = postTargetReturn / 12;
+        for (let month = 0; month < 12; month++) {
+          simStocks = simStocks * (1 + monthlyGrowth);
+          simAlt = simAlt * (1 + monthlyGrowth);
+          if (includeKeren) {
+            simKeren = simKeren * (1 + monthlyGrowth);
           }
-
-          if (remainingStocks >= yearlyNeed) {
-            remainingStocks -= yearlyNeed;
-          } else {
-            const fromStocks = remainingStocks;
-            remainingStocks = 0;
-            const stillNeeded = yearlyNeed - fromStocks;
+          
+          // Try to withdraw monthly need
+          if (neededFromAssets > 0) {
+            let monthlyNeed = neededFromAssets;
             
-            if (remainingAlt >= stillNeeded) {
-              remainingAlt -= stillNeeded;
+            if (simStocks >= monthlyNeed) {
+              simStocks -= monthlyNeed;
             } else {
-              const fromAlt = remainingAlt;
-              remainingAlt = 0;
-              const finalNeed = stillNeeded - fromAlt;
+              monthlyNeed -= simStocks;
+              simStocks = 0;
               
-              if (remainingKeren >= finalNeed) {
-                remainingKeren -= finalNeed;
+              if (simAlt >= monthlyNeed) {
+                simAlt -= monthlyNeed;
               } else {
-                canSustain = false;
-                break;
+                monthlyNeed -= simAlt;
+                simAlt = 0;
+                
+                if (simKeren >= monthlyNeed) {
+                  simKeren -= monthlyNeed;
+                } else {
+                  canSustainFullIncome = false;
+                  break;
+                }
               }
             }
           }
-        } else {
-          // Fixed income covers target, so we meet the target
-          if (futureAge === testAge) {
-            meetsTargetIncome = true;
-          }
         }
+        
+        if (!canSustainFullIncome) break;
       }
 
-      // Only consider this age if we can actually withdraw the target amount
-      if (canSustain && meetsTargetIncome) {
+      if (canSustainFullIncome) {
         financialFreedomAge = testAge;
         canAchieveGoal = true;
         break;
@@ -275,7 +268,7 @@ export default function ResultsSection({ userId }) {
       }
     }
 
-    // Calculate detailed withdrawal plan with proper depletion over time
+    // Calculate detailed withdrawal plan - simulate actual withdrawals
     const withdrawalPlan = [];
     let tempStocks = projectedStocks;
     let tempAlt = projectedAlt;
@@ -306,7 +299,6 @@ export default function ResultsSection({ userId }) {
       
       const neededFromAssets = Math.max(0, targetPassiveIncome - totalFixed);
       
-      // Calculate how much we can withdraw from each asset over this period
       const sources = [];
       
       if (rental > 0) {
@@ -320,76 +312,72 @@ export default function ResultsSection({ userId }) {
       }
 
       if (neededFromAssets > 0) {
-        // Calculate monthly withdrawal amounts that can be sustained over this range
-        let monthlyStocks = 0;
-        let monthlyAlt = 0;
-        let monthlyKeren = 0;
+        // Track total withdrawals from each source
+        let totalFromStocks = 0;
+        let totalFromAlt = 0;
+        let totalFromKeren = 0;
+        let monthCount = 0;
         
-        // Simulate withdrawals over the period with 6% growth
         let simStocks = tempStocks;
         let simAlt = tempAlt;
         let simKeren = tempKeren;
         
-        // Try to find sustainable withdrawal amounts
-        let canSustain = true;
-        const targetMonthly = neededFromAssets;
+        const monthlyGrowth = 0.06 / 12;
         
-        // Calculate what we can withdraw per month from each source
-        for (let month = 0; month < monthsInRange && canSustain; month++) {
-          // Apply monthly growth (6% annual = 0.5% monthly)
-          const monthlyGrowth = 0.06 / 12;
+        for (let month = 0; month < monthsInRange; month++) {
+          // Apply growth
           simStocks = simStocks * (1 + monthlyGrowth);
           simAlt = simAlt * (1 + monthlyGrowth);
-          simKeren = simKeren * (1 + monthlyGrowth);
+          if (includeKeren) {
+            simKeren = simKeren * (1 + monthlyGrowth);
+          }
           
-          let stillNeed = targetMonthly;
+          let monthlyNeed = neededFromAssets;
           
-          // Withdraw from stocks first
-          if (simStocks > 0 && stillNeed > 0) {
-            const fromStocks = Math.min(stillNeed, simStocks);
+          // Withdraw from stocks
+          if (simStocks > 0 && monthlyNeed > 0) {
+            const fromStocks = Math.min(monthlyNeed, simStocks);
             simStocks -= fromStocks;
-            if (month === 0) monthlyStocks = fromStocks;
-            stillNeed -= fromStocks;
+            totalFromStocks += fromStocks;
+            monthlyNeed -= fromStocks;
           }
           
-          // Then from alt
-          if (simAlt > 0 && stillNeed > 0) {
-            const fromAlt = Math.min(stillNeed, simAlt);
+          // Then alt
+          if (simAlt > 0 && monthlyNeed > 0) {
+            const fromAlt = Math.min(monthlyNeed, simAlt);
             simAlt -= fromAlt;
-            if (month === 0) monthlyAlt = fromAlt;
-            stillNeed -= fromAlt;
+            totalFromAlt += fromAlt;
+            monthlyNeed -= fromAlt;
           }
           
-          // Finally from keren if enabled
-          if (simKeren > 0 && includeKeren && stillNeed > 0) {
-            const fromKeren = Math.min(stillNeed, simKeren);
+          // Finally keren
+          if (simKeren > 0 && includeKeren && monthlyNeed > 0) {
+            const fromKeren = Math.min(monthlyNeed, simKeren);
             simKeren -= fromKeren;
-            if (month === 0) monthlyKeren = fromKeren;
-            stillNeed -= fromKeren;
+            totalFromKeren += fromKeren;
+            monthlyNeed -= fromKeren;
           }
           
-          // If we couldn't withdraw the full amount, we can't sustain
-          if (stillNeed > 0.01) {
-            canSustain = false;
+          monthCount++;
+        }
+        
+        // Calculate average monthly amounts
+        if (monthCount > 0) {
+          if (totalFromStocks > 0) {
+            sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(totalFromStocks / monthCount) });
+          }
+          if (totalFromAlt > 0) {
+            sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(totalFromAlt / monthCount) });
+          }
+          if (totalFromKeren > 0 && includeKeren) {
+            sources.push({ source: 'קרן השתלמות', amount: Math.round(totalFromKeren / monthCount) });
           }
         }
         
-        if (canSustain) {
-          if (monthlyStocks > 0) {
-            sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(monthlyStocks) });
-          }
-          if (monthlyAlt > 0) {
-            sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(monthlyAlt) });
-          }
-          if (monthlyKeren > 0 && includeKeren) {
-            sources.push({ source: 'קרן השתלמות', amount: Math.round(monthlyKeren) });
-          }
-          
-          // Update remaining amounts for next range
-          tempStocks = simStocks;
-          tempAlt = simAlt;
-          tempKeren = simKeren;
-        }
+        // Update for next range
+        tempStocks = simStocks;
+        tempAlt = simAlt;
+        tempKeren = simKeren;
       }
 
       if (sources.length > 0) {
