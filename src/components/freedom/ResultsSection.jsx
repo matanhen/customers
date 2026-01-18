@@ -275,72 +275,120 @@ export default function ResultsSection({ userId }) {
       }
     }
 
+    // Calculate detailed withdrawal plan with proper depletion over time
     const withdrawalPlan = [];
-    let remainingStocks = projectedStocks;
-    let remainingAlt = projectedAlt;
-    let remainingKeren = includeKeren ? projectedKeren : 0;
+    let tempStocks = projectedStocks;
+    let tempAlt = projectedAlt;
+    let tempKeren = includeKeren ? projectedKeren : 0;
 
     const ageRanges = [];
     if (financialFreedomAge < retirementAge) {
-      ageRanges.push({ start: financialFreedomAge, end: Math.min(70, retirementAge) });
+      ageRanges.push({ start: financialFreedomAge, end: retirementAge });
     }
     if (retirementAge < 70) {
       ageRanges.push({ start: retirementAge, end: 70 });
     }
-    ageRanges.push({ start: Math.max(financialFreedomAge, 70), end: 80 });
+    if (financialFreedomAge >= 70 || retirementAge >= 70) {
+      ageRanges.push({ start: Math.max(financialFreedomAge, retirementAge, 70), end: 80 });
+    }
 
     const filteredRanges = ageRanges.filter(r => r.start < r.end && r.start >= financialFreedomAge);
 
     for (const range of filteredRanges) {
-      const sources = [];
+      const yearsInRange = range.end - range.start;
+      const monthsInRange = yearsInRange * 12;
+      
+      // Calculate fixed income for this age range
       const rental = getNetRentalAtAge(range.start);
       const pension = range.start >= retirementAge ? monthlyPensionAllowance : 0;
       const oldAge = range.start >= 70 ? 2300 : 0;
+      const totalFixed = rental + pension + oldAge;
       
-      let totalFixed = 0;
+      const neededFromAssets = Math.max(0, targetPassiveIncome - totalFixed);
+      
+      // Calculate how much we can withdraw from each asset over this period
+      const sources = [];
+      
       if (rental > 0) {
         sources.push({ source: 'הכנסה נטו מדירה להשקעה', amount: Math.round(rental) });
-        totalFixed += rental;
       }
       if (pension > 0) {
         sources.push({ source: `קצבה חודשית מפנסיה (מגיל ${retirementAge})`, amount: pension });
-        totalFixed += pension;
       }
       if (oldAge > 0) {
         sources.push({ source: 'קצבת זקנה', amount: oldAge });
-        totalFixed += oldAge;
       }
 
-      const neededFromLiquid = Math.max(0, targetPassiveIncome - totalFixed);
-      
-      if (neededFromLiquid > 0) {
-        let stillNeeded = neededFromLiquid;
+      if (neededFromAssets > 0) {
+        // Calculate monthly withdrawal amounts that can be sustained over this range
+        let monthlyStocks = 0;
+        let monthlyAlt = 0;
+        let monthlyKeren = 0;
         
-        // Try to withdraw from stocks first
-        if (remainingStocks > 0 && stillNeeded > 0) {
-          const monthlyFromStocks = Math.min(stillNeeded, remainingStocks / 12);
-          if (monthlyFromStocks > 0) {
-            sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(monthlyFromStocks) });
-            stillNeeded -= monthlyFromStocks;
+        // Simulate withdrawals over the period with 6% growth
+        let simStocks = tempStocks;
+        let simAlt = tempAlt;
+        let simKeren = tempKeren;
+        
+        // Try to find sustainable withdrawal amounts
+        let canSustain = true;
+        const targetMonthly = neededFromAssets;
+        
+        // Calculate what we can withdraw per month from each source
+        for (let month = 0; month < monthsInRange && canSustain; month++) {
+          // Apply monthly growth (6% annual = 0.5% monthly)
+          const monthlyGrowth = 0.06 / 12;
+          simStocks = simStocks * (1 + monthlyGrowth);
+          simAlt = simAlt * (1 + monthlyGrowth);
+          simKeren = simKeren * (1 + monthlyGrowth);
+          
+          let stillNeed = targetMonthly;
+          
+          // Withdraw from stocks first
+          if (simStocks > 0 && stillNeed > 0) {
+            const fromStocks = Math.min(stillNeed, simStocks);
+            simStocks -= fromStocks;
+            if (month === 0) monthlyStocks = fromStocks;
+            stillNeed -= fromStocks;
+          }
+          
+          // Then from alt
+          if (simAlt > 0 && stillNeed > 0) {
+            const fromAlt = Math.min(stillNeed, simAlt);
+            simAlt -= fromAlt;
+            if (month === 0) monthlyAlt = fromAlt;
+            stillNeed -= fromAlt;
+          }
+          
+          // Finally from keren if enabled
+          if (simKeren > 0 && includeKeren && stillNeed > 0) {
+            const fromKeren = Math.min(stillNeed, simKeren);
+            simKeren -= fromKeren;
+            if (month === 0) monthlyKeren = fromKeren;
+            stillNeed -= fromKeren;
+          }
+          
+          // If we couldn't withdraw the full amount, we can't sustain
+          if (stillNeed > 0.01) {
+            canSustain = false;
           }
         }
         
-        // Then from alternative investments
-        if (remainingAlt > 0 && stillNeeded > 0) {
-          const monthlyFromAlt = Math.min(stillNeeded, remainingAlt / 12);
-          if (monthlyFromAlt > 0) {
-            sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(monthlyFromAlt) });
-            stillNeeded -= monthlyFromAlt;
+        if (canSustain) {
+          if (monthlyStocks > 0) {
+            sources.push({ source: 'תיק השקעות / קופת גמל להשקעה', amount: Math.round(monthlyStocks) });
           }
-        }
-        
-        // Finally from keren hishtalmut if enabled
-        if (remainingKeren > 0 && includeKeren && stillNeeded > 0) {
-          const monthlyFromKeren = Math.min(stillNeeded, remainingKeren / 12);
-          if (monthlyFromKeren > 0) {
-            sources.push({ source: 'קרן השתלמות', amount: Math.round(monthlyFromKeren) });
-            stillNeeded -= monthlyFromKeren;
+          if (monthlyAlt > 0) {
+            sources.push({ source: 'השקעות אלטרנטיביות', amount: Math.round(monthlyAlt) });
           }
+          if (monthlyKeren > 0 && includeKeren) {
+            sources.push({ source: 'קרן השתלמות', amount: Math.round(monthlyKeren) });
+          }
+          
+          // Update remaining amounts for next range
+          tempStocks = simStocks;
+          tempAlt = simAlt;
+          tempKeren = simKeren;
         }
       }
 
@@ -350,7 +398,7 @@ export default function ResultsSection({ userId }) {
           ageRange: `${range.start}-${range.end}`,
           sources,
           totalMonthly,
-          meetsTarget: totalMonthly >= targetPassiveIncome
+          meetsTarget: Math.abs(totalMonthly - targetPassiveIncome) < 100 || totalMonthly >= targetPassiveIncome
         });
       }
     }
