@@ -469,7 +469,7 @@ export default function ResultsSection({ userId }) {
       if (vehicleLiabilities && typeof vehicleLiabilities === 'object') {
         Object.values(vehicleLiabilities).forEach(item => {
           if (item && typeof item === 'object') {
-            totalVehicleLiabilities += Number(item.remaining_amount) || 0;
+            totalVehicleLiabilities += Number(item.total_debt) || 0;
             vehicleMonthlyPayments += Number(item.monthly_payment) || 0;
           }
         });
@@ -480,7 +480,7 @@ export default function ResultsSection({ userId }) {
       if (pensionLiabilities && typeof pensionLiabilities === 'object') {
         Object.values(pensionLiabilities).forEach(item => {
           if (item && typeof item === 'object') {
-            totalPensionLiabilities += Number(item.remaining_amount) || 0;
+            totalPensionLiabilities += Number(item.total_debt) || 0;
             pensionMonthlyPayments += Number(item.monthly_payment) || 0;
           }
         });
@@ -491,7 +491,7 @@ export default function ResultsSection({ userId }) {
       if (generalLiabilities && typeof generalLiabilities === 'object') {
         Object.values(generalLiabilities).forEach(item => {
           if (item && typeof item === 'object') {
-            totalGeneralLiabilities += Number(item.remaining_amount) || 0;
+            totalGeneralLiabilities += Number(item.total_debt) || 0;
             generalMonthlyPayments += Number(item.monthly_payment) || 0;
           }
         });
