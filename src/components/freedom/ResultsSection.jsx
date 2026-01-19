@@ -433,34 +433,60 @@ export default function ResultsSection({ userId }) {
 
     let homeSavingsPlan = null;
     if (!isFinancialFreedom) {
-      // Calculate current assets (cash + stocks + alternative + keren)
-      const currentAssets = totalStockValue + totalAltValue + kerenValue;
+      // Calculate assets breakdown
+      const cashAssets = assets.cash || {};
+      const vehicleAssets = assets.vehicles || {};
 
-      // Calculate liabilities (excluding real estate - only vehicles, pension loans, general loans)
+      // Cash (excluding emergency fund and dreams savings)
+      let totalCash = 0;
+      Object.entries(cashAssets).forEach(([key, item]) => {
+        if (key !== 'קרן ביטחון' && key !== 'חיסכון חלומות') {
+          totalCash += item.value || 0;
+        }
+      });
+
+      // Vehicles
+      let totalVehicles = 0;
+      Object.values(vehicleAssets).forEach(item => {
+        totalVehicles += item.value || 0;
+      });
+
+      // Stocks (already calculated as totalStockValue)
+      const totalStocks = totalStockValue;
+
+      // Alternative investments (already calculated as totalAltValue)
+      const totalAlternative = totalAltValue;
+
+      const currentAssets = totalCash + totalVehicles + totalStocks + totalAlternative;
+
+      // Calculate liabilities breakdown (vehicles, pension, general)
       const vehicleLiabilities = liabilities.vehicles || {};
       const pensionLiabilities = liabilities.pension || {};
       const generalLiabilities = liabilities.general || {};
 
-      let totalLiabilities = 0;
-      let totalMonthlyPayments = 0;
-
-      // Sum vehicle liabilities
+      let totalVehicleLiabilities = 0;
+      let vehicleMonthlyPayments = 0;
       Object.values(vehicleLiabilities).forEach(item => {
-        totalLiabilities += item.remaining_amount || 0;
-        totalMonthlyPayments += item.monthly_payment || 0;
+        totalVehicleLiabilities += item.remaining_amount || 0;
+        vehicleMonthlyPayments += item.monthly_payment || 0;
       });
 
-      // Sum pension liabilities
+      let totalPensionLiabilities = 0;
+      let pensionMonthlyPayments = 0;
       Object.values(pensionLiabilities).forEach(item => {
-        totalLiabilities += item.remaining_amount || 0;
-        totalMonthlyPayments += item.monthly_payment || 0;
+        totalPensionLiabilities += item.remaining_amount || 0;
+        pensionMonthlyPayments += item.monthly_payment || 0;
       });
 
-      // Sum general liabilities
+      let totalGeneralLiabilities = 0;
+      let generalMonthlyPayments = 0;
       Object.values(generalLiabilities).forEach(item => {
-        totalLiabilities += item.remaining_amount || 0;
-        totalMonthlyPayments += item.monthly_payment || 0;
+        totalGeneralLiabilities += item.remaining_amount || 0;
+        generalMonthlyPayments += item.monthly_payment || 0;
       });
+
+      const totalLiabilities = totalVehicleLiabilities + totalPensionLiabilities + totalGeneralLiabilities;
+      const totalMonthlyPayments = vehicleMonthlyPayments + pensionMonthlyPayments + generalMonthlyPayments;
 
       const currentNetWorth = currentAssets - totalLiabilities;
 
@@ -528,8 +554,19 @@ export default function ResultsSection({ userId }) {
       }
 
       homeSavingsPlan = {
+        // Assets breakdown
+        totalCash: Math.round(totalCash),
+        totalVehicles: Math.round(totalVehicles),
+        totalStocks: Math.round(totalStocks),
+        totalAlternative: Math.round(totalAlternative),
         currentAssets: Math.round(currentAssets),
+
+        // Liabilities breakdown
+        totalVehicleLiabilities: Math.round(totalVehicleLiabilities),
+        totalPensionLiabilities: Math.round(totalPensionLiabilities),
+        totalGeneralLiabilities: Math.round(totalGeneralLiabilities),
         currentLiabilities: Math.round(totalLiabilities),
+
         currentNetWorth: Math.round(currentNetWorth),
         targetAmount,
         monthlyDebtPayments: Math.round(totalMonthlyPayments),
@@ -941,23 +978,60 @@ export default function ResultsSection({ userId }) {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {/* Current Situation */}
+              {/* Assets Breakdown */}
               <div>
-                <h3 className="text-sm font-semibold text-[#105330]/70 mb-3">מצב נוכחי</h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-emerald-50 rounded-xl text-center">
-                    <p className="text-sm text-emerald-600">סך נכסים</p>
-                    <p className="text-xl font-bold text-emerald-800">₪{results.homeSavingsPlan.currentAssets.toLocaleString()}</p>
+                <h3 className="text-sm font-semibold text-[#105330]/70 mb-3">נכסים לפי התכנון</h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+                  <div className="p-4 bg-blue-50 rounded-xl text-center">
+                    <p className="text-sm text-blue-600">מזומנים</p>
+                    <p className="text-lg font-bold text-blue-800">₪{results.homeSavingsPlan.totalCash.toLocaleString()}</p>
                   </div>
-                  <div className="p-4 bg-red-50 rounded-xl text-center">
-                    <p className="text-sm text-red-600">סך התחייבויות</p>
-                    <p className="text-xl font-bold text-red-800">₪{results.homeSavingsPlan.currentLiabilities.toLocaleString()}</p>
+                  <div className="p-4 bg-purple-50 rounded-xl text-center">
+                    <p className="text-sm text-purple-600">רכבים</p>
+                    <p className="text-lg font-bold text-purple-800">₪{results.homeSavingsPlan.totalVehicles.toLocaleString()}</p>
                   </div>
-                  <div className="p-4 bg-[#105330]/10 rounded-xl text-center">
-                    <p className="text-sm text-[#105330]/70">ערך נקי</p>
-                    <p className="text-xl font-bold text-[#105330]">₪{results.homeSavingsPlan.currentNetWorth.toLocaleString()}</p>
+                  <div className="p-4 bg-green-50 rounded-xl text-center">
+                    <p className="text-sm text-green-600">שוק ההון</p>
+                    <p className="text-lg font-bold text-green-800">₪{results.homeSavingsPlan.totalStocks.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 bg-amber-50 rounded-xl text-center">
+                    <p className="text-sm text-amber-600">השקעות אלטרנטיביות</p>
+                    <p className="text-lg font-bold text-amber-800">₪{results.homeSavingsPlan.totalAlternative.toLocaleString()}</p>
                   </div>
                 </div>
+                <div className="p-4 bg-emerald-50 rounded-xl text-center border-2 border-emerald-200">
+                  <p className="text-sm text-emerald-600 font-semibold">סך הנכסים</p>
+                  <p className="text-2xl font-bold text-emerald-800">₪{results.homeSavingsPlan.currentAssets.toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* Liabilities Breakdown */}
+              <div>
+                <h3 className="text-sm font-semibold text-[#105330]/70 mb-3">התחייבויות לפי התכנון</h3>
+                <div className="grid md:grid-cols-3 gap-4 mb-3">
+                  <div className="p-4 bg-red-50 rounded-xl text-center">
+                    <p className="text-sm text-red-600">רכבים</p>
+                    <p className="text-lg font-bold text-red-800">₪{results.homeSavingsPlan.totalVehicleLiabilities.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 bg-orange-50 rounded-xl text-center">
+                    <p className="text-sm text-orange-600">פנסיוני</p>
+                    <p className="text-lg font-bold text-orange-800">₪{results.homeSavingsPlan.totalPensionLiabilities.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 bg-pink-50 rounded-xl text-center">
+                    <p className="text-sm text-pink-600">הלוואות כלליות</p>
+                    <p className="text-lg font-bold text-pink-800">₪{results.homeSavingsPlan.totalGeneralLiabilities.toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-red-50 rounded-xl text-center border-2 border-red-200">
+                  <p className="text-sm text-red-600 font-semibold">סך ההתחייבויות</p>
+                  <p className="text-2xl font-bold text-red-800">₪{results.homeSavingsPlan.currentLiabilities.toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* Net Worth */}
+              <div className="p-5 bg-[#105330]/10 rounded-xl text-center border-2 border-[#105330]/30">
+                <p className="text-sm text-[#105330]/70 font-semibold mb-1">ערך נקי (נכסים - התחייבויות)</p>
+                <p className="text-3xl font-bold text-[#105330]">₪{results.homeSavingsPlan.currentNetWorth.toLocaleString()}</p>
               </div>
 
               {/* Target and Debt Payments */}
