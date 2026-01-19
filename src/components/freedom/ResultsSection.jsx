@@ -460,30 +460,42 @@ export default function ResultsSection({ userId }) {
       const currentAssets = totalCash + totalVehicles + totalStocks + totalAlternative;
 
       // Calculate liabilities breakdown (vehicles, pension, general)
-      const vehicleLiabilities = liabilities.vehicles || {};
-      const pensionLiabilities = liabilities.pension || {};
-      const generalLiabilities = liabilities.general || {};
+      const vehicleLiabilities = liabilities?.vehicles || {};
+      const pensionLiabilities = liabilities?.pension || {};
+      const generalLiabilities = liabilities?.general || {};
 
       let totalVehicleLiabilities = 0;
       let vehicleMonthlyPayments = 0;
-      Object.values(vehicleLiabilities).forEach(item => {
-        totalVehicleLiabilities += item.remaining_amount || 0;
-        vehicleMonthlyPayments += item.monthly_payment || 0;
-      });
+      if (vehicleLiabilities && typeof vehicleLiabilities === 'object') {
+        Object.values(vehicleLiabilities).forEach(item => {
+          if (item && typeof item === 'object') {
+            totalVehicleLiabilities += Number(item.remaining_amount) || 0;
+            vehicleMonthlyPayments += Number(item.monthly_payment) || 0;
+          }
+        });
+      }
 
       let totalPensionLiabilities = 0;
       let pensionMonthlyPayments = 0;
-      Object.values(pensionLiabilities).forEach(item => {
-        totalPensionLiabilities += item.remaining_amount || 0;
-        pensionMonthlyPayments += item.monthly_payment || 0;
-      });
+      if (pensionLiabilities && typeof pensionLiabilities === 'object') {
+        Object.values(pensionLiabilities).forEach(item => {
+          if (item && typeof item === 'object') {
+            totalPensionLiabilities += Number(item.remaining_amount) || 0;
+            pensionMonthlyPayments += Number(item.monthly_payment) || 0;
+          }
+        });
+      }
 
       let totalGeneralLiabilities = 0;
       let generalMonthlyPayments = 0;
-      Object.values(generalLiabilities).forEach(item => {
-        totalGeneralLiabilities += item.remaining_amount || 0;
-        generalMonthlyPayments += item.monthly_payment || 0;
-      });
+      if (generalLiabilities && typeof generalLiabilities === 'object') {
+        Object.values(generalLiabilities).forEach(item => {
+          if (item && typeof item === 'object') {
+            totalGeneralLiabilities += Number(item.remaining_amount) || 0;
+            generalMonthlyPayments += Number(item.monthly_payment) || 0;
+          }
+        });
+      }
 
       const totalLiabilities = totalVehicleLiabilities + totalPensionLiabilities + totalGeneralLiabilities;
       const totalMonthlyPayments = vehicleMonthlyPayments + pensionMonthlyPayments + generalMonthlyPayments;
