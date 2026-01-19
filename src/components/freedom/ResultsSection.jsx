@@ -433,21 +433,110 @@ export default function ResultsSection({ userId }) {
 
     let homeSavingsPlan = null;
     if (!isFinancialFreedom) {
-      const yearsToTarget = targetAge - currentAge;
-      const currentSavings = totalStockValue + totalAltValue + kerenValue;
-      const remaining = targetAmount - currentSavings;
-      const monthsToTarget = yearsToTarget * 12;
-      const monthlyReturn = avgReturn / 100 / 12;
-      const monthlySavingsNeeded = remaining > 0 ? 
-        remaining / (((Math.pow(1 + monthlyReturn, monthsToTarget) - 1) / monthlyReturn)) : 0;
-      
+      // Calculate current assets (cash + stocks + alternative + keren)
+      const currentAssets = totalStockValue + totalAltValue + kerenValue;
+
+      // Calculate liabilities (excluding real estate - only vehicles, pension loans, general loans)
+      const vehicleLiabilities = liabilities.vehicles || {};
+      const pensionLiabilities = liabilities.pension || {};
+      const generalLiabilities = liabilities.general || {};
+
+      let totalLiabilities = 0;
+      let totalMonthlyPayments = 0;
+
+      // Sum vehicle liabilities
+      Object.values(vehicleLiabilities).forEach(item => {
+        totalLiabilities += item.remaining_amount || 0;
+        totalMonthlyPayments += item.monthly_payment || 0;
+      });
+
+      // Sum pension liabilities
+      Object.values(pensionLiabilities).forEach(item => {
+        totalLiabilities += item.remaining_amount || 0;
+        totalMonthlyPayments += item.monthly_payment || 0;
+      });
+
+      // Sum general liabilities
+      Object.values(generalLiabilities).forEach(item => {
+        totalLiabilities += item.remaining_amount || 0;
+        totalMonthlyPayments += item.monthly_payment || 0;
+      });
+
+      const currentNetWorth = currentAssets - totalLiabilities;
+
+      // Find the age when net worth reaches target
+      let achievementAge = null;
+      let canAchieveAtTarget = false;
+
+      for (let testAge = currentAge + 1; testAge <= 80; testAge++) {
+        const yearsFromNow = testAge - currentAge;
+        const monthsFromNow = yearsFromNow * 12;
+
+        // Calculate asset growth with deposits
+        let projectedAssets = currentAssets;
+        for (let m = 0; m < monthsFromNow; m++) {
+          projectedAssets = projectedAssets * (1 + effectiveReturn / 12) + totalMonthlyDeposit;
+        }
+
+        // Calculate liability reduction (linear paydown)
+        const totalPaidTowardsDebt = totalMonthlyPayments * monthsFromNow;
+        const remainingLiabilities = Math.max(0, totalLiabilities - totalPaidTowardsDebt);
+
+        const projectedNetWorth = projectedAssets - remainingLiabilities;
+
+        if (projectedNetWorth >= targetAmount) {
+          achievementAge = testAge;
+          if (testAge <= targetAge) {
+            canAchieveAtTarget = true;
+          }
+          break;
+        }
+      }
+
+      // Calculate additional monthly deposit needed if achievement age > target age
+      let additionalMonthlyForHome = 0;
+      if (achievementAge && achievementAge > targetAge) {
+        let low = 0;
+        let high = 50000;
+        let bestAmount = 0;
+
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2);
+          const testMonthlyDeposit = totalMonthlyDeposit + mid;
+
+          const yearsToTarget = targetAge - currentAge;
+          const monthsToTarget = yearsToTarget * 12;
+
+          let testAssets = currentAssets;
+          for (let m = 0; m < monthsToTarget; m++) {
+            testAssets = testAssets * (1 + effectiveReturn / 12) + testMonthlyDeposit;
+          }
+
+          const totalPaidTowardsDebt = totalMonthlyPayments * monthsToTarget;
+          const remainingLiabilities = Math.max(0, totalLiabilities - totalPaidTowardsDebt);
+          const testNetWorth = testAssets - remainingLiabilities;
+
+          if (testNetWorth >= targetAmount) {
+            bestAmount = mid;
+            high = mid - 1;
+          } else {
+            low = mid + 1;
+          }
+        }
+
+        additionalMonthlyForHome = Math.ceil(bestAmount / 100) * 100;
+      }
+
       homeSavingsPlan = {
-        currentSavings,
+        currentAssets: Math.round(currentAssets),
+        currentLiabilities: Math.round(totalLiabilities),
+        currentNetWorth: Math.round(currentNetWorth),
         targetAmount,
-        remaining: Math.max(0, remaining),
-        monthlySavingsNeeded: Math.round(monthlySavingsNeeded),
-        yearsToTarget,
-        canAchieve: currentSavings + (totalMonthlyDeposit * monthsToTarget * 1.5) >= targetAmount
+        monthlyDebtPayments: Math.round(totalMonthlyPayments),
+        achievementAge,
+        canAchieveAtTarget,
+        targetAge,
+        additionalMonthlyForHome
       };
     }
 
@@ -851,43 +940,107 @@ export default function ResultsSection({ userId }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 bg-[#105330]/5 rounded-xl text-center">
-                <p className="text-sm text-[#105330]/70">חיסכון נוכחי</p>
-                <p className="text-xl font-bold text-[#105330]">₪{results.homeSavingsPlan.currentSavings.toLocaleString()}</p>
+            <div className="space-y-6">
+              {/* Current Situation */}
+              <div>
+                <h3 className="text-sm font-semibold text-[#105330]/70 mb-3">מצב נוכחי</h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-emerald-50 rounded-xl text-center">
+                    <p className="text-sm text-emerald-600">סך נכסים</p>
+                    <p className="text-xl font-bold text-emerald-800">₪{results.homeSavingsPlan.currentAssets.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 bg-red-50 rounded-xl text-center">
+                    <p className="text-sm text-red-600">סך התחייבויות</p>
+                    <p className="text-xl font-bold text-red-800">₪{results.homeSavingsPlan.currentLiabilities.toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 bg-[#105330]/10 rounded-xl text-center">
+                    <p className="text-sm text-[#105330]/70">ערך נקי</p>
+                    <p className="text-xl font-bold text-[#105330]">₪{results.homeSavingsPlan.currentNetWorth.toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
-              <div className="p-4 bg-[#105330]/5 rounded-xl text-center">
-                <p className="text-sm text-[#105330]/70">סכום יעד</p>
-                <p className="text-xl font-bold text-[#105330]">₪{results.homeSavingsPlan.targetAmount.toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-amber-50 rounded-xl text-center">
-                <p className="text-sm text-amber-600">חסר להשלמה</p>
-                <p className="text-xl font-bold text-amber-700">₪{results.homeSavingsPlan.remaining.toLocaleString()}</p>
-              </div>
-              <div className="p-4 bg-emerald-50 rounded-xl text-center">
-                <p className="text-sm text-emerald-600">חיסכון חודשי נדרש</p>
-                <p className="text-xl font-bold text-emerald-700">₪{results.homeSavingsPlan.monthlySavingsNeeded.toLocaleString()}</p>
-              </div>
-            </div>
 
-            <div className={`p-5 rounded-xl ${
-              results.homeSavingsPlan.canAchieve 
-                ? 'bg-emerald-50 border border-emerald-200' 
-                : 'bg-amber-50 border border-amber-200'
-            }`}>
-              <div className="flex items-start gap-3">
-                {results.homeSavingsPlan.canAchieve ? (
-                  <CheckCircle className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-                ) : (
-                  <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
-                )}
-                <div>
-                  <p className={`font-bold ${results.homeSavingsPlan.canAchieve ? 'text-emerald-800' : 'text-amber-800'}`}>
-                    {results.homeSavingsPlan.canAchieve 
-                      ? `אתה בדרך הנכונה! תוכל להגיע ליעד תוך ${results.homeSavingsPlan.yearsToTarget} שנים`
-                      : `כדי להגיע ליעד בזמן, יש להגדיל את החיסכון החודשי ל-₪${results.homeSavingsPlan.monthlySavingsNeeded.toLocaleString()}`
-                    }
-                  </p>
+              {/* Target and Debt Payments */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="p-4 bg-[#c8a863]/20 rounded-xl text-center">
+                  <p className="text-sm text-[#105330]/70">סכום יעד לבית</p>
+                  <p className="text-2xl font-bold text-[#105330]">₪{results.homeSavingsPlan.targetAmount.toLocaleString()}</p>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-xl text-center">
+                  <p className="text-sm text-blue-600">תשלום חודשי לחובות</p>
+                  <p className="text-2xl font-bold text-blue-800">₪{results.homeSavingsPlan.monthlyDebtPayments.toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* Achievement Status */}
+              <div className={`p-5 rounded-xl ${
+                results.homeSavingsPlan.achievementAge && results.homeSavingsPlan.canAchieveAtTarget
+                  ? 'bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200'
+                  : 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200'
+              }`}>
+                <div className="flex items-start gap-4">
+                  {results.homeSavingsPlan.achievementAge && results.homeSavingsPlan.canAchieveAtTarget ? (
+                    <CheckCircle className="w-12 h-12 text-emerald-500 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-12 h-12 text-amber-500 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    {results.homeSavingsPlan.achievementAge ? (
+                      <>
+                        <h3 className={`text-xl font-bold mb-2 ${
+                          results.homeSavingsPlan.canAchieveAtTarget ? 'text-emerald-800' : 'text-amber-800'
+                        }`}>
+                          {results.homeSavingsPlan.canAchieveAtTarget
+                            ? `תוכל להגיע ליעד בגיל ${results.homeSavingsPlan.achievementAge}! 🎉`
+                            : `תוכל להגיע ליעד רק בגיל ${results.homeSavingsPlan.achievementAge}`
+                          }
+                        </h3>
+                        <p className={results.homeSavingsPlan.canAchieveAtTarget ? 'text-emerald-700' : 'text-amber-700'}>
+                          {results.homeSavingsPlan.canAchieveAtTarget
+                            ? `החישוב מבוסס על הנכסים הנוכחיים שלך, ההפקדות החודשיות, והתשואה הצפויה, בניכוי שחיקת ההתחייבויות לאורך הזמן.`
+                            : `גיל ההגעה מאוחר יותר מגיל היעד שהגדרת (${results.homeSavingsPlan.targetAge})`
+                          }
+                        </p>
+                        {!results.homeSavingsPlan.canAchieveAtTarget && results.homeSavingsPlan.additionalMonthlyForHome > 0 && (
+                          <div className="mt-3 p-3 bg-white/50 rounded-lg">
+                            <p className="font-semibold text-amber-800">
+                              💡 כדי להגיע ליעד בגיל {results.homeSavingsPlan.targetAge}, תצטרך להוסיף:
+                            </p>
+                            <p className="text-2xl font-bold text-amber-900 mt-1">
+                              ₪{results.homeSavingsPlan.additionalMonthlyForHome.toLocaleString()}/חודש
+                            </p>
+                            <p className="text-sm text-amber-700 mt-1">
+                              להפקדה החודשית לתיק ההשקעות
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-xl font-bold text-red-800 mb-2">
+                          לא ניתן להגיע ליעד עד גיל 80
+                        </h3>
+                        <p className="text-red-700">
+                          מומלץ להגדיל את ההפקדה החודשית או לשקול להקטין את סכום היעד.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Explanation Note */}
+              <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-200">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-semibold mb-1">שיטת החישוב:</p>
+                    <ul className="space-y-1 list-disc list-inside">
+                      <li>נכסים: מזומנים + תיק השקעות + השקעות אלטרנטיביות + קרן השתלמות</li>
+                      <li>התחייבויות: רכבים + הלוואות פנסיוניות + הלוואות כלליות (לא כולל נדל״ן)</li>
+                      <li>החישוב כולל תשואה חודשית על הנכסים ושחיקה חודשית של החובות</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
