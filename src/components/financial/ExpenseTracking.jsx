@@ -72,6 +72,9 @@ export default function ExpenseTracking({ userId }) {
   const [openVariable, setOpenVariable] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [parsedItems, setParsedItems] = useState([]);
   const [newExpense, setNewExpense] = useState({ name: '', type: 'fixed', amount: 0 });
   const [updateExpense, setUpdateExpense] = useState({ type: 'fixed', category: '', amount: 0, isCustom: false, customName: '' });
   
