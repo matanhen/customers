@@ -223,6 +223,18 @@ export default function FinancialReflection({ userId }) {
 
   return (
     <div className="space-y-6">
+      {/* Import Button */}
+      <div className="flex justify-end">
+        <Button
+          onClick={() => setShowImportDialog(true)}
+          variant="outline"
+          className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
+        >
+          <FileText className="w-4 h-4 ml-2" />
+          ייבוא הוצאות מטקסט
+        </Button>
+      </div>
+
       {/* Summary Cards - Only 3 cards now */}
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="border-0 shadow-xl shadow-emerald-100/50 bg-gradient-to-br from-emerald-50 to-teal-50">
