@@ -265,6 +265,99 @@ export default function ExpenseTracking({ userId }) {
     setShowUpdateDialog(false);
   };
 
+  const parseImportedText = (text) => {
+    const lines = text.trim().split('\n');
+    const items = [];
+    
+    lines.forEach(line => {
+      if (!line.trim()) return;
+      
+      const match = line.match(/^(.+?)\s+([\d,]+\.?\d*)\s*$/);
+      
+      if (match) {
+        const description = match[1].trim();
+        const amountStr = match[2].replace(/,/g, '');
+        const amount = parseFloat(amountStr);
+        
+        if (!isNaN(amount) && amount > 0) {
+          items.push({
+            description,
+            amount: Math.round(amount * 100) / 100,
+            assignedTo: null,
+          });
+        }
+      }
+    });
+    
+    return items;
+  };
+
+  const handleImport = () => {
+    const items = parseImportedText(importText);
+    setParsedItems(items);
+  };
+
+  const assignItem = (index, category, type, isCustom, customName) => {
+    setParsedItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, assignedTo: { category, type, isCustom, customName } } : item
+    ));
+  };
+
+  const applyImportedItems = () => {
+    parsedItems.forEach(item => {
+      if (item.assignedTo) {
+        const { category, type, isCustom, customName } = item.assignedTo;
+        
+        if (isCustom) {
+          const existing = trackingData.custom_expenses.find(
+            e => e.name === customName && e.type === type
+          );
+          if (existing) {
+            setTrackingData(prev => ({
+              ...prev,
+              custom_expenses: prev.custom_expenses.map(e => 
+                e.name === customName && e.type === type 
+                  ? { ...e, amount: (e.amount || 0) + item.amount }
+                  : e
+              )
+            }));
+          } else {
+            setTrackingData(prev => ({
+              ...prev,
+              custom_expenses: [...prev.custom_expenses, { 
+                name: customName, 
+                type, 
+                amount: item.amount 
+              }]
+            }));
+          }
+        } else {
+          if (type === 'fixed') {
+            setTrackingData(prev => ({
+              ...prev,
+              fixed_expenses: {
+                ...prev.fixed_expenses,
+                [category]: (prev.fixed_expenses[category] || 0) + item.amount
+              }
+            }));
+          } else {
+            setTrackingData(prev => ({
+              ...prev,
+              variable_expenses: {
+                ...prev.variable_expenses,
+                [category]: (prev.variable_expenses[category] || 0) + item.amount
+              }
+            }));
+          }
+        }
+      }
+    });
+    
+    setShowImportDialog(false);
+    setImportText('');
+    setParsedItems([]);
+  };
+
   // Calculations
   const totalFixedActual = Object.values(trackingData.fixed_expenses).reduce((sum, v) => sum + (v || 0), 0) +
     trackingData.custom_expenses.filter(e => e.type === 'fixed').reduce((sum, e) => sum + (e.amount || 0), 0);
