@@ -439,18 +439,6 @@ export default function FinancialReflection({ userId }) {
         </Card>
       </Collapsible>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button 
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 px-8"
-        >
-          <Save className="w-4 h-4 ml-2" />
-          {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
-        </Button>
-      </div>
-
       {/* Import Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-y-auto">
