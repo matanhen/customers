@@ -470,26 +470,17 @@ export default function ExpenseTracking({ userId }) {
         </CardContent>
       </Card>
 
-      {/* Freedom Transfer Checkbox */}
-      <Card className="border-2 border-blue-300 bg-blue-50/50">
-        <CardContent className="p-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={trackingData.freedom_transfer_done}
-              onChange={(e) => setTrackingData({ ...trackingData, freedom_transfer_done: e.target.checked })}
-              className="w-5 h-5 rounded text-blue-600"
-            />
-            <span className="font-medium text-blue-700">
-              העברתי לחשבון החופש החודש
-              {plannedSavings > 0 && ` (₪${plannedSavings.toLocaleString()})`}
-            </span>
-          </label>
-        </CardContent>
-      </Card>
-
-      {/* Update Expense Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3">
+        <Button
+          onClick={() => setShowImportDialog(true)}
+          variant="outline"
+          className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
+        >
+          <FileText className="w-4 h-4 ml-2" />
+          ייבוא הוצאות מטקסט
+        </Button>
+        
         <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
           <DialogTrigger asChild>
             <Button className="bg-[#105330] hover:bg-[#0d4027]">
