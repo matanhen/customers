@@ -397,13 +397,6 @@ export default function ExpenseTracking({ userId }) {
       });
     }
 
-    if (plannedSavings > 0 && !trackingData.freedom_transfer_done) {
-      recommendations.push({
-        type: 'reminder',
-        message: `תזכורת: עדיין לא העברת ₪${plannedSavings.toLocaleString()} לחשבון החופש החודש.`
-      });
-    }
-
     return recommendations;
   };
 
