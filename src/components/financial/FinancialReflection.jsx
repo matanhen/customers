@@ -70,6 +70,9 @@ export default function FinancialReflection({ userId }) {
   const [fixedExpenses, setFixedExpenses] = useState({});
   const [variableExpenses, setVariableExpenses] = useState({});
   const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [parsedItems, setParsedItems] = useState([]);
   const queryClient = useQueryClient();
 
   const { data: reflection } = useQuery({
