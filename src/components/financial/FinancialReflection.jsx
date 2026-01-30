@@ -164,6 +164,63 @@ export default function FinancialReflection({ userId }) {
     }
   };
 
+  const parseImportedText = (text) => {
+    const lines = text.trim().split('\n');
+    const items = [];
+    
+    lines.forEach(line => {
+      if (!line.trim()) return;
+      
+      // Try to match pattern: text followed by number
+      // Support both comma and dot as decimal separator
+      const match = line.match(/^(.+?)\s+([\d,]+\.?\d*)\s*$/);
+      
+      if (match) {
+        const description = match[1].trim();
+        const amountStr = match[2].replace(/,/g, '');
+        const amount = parseFloat(amountStr);
+        
+        if (!isNaN(amount) && amount > 0) {
+          items.push({
+            description,
+            amount: Math.round(amount * 100) / 100,
+            assignedTo: null, // { category, month, type }
+          });
+        }
+      }
+    });
+    
+    return items;
+  };
+
+  const handleImport = () => {
+    const items = parseImportedText(importText);
+    setParsedItems(items);
+  };
+
+  const assignItem = (index, category, month, type) => {
+    setParsedItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, assignedTo: { category, month, type } } : item
+    ));
+  };
+
+  const applyImportedItems = () => {
+    parsedItems.forEach(item => {
+      if (item.assignedTo) {
+        const { category, month, type } = item.assignedTo;
+        const currentValue = type === 'fixed' 
+          ? (fixedExpenses[category]?.[month] || 0)
+          : (variableExpenses[category]?.[month] || 0);
+        
+        updateExpense(category, month, currentValue + item.amount, type);
+      }
+    });
+    
+    setShowImportDialog(false);
+    setImportText('');
+    setParsedItems([]);
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary Cards - Only 3 cards now */}
