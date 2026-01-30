@@ -836,6 +836,152 @@ export default function ExpenseTracking({ userId }) {
           </div>
         </CardContent>
         </Card>
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>ייבוא הוצאות מטקסט</DialogTitle>
+          </DialogHeader>
+          
+          {parsedItems.length === 0 ? (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>הדבק טקסט עם הוצאות (שורה אחת = תיאור + סכום)</Label>
+                <Textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="לדוגמה:&#10;ALIEXPRESS	46.39&#10;ביטוח רכב	2,210.00&#10;מסעדה	190.00"
+                  className="min-h-[200px] font-mono text-sm"
+                />
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                <p className="font-semibold mb-1">הוראות שימוש:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>כל שורה צריכה להכיל תיאור ואחריו סכום</li>
+                  <li>ניתן להשתמש בעברית או אנגלית</li>
+                  <li>ניתן להשתמש בפסיק או נקודה כמפריד עשרוני</li>
+                </ul>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+                  ביטול
+                </Button>
+                <Button 
+                  onClick={handleImport}
+                  disabled={!importText.trim()}
+                  className="bg-[#105330] hover:bg-[#0d4027]"
+                >
+                  המשך
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-emerald-50 rounded-lg text-sm text-emerald-800">
+                <p className="font-semibold">נמצאו {parsedItems.length} פריטים. שייך כל פריט לקטגוריה:</p>
+              </div>
+              
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {parsedItems.map((item, index) => (
+                  <div key={index} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-semibold text-slate-800">{item.description}</p>
+                        <p className="text-lg font-bold text-[#105330]">₪{item.amount.toLocaleString()}</p>
+                      </div>
+                      {item.assignedTo && (
+                        <Check className="w-5 h-5 text-emerald-600" />
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs mb-1">סוג הוצאה</Label>
+                        <Select
+                          value={item.assignedTo?.type || ''}
+                          onValueChange={(value) => {
+                            assignItem(index, null, value, false, '');
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="בחר סוג" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fixed">הוצאה קבועה</SelectItem>
+                            <SelectItem value="variable">יתרת הוצאה</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs mb-1">בחר הוצאה</Label>
+                        <Select
+                          value={item.assignedTo?.isCustom ? 'custom' : (item.assignedTo?.category || '')}
+                          onValueChange={(value) => {
+                            if (value === 'custom') {
+                              assignItem(index, null, item.assignedTo?.type, true, '');
+                            } else {
+                              assignItem(index, value, item.assignedTo?.type, false, '');
+                            }
+                          }}
+                          disabled={!item.assignedTo?.type}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="בחר קטגוריה" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[200px]">
+                            {(item.assignedTo?.type === 'fixed' ? FIXED_EXPENSE_CATEGORIES : VARIABLE_EXPENSE_CATEGORIES).map(cat => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                            <SelectItem value="custom">➕ הוסף הוצאה שלא ברשימה</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    {item.assignedTo?.isCustom && (
+                      <div className="mt-3">
+                        <Label className="text-xs mb-1">שם ההוצאה</Label>
+                        <Input
+                          value={item.assignedTo?.customName || ''}
+                          onChange={(e) => {
+                            assignItem(index, null, item.assignedTo?.type, true, e.target.value);
+                          }}
+                          placeholder="לדוגמה: ביטוח חיים"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setParsedItems([]);
+                    setImportText('');
+                  }}
+                >
+                  התחל מחדש
+                </Button>
+                <Button 
+                  onClick={applyImportedItems}
+                  disabled={!parsedItems.some(item => 
+                    item.assignedTo?.category || (item.assignedTo?.isCustom && item.assignedTo?.customName)
+                  )}
+                  className="bg-[#105330] hover:bg-[#0d4027]"
+                >
+                  יישם שינויים ({parsedItems.filter(item => 
+                    item.assignedTo?.category || (item.assignedTo?.isCustom && item.assignedTo?.customName)
+                  ).length}/{parsedItems.length})
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
         </div>
         );
         }
