@@ -184,21 +184,21 @@ export default function AdvisorDashboard() {
               {filteredClients.map((client) => (
                 <div 
                   key={client.id}
-                  className="flex items-center justify-between p-6 bg-gradient-to-r from-slate-50 to-slate-100/30 rounded-2xl hover:from-slate-100 hover:to-slate-100 transition-all border border-slate-200/50 group"
+                  className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:justify-between p-4 lg:p-6 bg-gradient-to-r from-slate-50 to-slate-100/30 rounded-2xl hover:from-slate-100 hover:to-slate-100 transition-all border border-slate-200/50 group"
                 >
-                  <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-indigo-500/30 group-hover:scale-105 transition-transform">
+                  <div className="flex items-center gap-3 lg:gap-5 w-full lg:w-auto">
+                    <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg lg:text-2xl shadow-xl shadow-indigo-500/30 group-hover:scale-105 transition-transform flex-shrink-0">
                       {client.full_name?.[0] || client.email?.[0] || '?'}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-xl">{client.full_name || 'ללא שם'}</h3>
-                      <div className="flex items-center gap-5 text-sm text-slate-500 mt-2">
-                        <span className="flex items-center gap-1.5">
-                          <Mail className="w-4 h-4" />
-                          {client.email}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.full_name || 'ללא שם'}</h3>
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
+                          <span className="truncate">{client.email}</span>
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
                           {format(new Date(client.created_date), 'dd/MM/yyyy')}
                         </span>
                       </div>
@@ -206,9 +206,9 @@ export default function AdvisorDashboard() {
                   </div>
                   <Button
                     onClick={() => handleViewClient(client)}
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 rounded-xl px-6 py-5"
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 rounded-xl px-4 py-3 lg:px-6 lg:py-5 w-full lg:w-auto text-sm lg:text-base"
                   >
-                    <Eye className="w-5 h-5 ml-2" />
+                    <Eye className="w-4 h-4 lg:w-5 lg:h-5 ml-2" />
                     צפה ועריכה
                   </Button>
                 </div>
