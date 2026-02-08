@@ -73,13 +73,22 @@ export default function FinancialReflection({ userId }) {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
-  const [isViewingClient, setIsViewingClient] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isViewingOtherUser, setIsViewingOtherUser] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const viewingClientData = sessionStorage.getItem('viewingClient');
-    setIsViewingClient(!!viewingClientData);
-  }, []);
+    const loadUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+        setIsViewingOtherUser(user.id !== userId);
+      } catch (e) {
+        console.log('Failed to load user');
+      }
+    };
+    loadUser();
+  }, [userId]);
 
   const { data: reflection } = useQuery({
     queryKey: ['financialReflection', userId],
@@ -101,7 +110,7 @@ export default function FinancialReflection({ userId }) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       // Don't allow advisors to edit client data
-      if (isViewingClient) {
+      if (isViewingOtherUser) {
         throw new Error('אין הרשאה לערוך נתוני לקוח אחר');
       }
       
@@ -235,7 +244,7 @@ export default function FinancialReflection({ userId }) {
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
-      {!isViewingClient && (
+      {!isViewingOtherUser && (
         <div className="flex justify-between items-center">
           <Button 
             onClick={() => saveMutation.mutate()}
@@ -257,7 +266,7 @@ export default function FinancialReflection({ userId }) {
         </div>
       )}
       
-      {isViewingClient && (
+      {isViewingOtherUser && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-amber-800 font-medium">אתה צופה בנתוני לקוח - ניתן לראות בלבד, לא לערוך</p>
         </div>
@@ -342,7 +351,7 @@ export default function FinancialReflection({ userId }) {
                       onChange={(e) => setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 })}
                       placeholder="סכום"
                       className="border-slate-200"
-                      disabled={isViewingClient}
+                      disabled={isViewingOtherUser}
                     />
                   </div>
                 ))}
@@ -389,7 +398,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'fixed')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
-                          disabled={isViewingClient}
+                          disabled={isViewingOtherUser}
                         />
                       ))}
                       <p className="text-sm font-semibold text-blue-600">
@@ -441,7 +450,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'variable')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
-                          disabled={isViewingClient}
+                          disabled={isViewingOtherUser}
                         />
                       ))}
                       <p className="text-sm font-semibold text-purple-600">
