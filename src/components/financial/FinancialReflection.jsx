@@ -117,7 +117,7 @@ export default function FinancialReflection({ userId }) {
       return base44.entities.FinancialReflection.create(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financialReflection', userId, isViewingClient] });
+      queryClient.invalidateQueries({ queryKey: ['financialReflection', userId] });
     },
   });
 
