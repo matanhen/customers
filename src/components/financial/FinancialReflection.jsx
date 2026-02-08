@@ -73,30 +73,19 @@ export default function FinancialReflection({ userId }) {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [isViewingClient, setIsViewingClient] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const loadCurrentUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.log('Failed to load user');
-      }
-    };
-    loadCurrentUser();
+    const viewingClientData = sessionStorage.getItem('viewingClient');
+    setIsViewingClient(!!viewingClientData);
   }, []);
 
   const { data: reflection } = useQuery({
-    queryKey: ['financialReflection', userId],
+    queryKey: ['financialReflection', userId, isViewingClient],
     queryFn: async () => {
-      // Check if viewing own data or someone else's
-      const isViewingOtherUser = currentUser && currentUser.id !== userId;
-      const isAdvisorOrAdmin = currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin');
-      
-      if (isViewingOtherUser && isAdvisorOrAdmin) {
-        // Use backend function for advisors/admins
+      // If viewing a client (advisor viewing client data), use backend function
+      if (isViewingClient) {
         const response = await base44.functions.invoke('getClientFinancialData', {
           clientUserId: userId,
           entityName: 'FinancialReflection'
@@ -108,7 +97,7 @@ export default function FinancialReflection({ userId }) {
         return results[0];
       }
     },
-    enabled: !!userId && !!currentUser,
+    enabled: !!userId,
   });
 
   useEffect(() => {
@@ -122,8 +111,7 @@ export default function FinancialReflection({ userId }) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       // Don't allow advisors to edit client data
-      const isViewingOtherUser = currentUser && currentUser.id !== userId;
-      if (isViewingOtherUser) {
+      if (isViewingClient) {
         throw new Error('אין הרשאה לערוך נתוני לקוח אחר');
       }
       
@@ -139,7 +127,7 @@ export default function FinancialReflection({ userId }) {
       return base44.entities.FinancialReflection.create(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financialReflection', userId] });
+      queryClient.invalidateQueries({ queryKey: ['financialReflection', userId, isViewingClient] });
     },
   });
 
@@ -254,12 +242,10 @@ export default function FinancialReflection({ userId }) {
     setParsedItems([]);
   };
 
-  const isViewingOtherUser = currentUser && currentUser.id !== userId;
-
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
-      {!isViewingOtherUser && (
+      {!isViewingClient && (
         <div className="flex justify-between items-center">
           <Button 
             onClick={() => saveMutation.mutate()}
@@ -281,7 +267,7 @@ export default function FinancialReflection({ userId }) {
         </div>
       )}
       
-      {isViewingOtherUser && (
+      {isViewingClient && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-amber-800 font-medium">אתה צופה בנתוני לקוח - ניתן לראות בלבד, לא לערוך</p>
         </div>
@@ -366,7 +352,7 @@ export default function FinancialReflection({ userId }) {
                       onChange={(e) => setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 })}
                       placeholder="סכום"
                       className="border-slate-200"
-                      disabled={isViewingOtherUser}
+                      disabled={isViewingClient}
                     />
                   </div>
                 ))}
@@ -413,7 +399,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'fixed')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
-                          disabled={isViewingOtherUser}
+                          disabled={isViewingClient}
                         />
                       ))}
                       <p className="text-sm font-semibold text-blue-600">
@@ -465,7 +451,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'variable')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
-                          disabled={isViewingOtherUser}
+                          disabled={isViewingClient}
                         />
                       ))}
                       <p className="text-sm font-semibold text-purple-600">
