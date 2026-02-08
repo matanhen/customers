@@ -91,39 +91,13 @@ export default function ExpenseTracking({ userId }) {
 
   const { data: allTracking = [] } = useQuery({
     queryKey: ['expenseTracking', userId],
-    queryFn: async () => {
-      const currentUser = await base44.auth.me();
-      const isViewingOtherUser = currentUser.id !== userId;
-      
-      if (isViewingOtherUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
-        const response = await base44.functions.invoke('getClientFinancialData', {
-          clientUserId: userId,
-          entityName: 'ExpenseTracking'
-        });
-        return response.data.data;
-      } else {
-        return base44.entities.ExpenseTracking.filter({ user_id: userId });
-      }
-    },
+    queryFn: () => base44.entities.ExpenseTracking.filter({ user_id: userId }),
     enabled: !!userId,
   });
 
   const { data: monthlyPlans = [] } = useQuery({
     queryKey: ['monthlyPlans', userId],
-    queryFn: async () => {
-      const currentUser = await base44.auth.me();
-      const isViewingOtherUser = currentUser.id !== userId;
-      
-      if (isViewingOtherUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
-        const response = await base44.functions.invoke('getClientFinancialData', {
-          clientUserId: userId,
-          entityName: 'MonthlyPlan'
-        });
-        return response.data.data;
-      } else {
-        return base44.entities.MonthlyPlan.filter({ user_id: userId });
-      }
-    },
+    queryFn: () => base44.entities.MonthlyPlan.filter({ user_id: userId }),
     enabled: !!userId,
   });
 
