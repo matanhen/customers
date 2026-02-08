@@ -73,15 +73,42 @@ export default function FinancialReflection({ userId }) {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (e) {
+        console.log('Failed to load user');
+      }
+    };
+    loadCurrentUser();
+  }, []);
 
   const { data: reflection } = useQuery({
     queryKey: ['financialReflection', userId],
     queryFn: async () => {
-      const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
-      return results[0];
+      // Check if viewing own data or someone else's
+      const isViewingOtherUser = currentUser && currentUser.id !== userId;
+      const isAdvisorOrAdmin = currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin');
+      
+      if (isViewingOtherUser && isAdvisorOrAdmin) {
+        // Use backend function for advisors/admins
+        const response = await base44.functions.invoke('getClientFinancialData', {
+          clientUserId: userId,
+          entityName: 'FinancialReflection'
+        });
+        return response.data.data[0];
+      } else {
+        // Direct query for own data
+        const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
+        return results[0];
+      }
     },
-    enabled: !!userId,
+    enabled: !!userId && !!currentUser,
   });
 
   useEffect(() => {
@@ -94,6 +121,12 @@ export default function FinancialReflection({ userId }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Don't allow advisors to edit client data
+      const isViewingOtherUser = currentUser && currentUser.id !== userId;
+      if (isViewingOtherUser) {
+        throw new Error('אין הרשאה לערוך נתוני לקוח אחר');
+      }
+      
       const data = {
         user_id: userId,
         incomes,
@@ -221,28 +254,38 @@ export default function FinancialReflection({ userId }) {
     setParsedItems([]);
   };
 
+  const isViewingOtherUser = currentUser && currentUser.id !== userId;
+
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
-      <div className="flex justify-between items-center">
-        <Button 
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 px-8"
-        >
-          <Save className="w-4 h-4 ml-2" />
-          {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
-        </Button>
-        
-        <Button
-          onClick={() => setShowImportDialog(true)}
-          variant="outline"
-          className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
-        >
-          <FileText className="w-4 h-4 ml-2" />
-          ייבוא הוצאות מטקסט
-        </Button>
-      </div>
+      {!isViewingOtherUser && (
+        <div className="flex justify-between items-center">
+          <Button 
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 px-8"
+          >
+            <Save className="w-4 h-4 ml-2" />
+            {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
+          </Button>
+          
+          <Button
+            onClick={() => setShowImportDialog(true)}
+            variant="outline"
+            className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
+          >
+            <FileText className="w-4 h-4 ml-2" />
+            ייבוא הוצאות מטקסט
+          </Button>
+        </div>
+      )}
+      
+      {isViewingOtherUser && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-amber-800 font-medium">אתה צופה בנתוני לקוח - ניתן לראות בלבד, לא לערוך</p>
+        </div>
+      )}
 
       {/* Summary Cards - Only 3 cards now */}
       <div className="grid md:grid-cols-3 gap-4">
@@ -323,6 +366,7 @@ export default function FinancialReflection({ userId }) {
                       onChange={(e) => setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 })}
                       placeholder="סכום"
                       className="border-slate-200"
+                      disabled={isViewingOtherUser}
                     />
                   </div>
                 ))}
@@ -369,6 +413,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'fixed')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
+                          disabled={isViewingOtherUser}
                         />
                       ))}
                       <p className="text-sm font-semibold text-blue-600">
@@ -420,6 +465,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'variable')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
+                          disabled={isViewingOtherUser}
                         />
                       ))}
                       <p className="text-sm font-semibold text-purple-600">
