@@ -37,6 +37,15 @@ export default function Layout({ children, currentPageName }) {
     try {
       let currentUser = await base44.auth.me();
       
+      // Update last login date
+      try {
+        await base44.entities.User.update(currentUser.id, { 
+          last_login_date: new Date().toISOString() 
+        });
+      } catch (e) {
+        console.log('Failed to update last login date', e);
+      }
+      
       // If user already has a valid user_type, allow access immediately
       if (currentUser.user_type && ['client', 'advisor', 'admin'].includes(currentUser.user_type)) {
         setUser(currentUser);
