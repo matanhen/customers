@@ -199,7 +199,7 @@ export default function AdvisorDashboard() {
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
-                          {format(new Date(client.created_date), 'dd/MM/yyyy')}
+                          {client.last_login_date ? format(new Date(client.last_login_date), 'dd/MM/yyyy HH:mm') : 'לא נכנס עדיין'}
                         </span>
                       </div>
                     </div>
