@@ -17,6 +17,8 @@ import FinancialGoals from './FinancialGoals';
 
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isViewingOtherUser, setIsViewingOtherUser] = useState(false);
   const [planData, setPlanData] = useState({
     expected_income: 0,
     savings: 0,
@@ -31,10 +33,32 @@ export default function MonthlyPlanning({ userId }) {
 
   const currentMonth = format(currentDate, 'yyyy-MM');
 
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+        setIsViewingOtherUser(user.id !== userId);
+      } catch (e) {
+        console.log('Failed to load user');
+      }
+    };
+    loadUser();
+  }, [userId]);
+
   const { data: monthlyPlans = [] } = useQuery({
     queryKey: ['monthlyPlans', userId],
-    queryFn: () => base44.entities.MonthlyPlan.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryFn: async () => {
+      if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          entityName: 'MonthlyPlan'
+        });
+        return response.data.data;
+      }
+      return base44.entities.MonthlyPlan.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);

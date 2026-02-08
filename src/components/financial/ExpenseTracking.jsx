@@ -77,6 +77,8 @@ export default function ExpenseTracking({ userId }) {
   const [parsedItems, setParsedItems] = useState([]);
   const [newExpense, setNewExpense] = useState({ name: '', type: 'fixed', amount: 0 });
   const [updateExpense, setUpdateExpense] = useState({ type: 'fixed', category: '', amount: 0, isCustom: false, customName: '' });
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isViewingOtherUser, setIsViewingOtherUser] = useState(false);
   
   const [trackingData, setTrackingData] = useState({
     actual_income: 0,
@@ -89,16 +91,47 @@ export default function ExpenseTracking({ userId }) {
   const queryClient = useQueryClient();
   const currentMonth = format(currentDate, 'yyyy-MM');
 
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+        setIsViewingOtherUser(user.id !== userId);
+      } catch (e) {
+        console.log('Failed to load user');
+      }
+    };
+    loadUser();
+  }, [userId]);
+
   const { data: allTracking = [] } = useQuery({
     queryKey: ['expenseTracking', userId],
-    queryFn: () => base44.entities.ExpenseTracking.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryFn: async () => {
+      if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          entityName: 'ExpenseTracking'
+        });
+        return response.data.data;
+      }
+      return base44.entities.ExpenseTracking.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const { data: monthlyPlans = [] } = useQuery({
     queryKey: ['monthlyPlans', userId],
-    queryFn: () => base44.entities.MonthlyPlan.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryFn: async () => {
+      if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          entityName: 'MonthlyPlan'
+        });
+        return response.data.data;
+      }
+      return base44.entities.MonthlyPlan.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const currentTracking = allTracking.find(t => t.month === currentMonth);

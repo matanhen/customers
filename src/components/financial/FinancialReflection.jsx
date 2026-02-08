@@ -93,10 +93,19 @@ export default function FinancialReflection({ userId }) {
   const { data: reflection } = useQuery({
     queryKey: ['financialReflection', userId],
     queryFn: async () => {
+      // If viewing other user's data (advisor/admin viewing client)
+      if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          entityName: 'FinancialReflection'
+        });
+        return response.data.data[0];
+      }
+      // Own data
       const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
       return results[0];
     },
-    enabled: !!userId,
+    enabled: !!userId && !!currentUser,
   });
 
   useEffect(() => {
