@@ -32,11 +32,14 @@ export default function AdvisorDashboard() {
   const isAdvisor = user?.user_type === 'advisor';
   const isAdmin = user?.user_type === 'admin';
 
-  // Get assignments for this advisor from the dedicated entity
+  // Get assignments - admin gets all, advisor gets only their assignments
   const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
-    queryKey: ['advisorAssignments', user?.id],
+    queryKey: ['advisorAssignments', user?.id, isAdmin],
     queryFn: async () => {
       const allAssignments = await base44.entities.ClientAdvisorAssignment.list();
+      if (isAdmin) {
+        return allAssignments; // Admin sees all assignments
+      }
       return allAssignments.filter(a => a.advisor_id === user?.id);
     },
     enabled: !!user?.id && (isAdvisor || isAdmin),
@@ -76,17 +79,24 @@ export default function AdvisorDashboard() {
 
   const combinedUsers = [...allUsers, ...allowedUsersNotInSystem];
 
-  // Get clients that are assigned to this advisor
-  const clientsWithDuplicates = assignments
-    .map(assignment => {
-      // Try to find by client_id first, then by email
-      let clientUser = combinedUsers.find(u => u.id === assignment.client_id);
-      if (!clientUser) {
-        clientUser = combinedUsers.find(u => u.email === assignment.client_email);
-      }
-      return clientUser;
-    })
-    .filter(Boolean); // Remove null/undefined entries
+  // Get clients - admin sees ALL clients, advisor sees only assigned
+  let clientsWithDuplicates = [];
+  if (isAdmin) {
+    // Admin sees ALL users with user_type 'client'
+    clientsWithDuplicates = combinedUsers.filter(u => u.user_type === 'client');
+  } else {
+    // Advisor sees only assigned clients
+    clientsWithDuplicates = assignments
+      .map(assignment => {
+        // Try to find by client_id first, then by email
+        let clientUser = combinedUsers.find(u => u.id === assignment.client_id);
+        if (!clientUser) {
+          clientUser = combinedUsers.find(u => u.email === assignment.client_email);
+        }
+        return clientUser;
+      })
+      .filter(Boolean); // Remove null/undefined entries
+  }
 
   // Remove duplicates by email - keep only first occurrence
   const seenEmails = new Set();
@@ -135,7 +145,7 @@ export default function AdvisorDashboard() {
               <Users className="w-8 h-8 text-white" />
             </div>
             <div>
-              <p className="text-sm text-blue-600 font-medium">לקוחות משויכים אליך</p>
+              <p className="text-sm text-blue-600 font-medium">{isAdmin ? 'סה״כ לקוחות במערכת' : 'לקוחות משויכים אליך'}</p>
               <p className="text-4xl font-bold text-slate-800">{clients.length}</p>
             </div>
           </div>
