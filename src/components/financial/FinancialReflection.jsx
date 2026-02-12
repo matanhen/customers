@@ -118,8 +118,8 @@ export default function FinancialReflection({ userId }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // Don't allow advisors to edit client data
-      if (isViewingOtherUser) {
+      // Don't allow advisors to edit, but allow admins
+      if (isViewingOtherUser && currentUser?.user_type !== 'admin') {
         throw new Error('אין הרשאה לערוך נתוני לקוח אחר');
       }
       
@@ -253,7 +253,7 @@ export default function FinancialReflection({ userId }) {
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
-      {!isViewingOtherUser && (
+      {(!isViewingOtherUser || currentUser?.user_type === 'admin') && (
         <div className="flex justify-between items-center">
           <Button 
             onClick={() => saveMutation.mutate()}
@@ -275,7 +275,7 @@ export default function FinancialReflection({ userId }) {
         </div>
       )}
       
-      {isViewingOtherUser && (
+      {isViewingOtherUser && currentUser?.user_type !== 'admin' && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-amber-800 font-medium">אתה צופה בנתוני לקוח - ניתן לראות בלבד, לא לערוך</p>
         </div>
@@ -360,7 +360,7 @@ export default function FinancialReflection({ userId }) {
                       onChange={(e) => setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 })}
                       placeholder="סכום"
                       className="border-slate-200"
-                      disabled={isViewingOtherUser}
+                      disabled={isViewingOtherUser && currentUser?.user_type !== 'admin'}
                     />
                   </div>
                 ))}
@@ -407,7 +407,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'fixed')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
-                          disabled={isViewingOtherUser}
+                          disabled={isViewingOtherUser && currentUser?.user_type !== 'admin'}
                         />
                       ))}
                       <p className="text-sm font-semibold text-blue-600">
@@ -459,7 +459,7 @@ export default function FinancialReflection({ userId }) {
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'variable')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
-                          disabled={isViewingOtherUser}
+                          disabled={isViewingOtherUser && currentUser?.user_type !== 'admin'}
                         />
                       ))}
                       <p className="text-sm font-semibold text-purple-600">
