@@ -22,6 +22,23 @@ export default function Layout({ children, currentPageName }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check cache first
+    const cachedUser = sessionStorage.getItem('currentUser');
+    if (cachedUser) {
+      try {
+        const parsed = JSON.parse(cachedUser);
+        // Use cached user if less than 5 minutes old
+        if (Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+          setUser(parsed.user);
+          setEditName(parsed.user.full_name || '');
+          setIsLoading(false);
+          return;
+        }
+      } catch (e) {
+        sessionStorage.removeItem('currentUser');
+      }
+    }
+
     loadUser();
     const clientData = sessionStorage.getItem('viewingClient');
     if (clientData) {
@@ -37,19 +54,24 @@ export default function Layout({ children, currentPageName }) {
     try {
       let currentUser = await base44.auth.me();
       
-      // Update last login date
-      try {
-        await base44.entities.User.update(currentUser.id, { 
-          last_login_date: new Date().toISOString() 
-        });
-      } catch (e) {
-        console.log('Failed to update last login date', e);
+      // Update last login date only once per session
+      const lastUpdate = sessionStorage.getItem('lastLoginUpdate');
+      if (!lastUpdate || Date.now() - parseInt(lastUpdate) > 60 * 60 * 1000) {
+        try {
+          await base44.entities.User.update(currentUser.id, { 
+            last_login_date: new Date().toISOString() 
+          });
+          sessionStorage.setItem('lastLoginUpdate', Date.now().toString());
+        } catch (e) {
+          console.log('Failed to update last login date', e);
+        }
       }
       
       // If user already has a valid user_type, allow access immediately
       if (currentUser.user_type && ['client', 'advisor', 'admin'].includes(currentUser.user_type)) {
         setUser(currentUser);
         setEditName(currentUser.full_name || '');
+        sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
         setIsLoading(false);
         return;
       }
@@ -92,6 +114,7 @@ export default function Layout({ children, currentPageName }) {
       
       setUser(currentUser);
       setEditName(currentUser.full_name || '');
+      sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
       setIsLoading(false);
     } catch (e) {
       console.log('Error loading user', e);
@@ -105,7 +128,9 @@ export default function Layout({ children, currentPageName }) {
     try {
       // Update user entity in database
       await base44.entities.User.update(user.id, { full_name: editName });
-      setUser({ ...user, full_name: editName });
+      const updatedUser = { ...user, full_name: editName };
+      setUser(updatedUser);
+      sessionStorage.setItem('currentUser', JSON.stringify({ user: updatedUser, timestamp: Date.now() }));
       setShowProfileDialog(false);
     } catch (e) {
       console.error('Failed to update profile', e);
@@ -115,6 +140,8 @@ export default function Layout({ children, currentPageName }) {
 
   const handleLogout = () => {
     sessionStorage.removeItem('viewingClient');
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('lastLoginUpdate');
     base44.auth.logout();
   };
 

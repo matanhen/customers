@@ -104,7 +104,7 @@ export default function ExpenseTracking({ userId }) {
     loadUser();
   }, [userId]);
 
-  const { data: allTracking = [] } = useQuery({
+  const { data: allTracking = [], isLoading: trackingLoading } = useQuery({
     queryKey: ['expenseTracking', userId],
     queryFn: async () => {
       if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
@@ -117,9 +117,10 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.ExpenseTracking.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
+    staleTime: 2 * 60 * 1000,
   });
 
-  const { data: monthlyPlans = [] } = useQuery({
+  const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
     queryKey: ['monthlyPlans', userId],
     queryFn: async () => {
       if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
@@ -132,6 +133,7 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.MonthlyPlan.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
+    staleTime: 2 * 60 * 1000,
   });
 
   const currentTracking = allTracking.find(t => t.month === currentMonth);

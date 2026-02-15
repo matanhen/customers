@@ -46,7 +46,7 @@ export default function MonthlyPlanning({ userId }) {
     loadUser();
   }, [userId]);
 
-  const { data: monthlyPlans = [] } = useQuery({
+  const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
     queryKey: ['monthlyPlans', userId],
     queryFn: async () => {
       if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
@@ -59,6 +59,7 @@ export default function MonthlyPlanning({ userId }) {
       return base44.entities.MonthlyPlan.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
+    staleTime: 2 * 60 * 1000,
   });
 
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);

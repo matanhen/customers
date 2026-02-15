@@ -5,6 +5,7 @@ import {
   TrendingUp, TrendingDown, Save, ChevronDown, ChevronUp,
   DollarSign, Receipt, FileText, Check
 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,7 +91,7 @@ export default function FinancialReflection({ userId }) {
     loadUser();
   }, [userId]);
 
-  const { data: reflection } = useQuery({
+  const { data: reflection, isLoading: reflectionLoading } = useQuery({
     queryKey: ['financialReflection', userId],
     queryFn: async () => {
       // If viewing other user's data (advisor/admin viewing client)
@@ -106,6 +107,7 @@ export default function FinancialReflection({ userId }) {
       return results[0];
     },
     enabled: !!userId && !!currentUser,
+    staleTime: 3 * 60 * 1000,
   });
 
   useEffect(() => {
@@ -249,6 +251,23 @@ export default function FinancialReflection({ userId }) {
     setImportText('');
     setParsedItems([]);
   };
+
+  if (reflectionLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-48" />
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
