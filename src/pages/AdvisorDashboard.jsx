@@ -43,8 +43,9 @@ export default function AdvisorDashboard() {
       return allAssignments.filter(a => a.advisor_id === user?.id);
     },
     enabled: !!user?.id && (isAdvisor || isAdmin),
-    refetchInterval: 3000,
-    staleTime: 0,
+    staleTime: 3 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // Get all users to match with assignments
@@ -52,8 +53,9 @@ export default function AdvisorDashboard() {
     queryKey: ['allUsersForAdvisor'],
     queryFn: () => base44.entities.User.list(),
     enabled: !!user?.id,
-    refetchInterval: 5000,
-    staleTime: 0,
+    staleTime: 3 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // Get allowed users that haven't logged in yet
@@ -61,6 +63,9 @@ export default function AdvisorDashboard() {
     queryKey: ['allowedUsersForAdvisor'],
     queryFn: () => base44.entities.AllowedUser.list(),
     enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading = loadingAssignments || loadingUsers || loadingAllowed;
