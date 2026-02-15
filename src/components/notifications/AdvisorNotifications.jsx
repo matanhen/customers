@@ -11,9 +11,17 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
 
   const { data: allNotifications = [] } = useQuery({
     queryKey: ['notifications', advisorId],
-    queryFn: () => base44.entities.Notification.filter({ advisor_id: advisorId, is_dismissed: false }),
+    queryFn: async () => {
+      try {
+        return await base44.entities.Notification.filter({ advisor_id: advisorId, is_dismissed: false });
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+        return [];
+      }
+    },
     enabled: !!advisorId,
     refetchInterval: 60000,
+    staleTime: 30000,
   });
 
   // Deduplicate notifications - keep only one per client+type combination
@@ -28,14 +36,30 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
 
   const { data: monthlyPlans = [] } = useQuery({
     queryKey: ['allMonthlyPlans'],
-    queryFn: () => base44.entities.MonthlyPlan.list(),
-    enabled: !!advisorId,
+    queryFn: async () => {
+      try {
+        return await base44.entities.MonthlyPlan.list();
+      } catch (error) {
+        console.error('Error loading monthly plans:', error);
+        return [];
+      }
+    },
+    enabled: !!advisorId && clients.length > 0,
+    staleTime: 3 * 60 * 1000,
   });
 
   const { data: allUsers = [] } = useQuery({
     queryKey: ['allUsersForNotifications'],
-    queryFn: () => base44.entities.User.list(),
-    enabled: !!advisorId,
+    queryFn: async () => {
+      try {
+        return await base44.entities.User.list();
+      } catch (error) {
+        console.error('Error loading users for notifications:', error);
+        return [];
+      }
+    },
+    enabled: !!advisorId && clients.length > 0,
+    staleTime: 3 * 60 * 1000,
   });
 
   const createNotificationMutation = useMutation({
@@ -55,75 +79,79 @@ export default function AdvisorNotifications({ advisorId, clients = [] }) {
 
   // Check for alerts
   useEffect(() => {
-    if (!advisorId || clients.length === 0) return;
+    if (!advisorId || clients.length === 0 || allUsers.length === 0 || monthlyPlans.length === 0) return;
 
     const checkAlerts = async () => {
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const today = new Date();
-      const dayOfMonth = today.getDate();
+      try {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const today = new Date();
+        const dayOfMonth = today.getDate();
 
-      // Track which notifications we need to create (deduplicated)
-      const notificationsToCreate = [];
+        // Track which notifications we need to create (deduplicated)
+        const notificationsToCreate = [];
 
-      for (const client of clients) {
-        // Check for inactive users (no login for 30 days)
-        const clientUser = allUsers.find(u => u.id === client.id);
-        if (clientUser) {
-          const lastLogin = clientUser.updated_date ? new Date(clientUser.updated_date) : new Date(clientUser.created_date);
-          const daysSinceLogin = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));
+        for (const client of clients) {
+          // Check for inactive users (no login for 30 days)
+          const clientUser = allUsers.find(u => u.id === client.id);
+          if (clientUser) {
+            const lastLogin = clientUser.updated_date ? new Date(clientUser.updated_date) : new Date(clientUser.created_date);
+            const daysSinceLogin = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));
 
-          if (daysSinceLogin > 30) {
-            const existingNotif = allNotifications.find(
-              n => n.client_id === client.id && n.type === 'inactive_user' && !n.is_dismissed
+            if (daysSinceLogin > 30) {
+              const existingNotif = allNotifications.find(
+                n => n.client_id === client.id && n.type === 'inactive_user' && !n.is_dismissed
+              );
+              const alreadyQueued = notificationsToCreate.find(
+                n => n.client_id === client.id && n.type === 'inactive_user'
+              );
+              if (!existingNotif && !alreadyQueued) {
+                notificationsToCreate.push({
+                  advisor_id: advisorId,
+                  client_id: client.id,
+                  client_name: client.full_name || client.email,
+                  type: 'inactive_user',
+                  message: `${client.full_name || client.email} לא התחבר למערכת כבר ${daysSinceLogin} ימים`,
+                });
+              }
+            }
+          }
+
+          // Check for missing monthly plan (after 15th of month)
+          if (dayOfMonth >= 15) {
+            const hasCurrentPlan = monthlyPlans.some(
+              p => p.user_id === client.id && p.month === currentMonth
             );
-            const alreadyQueued = notificationsToCreate.find(
-              n => n.client_id === client.id && n.type === 'inactive_user'
-            );
-            if (!existingNotif && !alreadyQueued) {
-              notificationsToCreate.push({
-                advisor_id: advisorId,
-                client_id: client.id,
-                client_name: client.full_name || client.email,
-                type: 'inactive_user',
-                message: `${client.full_name || client.email} לא התחבר למערכת כבר ${daysSinceLogin} ימים`,
-              });
+            if (!hasCurrentPlan) {
+              const existingNotif = allNotifications.find(
+                n => n.client_id === client.id && n.type === 'missing_monthly_plan' && !n.is_dismissed
+              );
+              const alreadyQueued = notificationsToCreate.find(
+                n => n.client_id === client.id && n.type === 'missing_monthly_plan'
+              );
+              if (!existingNotif && !alreadyQueued) {
+                notificationsToCreate.push({
+                  advisor_id: advisorId,
+                  client_id: client.id,
+                  client_name: client.full_name || client.email,
+                  type: 'missing_monthly_plan',
+                  message: `${client.full_name || client.email} טרם הגדיר תכנון חודשי לחודש הנוכחי`,
+                });
+              }
             }
           }
         }
 
-        // Check for missing monthly plan (after 15th of month)
-        if (dayOfMonth >= 15) {
-          const hasCurrentPlan = monthlyPlans.some(
-            p => p.user_id === client.id && p.month === currentMonth
-          );
-          if (!hasCurrentPlan) {
-            const existingNotif = allNotifications.find(
-              n => n.client_id === client.id && n.type === 'missing_monthly_plan' && !n.is_dismissed
-            );
-            const alreadyQueued = notificationsToCreate.find(
-              n => n.client_id === client.id && n.type === 'missing_monthly_plan'
-            );
-            if (!existingNotif && !alreadyQueued) {
-              notificationsToCreate.push({
-                advisor_id: advisorId,
-                client_id: client.id,
-                client_name: client.full_name || client.email,
-                type: 'missing_monthly_plan',
-                message: `${client.full_name || client.email} טרם הגדיר תכנון חודשי לחודש הנוכחי`,
-              });
-            }
-          }
+        // Create notifications sequentially to avoid race conditions
+        for (const notif of notificationsToCreate) {
+          createNotificationMutation.mutate(notif);
         }
-      }
-
-      // Create notifications sequentially to avoid race conditions
-      for (const notif of notificationsToCreate) {
-        createNotificationMutation.mutate(notif);
+      } catch (error) {
+        console.error('Error checking alerts:', error);
       }
     };
 
     checkAlerts();
-  }, [advisorId, clients, allUsers, monthlyPlans, notifications]);
+  }, [advisorId, clients.length, allUsers.length, monthlyPlans.length]);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
