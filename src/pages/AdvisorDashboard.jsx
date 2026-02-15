@@ -4,11 +4,12 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Users, Search, Eye, 
-  Mail, Calendar
+  Mail, Calendar, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import AdvisorNotifications from '../components/notifications/AdvisorNotifications';
 
@@ -33,14 +34,19 @@ export default function AdvisorDashboard() {
   const isAdmin = user?.user_type === 'admin';
 
   // Get assignments - admin gets all, advisor gets only their assignments
-  const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
+  const { data: assignments = [], isLoading: loadingAssignments, error: assignmentsError } = useQuery({
     queryKey: ['advisorAssignments', user?.id, isAdmin],
     queryFn: async () => {
-      const allAssignments = await base44.entities.ClientAdvisorAssignment.list();
-      if (isAdmin) {
-        return allAssignments; // Admin sees all assignments
+      try {
+        const allAssignments = await base44.entities.ClientAdvisorAssignment.list();
+        if (isAdmin) {
+          return allAssignments;
+        }
+        return allAssignments.filter(a => a.advisor_id === user?.id);
+      } catch (error) {
+        console.error('Error loading assignments:', error);
+        return [];
       }
-      return allAssignments.filter(a => a.advisor_id === user?.id);
     },
     enabled: !!user?.id && (isAdvisor || isAdmin),
     staleTime: 3 * 60 * 1000,
@@ -49,9 +55,16 @@ export default function AdvisorDashboard() {
   });
 
   // Get all users to match with assignments
-  const { data: allUsers = [], isLoading: loadingUsers } = useQuery({
+  const { data: allUsers = [], isLoading: loadingUsers, error: usersError } = useQuery({
     queryKey: ['allUsersForAdvisor'],
-    queryFn: () => base44.entities.User.list(),
+    queryFn: async () => {
+      try {
+        return await base44.entities.User.list();
+      } catch (error) {
+        console.error('Error loading users:', error);
+        return [];
+      }
+    },
     enabled: !!user?.id,
     staleTime: 3 * 60 * 1000,
     refetchOnMount: false,
@@ -59,9 +72,16 @@ export default function AdvisorDashboard() {
   });
 
   // Get allowed users that haven't logged in yet
-  const { data: allowedUsers = [], isLoading: loadingAllowed } = useQuery({
+  const { data: allowedUsers = [], isLoading: loadingAllowed, error: allowedError } = useQuery({
     queryKey: ['allowedUsersForAdvisor'],
-    queryFn: () => base44.entities.AllowedUser.list(),
+    queryFn: async () => {
+      try {
+        return await base44.entities.AllowedUser.list();
+      } catch (error) {
+        console.error('Error loading allowed users:', error);
+        return [];
+      }
+    },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
@@ -69,6 +89,7 @@ export default function AdvisorDashboard() {
   });
 
   const isLoading = loadingAssignments || loadingUsers || loadingAllowed;
+  const hasError = assignmentsError || usersError || allowedError;
 
   // Merge Users and AllowedUsers - create combined list
   const userEmails = new Set(allUsers.map(u => u.email));
@@ -141,6 +162,21 @@ export default function AdvisorDashboard() {
         <p className="text-slate-500 mt-2 text-lg">צפייה ועריכת נתוני לקוחות</p>
       </div>
 
+      {/* Error State */}
+      {hasError && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 text-red-800">
+              <AlertCircle className="w-6 h-6" />
+              <div>
+                <p className="font-semibold">שגיאה בטעינת נתונים</p>
+                <p className="text-sm">אנא נסה לרענן את הדף</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Card */}
       <Card className="mb-6 border-0 shadow-xl shadow-[#105330]/20 bg-gradient-to-br from-[#105330]/5 to-[#c8a863]/5 overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-[#105330] to-[#c8a863]" />
@@ -151,7 +187,11 @@ export default function AdvisorDashboard() {
             </div>
             <div>
               <p className="text-sm text-blue-600 font-medium">{isAdmin ? 'סה״כ לקוחות במערכת' : 'לקוחות משויכים אליך'}</p>
-              <p className="text-4xl font-bold text-slate-800">{clients.length}</p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-20 mt-1" />
+              ) : (
+                <p className="text-4xl font-bold text-slate-800">{clients.length}</p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -182,9 +222,17 @@ export default function AdvisorDashboard() {
         </CardHeader>
         <CardContent className="pt-6">
           {isLoading ? (
-            <div className="text-center py-12 text-slate-500">
-              <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" />
-              טוען...
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-5 p-6 bg-slate-50 rounded-2xl">
+                  <Skeleton className="w-16 h-16 rounded-2xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-6 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                  <Skeleton className="h-12 w-32 rounded-xl" />
+                </div>
+              ))}
             </div>
           ) : filteredClients.length === 0 ? (
             <div className="text-center py-16">
@@ -234,7 +282,9 @@ export default function AdvisorDashboard() {
       </Card>
 
       {/* Notifications */}
-      <AdvisorNotifications advisorId={user?.id} clients={clients} />
+      {!isLoading && !hasError && (
+        <AdvisorNotifications advisorId={user?.id} clients={clients} />
+      )}
     </div>
   );
 }
