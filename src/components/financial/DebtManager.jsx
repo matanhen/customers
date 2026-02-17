@@ -253,6 +253,9 @@ export default function DebtManager({ userId }) {
                 הוסף חוב
               </Button>
             </DialogTrigger>
+          </Dialog>
+        </div>
+      </div>
           <DialogContent dir="rtl" className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingDebt ? 'עריכת חוב' : 'הוספת חוב חדש'}</DialogTitle>
@@ -337,7 +340,8 @@ export default function DebtManager({ userId }) {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {/* Debt Summary */}
