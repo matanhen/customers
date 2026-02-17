@@ -253,93 +253,90 @@ export default function DebtManager({ userId }) {
                 הוסף חוב
               </Button>
             </DialogTrigger>
-          </Dialog>
-        </div>
-      </div>
-          <DialogContent dir="rtl" className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{editingDebt ? 'עריכת חוב' : 'הוספת חוב חדש'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>שם החוב</Label>
-                <Input
-                  value={debtForm.name}
-                  onChange={(e) => setDebtForm({ ...debtForm, name: e.target.value })}
-                  placeholder="לדוגמה: ביטוח חיים"
-                />
+            <DialogContent dir="rtl" className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{editingDebt ? 'עריכת חוב' : 'הוספת חוב חדש'}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>שם החוב</Label>
+                  <Input
+                    value={debtForm.name}
+                    onChange={(e) => setDebtForm({ ...debtForm, name: e.target.value })}
+                    placeholder="לדוגמה: ביטוח חיים"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>סוג החוב</Label>
+                    <Select value={debtForm.type} onValueChange={(v) => setDebtForm({ ...debtForm, type: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="loan">הלוואה</SelectItem>
+                        <SelectItem value="credit_card">כרטיס אשראי</SelectItem>
+                        <SelectItem value="mortgage">משכנתא</SelectItem>
+                        <SelectItem value="other">אחר</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ריבית שנתית (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={debtForm.interest_rate || ''}
+                      onChange={(e) => setDebtForm({ ...debtForm, interest_rate: parseFloat(e.target.value) || 0 })}
+                      placeholder="5.5"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>סכום כולל</Label>
+                    <Input
+                      type="number"
+                      value={debtForm.total_amount || ''}
+                      onChange={(e) => setDebtForm({ ...debtForm, total_amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="100000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>יתרה נוכחית</Label>
+                    <Input
+                      type="number"
+                      value={debtForm.remaining_amount || ''}
+                      onChange={(e) => setDebtForm({ ...debtForm, remaining_amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="80000"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>תשלום מינימום</Label>
+                    <Input
+                      type="number"
+                      value={debtForm.minimum_payment || ''}
+                      onChange={(e) => setDebtForm({ ...debtForm, minimum_payment: parseFloat(e.target.value) || 0 })}
+                      placeholder="2000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>תשלום חודשי</Label>
+                    <Input
+                      type="number"
+                      value={debtForm.current_payment || ''}
+                      onChange={(e) => setDebtForm({ ...debtForm, current_payment: parseFloat(e.target.value) || 0 })}
+                      placeholder="2500"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleSubmit} className="w-full bg-[#105330] hover:bg-[#0d4027]">
+                  {editingDebt ? 'עדכן' : 'הוסף'} חוב
+                </Button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>סוג החוב</Label>
-                  <Select value={debtForm.type} onValueChange={(v) => setDebtForm({ ...debtForm, type: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="loan">הלוואה</SelectItem>
-                      <SelectItem value="credit_card">כרטיס אשראי</SelectItem>
-                      <SelectItem value="mortgage">משכנתא</SelectItem>
-                      <SelectItem value="other">אחר</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>ריבית שנתית (%)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={debtForm.interest_rate || ''}
-                    onChange={(e) => setDebtForm({ ...debtForm, interest_rate: parseFloat(e.target.value) || 0 })}
-                    placeholder="5.5"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>סכום כולל</Label>
-                  <Input
-                    type="number"
-                    value={debtForm.total_amount || ''}
-                    onChange={(e) => setDebtForm({ ...debtForm, total_amount: parseFloat(e.target.value) || 0 })}
-                    placeholder="100000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>יתרה נוכחית</Label>
-                  <Input
-                    type="number"
-                    value={debtForm.remaining_amount || ''}
-                    onChange={(e) => setDebtForm({ ...debtForm, remaining_amount: parseFloat(e.target.value) || 0 })}
-                    placeholder="80000"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>תשלום מינימום</Label>
-                  <Input
-                    type="number"
-                    value={debtForm.minimum_payment || ''}
-                    onChange={(e) => setDebtForm({ ...debtForm, minimum_payment: parseFloat(e.target.value) || 0 })}
-                    placeholder="2000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>תשלום חודשי</Label>
-                  <Input
-                    type="number"
-                    value={debtForm.current_payment || ''}
-                    onChange={(e) => setDebtForm({ ...debtForm, current_payment: parseFloat(e.target.value) || 0 })}
-                    placeholder="2500"
-                  />
-                </div>
-              </div>
-              <Button onClick={handleSubmit} className="w-full bg-[#105330] hover:bg-[#0d4027]">
-                {editingDebt ? 'עדכן' : 'הוסף'} חוב
-              </Button>
-            </div>
-          </DialogContent>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
