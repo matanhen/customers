@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   CreditCard, TrendingDown, Plus, Trash2, 
-  Edit, Target, AlertCircle, Sparkles
+  Edit, Target, AlertCircle, Sparkles, Calculator
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,12 @@ export default function DebtManager({ userId }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingDebt, setEditingDebt] = useState(null);
   const [showStrategyDialog, setShowStrategyDialog] = useState(false);
+  const [showSimulationDialog, setShowSimulationDialog] = useState(false);
+  const [simulationForm, setSimulationForm] = useState({
+    new_amount: 0,
+    new_interest_rate: 0,
+    new_period_months: 0
+  });
   const [debtForm, setDebtForm] = useState({
     name: '',
     type: 'loan',
@@ -130,6 +136,80 @@ export default function DebtManager({ userId }) {
     return colors[type] || colors.other;
   };
 
+  // Simulation calculations
+  const calculateTotalInterest = (principal, annualRate, months) => {
+    if (months <= 0 || principal <= 0) return 0;
+    const monthlyRate = annualRate / 100 / 12;
+    if (monthlyRate === 0) return 0;
+    
+    const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                          (Math.pow(1 + monthlyRate, months) - 1);
+    const totalPaid = monthlyPayment * months;
+    return totalPaid - principal;
+  };
+
+  const getSimulationResults = () => {
+    // Current situation - sum all debts
+    const currentTotalDebt = debts.reduce((sum, d) => sum + d.remaining_amount, 0);
+    const currentAvgInterest = avgInterest;
+    
+    // Estimate current total months (weighted average)
+    let totalCurrentMonths = 0;
+    let weightedSum = 0;
+    
+    debts.forEach(debt => {
+      if (debt.current_payment > 0 && debt.remaining_amount > 0) {
+        const months = Math.ceil(debt.remaining_amount / debt.current_payment);
+        weightedSum += months * debt.remaining_amount;
+      }
+    });
+    
+    if (currentTotalDebt > 0) {
+      totalCurrentMonths = Math.ceil(weightedSum / currentTotalDebt);
+    }
+    
+    // If no payment info, estimate 5 years
+    if (totalCurrentMonths === 0) {
+      totalCurrentMonths = 60;
+    }
+
+    const currentInterest = calculateTotalInterest(currentTotalDebt, currentAvgInterest, totalCurrentMonths);
+    const currentTotal = currentTotalDebt + currentInterest;
+
+    // New loan scenario
+    const newAmount = simulationForm.new_amount || 0;
+    const newRate = simulationForm.new_interest_rate || 0;
+    const newMonths = simulationForm.new_period_months || 0;
+    
+    const newInterest = calculateTotalInterest(newAmount, newRate, newMonths);
+    const newTotal = newAmount + newInterest;
+
+    const savings = currentInterest - newInterest;
+    const totalSavings = currentTotal - newTotal;
+
+    return {
+      current: {
+        principal: currentTotalDebt,
+        interest: currentInterest,
+        total: currentTotal,
+        months: totalCurrentMonths,
+        avgRate: currentAvgInterest
+      },
+      new: {
+        principal: newAmount,
+        interest: newInterest,
+        total: newTotal,
+        months: newMonths,
+        rate: newRate
+      },
+      savings: {
+        interest: savings,
+        total: totalSavings,
+        percentage: currentInterest > 0 ? (savings / currentInterest) * 100 : 0
+      }
+    };
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Add Button */}
@@ -138,23 +218,41 @@ export default function DebtManager({ userId }) {
           <h2 className="text-2xl font-bold text-[#105330]">ניהול חובות</h2>
           <p className="text-[#105330]/70">מעקב ואסטרטגיות פירעון חובות</p>
         </div>
-        <Dialog open={showAddDialog} onOpenChange={(open) => {
-          setShowAddDialog(open);
-          if (!open) {
-            setEditingDebt(null);
-            resetForm();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#105330] hover:bg-[#0d4027]" onClick={() => {
-              setShowAddDialog(true);
-              resetForm();
-              setEditingDebt(null);
-            }}>
-              <Plus className="w-4 h-4 ml-2" />
-              הוסף חוב
+        <div className="flex gap-2">
+          {debts.length > 0 && (
+            <Button 
+              variant="outline" 
+              className="border-[#c8a863] text-[#c8a863] hover:bg-[#c8a863]/10"
+              onClick={() => {
+                setSimulationForm({
+                  new_amount: totalDebt,
+                  new_interest_rate: 0,
+                  new_period_months: 60
+                });
+                setShowSimulationDialog(true);
+              }}
+            >
+              <Calculator className="w-4 h-4 ml-2" />
+              סימולציה
             </Button>
-          </DialogTrigger>
+          )}
+          <Dialog open={showAddDialog} onOpenChange={(open) => {
+            setShowAddDialog(open);
+            if (!open) {
+              setEditingDebt(null);
+              resetForm();
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button className="bg-[#105330] hover:bg-[#0d4027]" onClick={() => {
+                setShowAddDialog(true);
+                resetForm();
+                setEditingDebt(null);
+              }}>
+                <Plus className="w-4 h-4 ml-2" />
+                הוסף חוב
+              </Button>
+            </DialogTrigger>
           <DialogContent dir="rtl" className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingDebt ? 'עריכת חוב' : 'הוספת חוב חדש'}</DialogTitle>
@@ -415,6 +513,166 @@ export default function DebtManager({ userId }) {
           })}
         </div>
       )}
+
+      {/* Simulation Dialog */}
+      <Dialog open={showSimulationDialog} onOpenChange={setShowSimulationDialog}>
+        <DialogContent dir="rtl" className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Calculator className="w-6 h-6 text-[#c8a863]" />
+              סימולציית מיחזור הלוואה
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {/* Current Situation */}
+            <div className="p-4 bg-red-50 rounded-xl border-2 border-red-200">
+              <h3 className="font-bold text-red-700 mb-3 text-lg">📊 המצב הקיים</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">סך כל החובות</p>
+                  <p className="text-2xl font-bold text-red-600">₪{totalDebt.toLocaleString()}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">ריבית ממוצעת</p>
+                  <p className="text-2xl font-bold text-red-600">{avgInterest.toFixed(2)}%</p>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-white rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">פירוט החובות הקיימים:</p>
+                <div className="space-y-1">
+                  {debts.map((debt) => (
+                    <div key={debt.id} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{debt.name}</span>
+                      <div className="flex gap-3">
+                        <span className="font-medium text-red-600">₪{debt.remaining_amount.toLocaleString()}</span>
+                        <Badge className="bg-red-100 text-red-700 text-xs">{debt.interest_rate}%</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* New Loan Input */}
+            <div className="p-4 bg-green-50 rounded-xl border-2 border-green-200">
+              <h3 className="font-bold text-green-700 mb-3 text-lg">💚 הלוואה חדשה (מיחזור)</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>סכום הלוואה חדשה</Label>
+                  <Input
+                    type="number"
+                    value={simulationForm.new_amount || ''}
+                    onChange={(e) => setSimulationForm({ ...simulationForm, new_amount: parseFloat(e.target.value) || 0 })}
+                    placeholder="סכום"
+                    className="text-lg font-bold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>ריבית שנתית חדשה (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={simulationForm.new_interest_rate || ''}
+                    onChange={(e) => setSimulationForm({ ...simulationForm, new_interest_rate: parseFloat(e.target.value) || 0 })}
+                    placeholder="ריבית"
+                    className="text-lg font-bold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>תקופה (חודשים)</Label>
+                  <Input
+                    type="number"
+                    value={simulationForm.new_period_months || ''}
+                    onChange={(e) => setSimulationForm({ ...simulationForm, new_period_months: parseInt(e.target.value) || 0 })}
+                    placeholder="חודשים"
+                    className="text-lg font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Results */}
+            {simulationForm.new_amount > 0 && simulationForm.new_period_months > 0 && (() => {
+              const results = getSimulationResults();
+              const isSavings = results.savings.interest > 0;
+              
+              return (
+                <div className={`p-5 rounded-xl border-2 ${isSavings ? 'bg-[#c8a863]/10 border-[#c8a863]' : 'bg-orange-50 border-orange-300'}`}>
+                  <h3 className={`font-bold mb-4 text-xl flex items-center gap-2 ${isSavings ? 'text-[#105330]' : 'text-orange-700'}`}>
+                    {isSavings ? '✨ תוצאות - חיסכון משמעותי!' : '⚠️ תוצאות - אין חיסכון'}
+                  </h3>
+                  
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    {/* Current */}
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <p className="text-sm text-gray-500 mb-2">מצב קיים</p>
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">קרן:</span>
+                          <span className="font-bold">₪{results.current.principal.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">ריבית צפויה:</span>
+                          <span className="font-bold text-red-600">₪{results.current.interest.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-1">
+                          <span className="font-medium text-gray-700">סה״כ לתשלום:</span>
+                          <span className="font-bold text-lg">₪{results.current.total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* New */}
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <p className="text-sm text-gray-500 mb-2">הלוואה חדשה</p>
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">קרן:</span>
+                          <span className="font-bold">₪{results.new.principal.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">ריבית צפויה:</span>
+                          <span className="font-bold text-green-600">₪{results.new.interest.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-1">
+                          <span className="font-medium text-gray-700">סה״כ לתשלום:</span>
+                          <span className="font-bold text-lg">₪{results.new.total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Savings Summary */}
+                  <div className={`p-5 rounded-lg ${isSavings ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a]' : 'bg-orange-500'} text-white`}>
+                    <div className="text-center">
+                      <p className="text-sm opacity-90 mb-1">
+                        {isSavings ? 'חיסכון כולל בריבית' : 'עלות נוספת'}
+                      </p>
+                      <p className="text-4xl font-bold mb-1">
+                        {isSavings ? '₪' : '-₪'}{Math.abs(results.savings.interest).toLocaleString()}
+                      </p>
+                      <p className="text-sm opacity-90">
+                        {isSavings 
+                          ? `${results.savings.percentage.toFixed(1)}% פחות ריבית!` 
+                          : 'ההלוואה החדשה יקרה יותר'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isSavings && (
+                    <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                      <p className="text-sm text-green-800">
+                        <strong>💡 המלצה:</strong> מיחזור ההלוואה יכול לחסוך לך {Math.abs(results.savings.interest).toLocaleString()}₪ בריבית. 
+                        שקול לפנות לבנק או מוסד פיננסי למימון מחדש.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Strategy Dialog */}
       <Dialog open={showStrategyDialog} onOpenChange={setShowStrategyDialog}>
