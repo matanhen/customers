@@ -437,54 +437,37 @@ export default function DebtManager({ userId }) {
         </Card>
       </div>
 
-      {/* AI Strategy Recommendations */}
+      {/* Strategy Recommendation */}
       {debts.length > 0 && (
         <Card className="border-0 shadow-xl bg-gradient-to-br from-[#c8a863]/10 to-[#105330]/5">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-[#105330]">
                 <Sparkles className="w-5 h-5 text-[#c8a863]" />
-                אסטרטגיות פירעון מומלצות
+                אסטרטגיית פירעון מומלצת
               </CardTitle>
               <Button 
                 variant="outline" 
                 onClick={() => setShowStrategyDialog(true)}
                 className="border-[#105330] text-[#105330]"
               >
-                הצג המלצות מפורטות
+                הצג פירוט
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="p-4 bg-white rounded-xl border-2 border-blue-200">
-                <h3 className="font-bold text-blue-700 mb-2">🏔️ שיטת האבלנץ׳ (Avalanche)</h3>
-                <p className="text-sm text-gray-600 mb-3">התמקדות בחובות עם הריבית הגבוהה ביותר - חוסך כסף לאורך זמן</p>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-gray-500">סדר פירעון מומלץ:</p>
-                  {strategies.avalanche.slice(0, 3).map((debt, idx) => (
-                    <div key={debt.id} className="flex items-center gap-2 text-sm">
-                      <span className="font-bold text-blue-600">{idx + 1}.</span>
-                      <span className="text-gray-700">{debt.name}</span>
-                      <Badge className="bg-red-100 text-red-700 text-xs">{debt.interest_rate}%</Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-4 bg-white rounded-xl border-2 border-green-200">
-                <h3 className="font-bold text-green-700 mb-2">⛄ שיטת כדור השלג (Snowball)</h3>
-                <p className="text-sm text-gray-600 mb-3">התמקדות בחובות הקטנים ביותר - מוטיבציה ומומנטום</p>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-gray-500">סדר פירעון מומלץ:</p>
-                  {strategies.snowball.slice(0, 3).map((debt, idx) => (
-                    <div key={debt.id} className="flex items-center gap-2 text-sm">
-                      <span className="font-bold text-green-600">{idx + 1}.</span>
-                      <span className="text-gray-700">{debt.name}</span>
-                      <Badge className="bg-blue-100 text-blue-700 text-xs">₪{debt.remaining_amount.toLocaleString()}</Badge>
-                    </div>
-                  ))}
-                </div>
+            <div className="p-4 bg-white rounded-xl border-2 border-green-200">
+              <h3 className="font-bold text-green-700 mb-2">⛄ שיטת כדור השלג (Snowball)</h3>
+              <p className="text-sm text-gray-600 mb-3">קודם סוגרים את החוב הקטן ביותר לטובת צבירת מוטיבציה ומומנטום</p>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-gray-500">סדר פירעון מומלץ:</p>
+                {strategies.snowball.slice(0, 3).map((debt, idx) => (
+                  <div key={debt.id} className="flex items-center gap-2 text-sm">
+                    <span className="font-bold text-green-600">{idx + 1}.</span>
+                    <span className="text-gray-700">{debt.name}</span>
+                    <Badge className="bg-blue-100 text-blue-700 text-xs">₪{debt.remaining_amount.toLocaleString()}</Badge>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -758,44 +741,21 @@ export default function DebtManager({ userId }) {
       <Dialog open={showStrategyDialog} onOpenChange={setShowStrategyDialog}>
         <DialogContent dir="rtl" className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>אסטרטגיות פירעון מומלצות</DialogTitle>
+            <DialogTitle>אסטרטגיית פירעון מומלצת</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-4">
-            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <h3 className="font-bold text-blue-700 mb-3 flex items-center gap-2">
-                <TrendingDown className="w-5 h-5" />
-                שיטת האבלנץ׳ (Avalanche) - מומלצת לחיסכון מקסימלי
+            <div className="p-4 bg-green-50 rounded-xl border-2 border-green-300">
+              <h3 className="font-bold text-green-700 mb-3 flex items-center gap-2 text-lg">
+                <Target className="w-6 h-6" />
+                שיטת כדור השלג (Snowball)
               </h3>
-              <p className="text-sm text-gray-700 mb-4">
-                שלם את המינימום על כל החובות, והשאר הכנס לחוב עם הריבית הגבוהה ביותר. שיטה זו חוסכת הכי הרבה כסף בריבית לאורך זמן.
+              <p className="text-sm text-gray-700 mb-4 font-medium">
+                קודם סוגרים את החוב הקטן ביותר לטובת צבירת מוטיבציה ומומנטום. כל חוב שנפרע מעניק תחושת הישג ומוטיבציה להמשיך.
               </p>
               <div className="space-y-2">
-                {strategies.avalanche.map((debt, idx) => (
-                  <div key={debt.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-blue-600 text-lg">{idx + 1}</span>
-                      <div>
-                        <p className="font-medium text-gray-800">{debt.name}</p>
-                        <p className="text-xs text-gray-500">יתרה: ₪{debt.remaining_amount.toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-red-100 text-red-700">ריבית: {debt.interest_rate}%</Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-              <h3 className="font-bold text-green-700 mb-3 flex items-center gap-2">
-                <Target className="w-5 h-5" />
-                שיטת כדור השלג (Snowball) - מומלצת למוטיבציה
-              </h3>
-              <p className="text-sm text-gray-700 mb-4">
-                שלם את המינימום על כל החובות, והשאר הכנס לחוב הכי קטן. כל חוב שנפרע מעניק תחושת הישג ומוטיבציה להמשיך.
-              </p>
-              <div className="space-y-2">
+                <p className="text-sm font-bold text-green-700 mb-2">סדר פירעון מומלץ:</p>
                 {strategies.snowball.map((debt, idx) => (
-                  <div key={debt.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                  <div key={debt.id} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-green-600 text-lg">{idx + 1}</span>
                       <div>
