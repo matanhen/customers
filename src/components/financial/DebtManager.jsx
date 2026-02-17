@@ -182,6 +182,16 @@ export default function DebtManager({ userId }) {
     const newRate = simulationForm.new_interest_rate || 0;
     const newMonths = simulationForm.new_period_months || 0;
     
+    // Calculate monthly payment for refinanced loan
+    const monthlyRate = newRate / 100 / 12;
+    let monthlyPayment = 0;
+    if (monthlyRate > 0 && newMonths > 0 && refinanceAmount > 0) {
+      monthlyPayment = (refinanceAmount * monthlyRate * Math.pow(1 + monthlyRate, newMonths)) / 
+                      (Math.pow(1 + monthlyRate, newMonths) - 1);
+    } else if (refinanceAmount > 0 && newMonths > 0) {
+      monthlyPayment = refinanceAmount / newMonths;
+    }
+    
     // Remaining debt that stays at current rate
     const remainingDebt = currentTotalDebt - refinanceAmount;
     
@@ -200,6 +210,29 @@ export default function DebtManager({ userId }) {
     const savings = currentInterest - newTotalInterest;
     const totalSavings = currentTotal - newTotal;
 
+    // Recommendation: which debt to refinance
+    let recommendation = null;
+    if (debts.length > 1 && refinanceAmount > 0) {
+      // Sort debts by interest rate (highest first)
+      const sortedByRate = [...debts].sort((a, b) => b.interest_rate - a.interest_rate);
+      
+      // Check if refinance amount can cover highest interest debt completely
+      const highestInterestDebt = sortedByRate[0];
+      if (refinanceAmount >= highestInterestDebt.remaining_amount) {
+        recommendation = {
+          type: 'full',
+          debt: highestInterestDebt,
+          message: `מומלץ למחזר את "${highestInterestDebt.name}" במלואו (₪${highestInterestDebt.remaining_amount.toLocaleString()}) - הריבית הגבוהה ביותר (${highestInterestDebt.interest_rate}%)`
+        };
+      } else {
+        recommendation = {
+          type: 'partial',
+          debt: highestInterestDebt,
+          message: `מומלץ למחזר חלק מ-"${highestInterestDebt.name}" - הריבית הגבוהה ביותר (${highestInterestDebt.interest_rate}%)`
+        };
+      }
+    }
+
     return {
       current: {
         principal: currentTotalDebt,
@@ -216,13 +249,15 @@ export default function DebtManager({ userId }) {
         remainingInterest: remainingInterest,
         total: newTotal,
         months: newMonths,
-        rate: newRate
+        rate: newRate,
+        monthlyPayment: monthlyPayment
       },
       savings: {
         interest: savings,
         total: totalSavings,
         percentage: currentInterest > 0 ? (savings / currentInterest) * 100 : 0
-      }
+      },
+      recommendation: recommendation
     };
   };
 
@@ -614,12 +649,31 @@ export default function DebtManager({ userId }) {
               const isSavings = results.savings.interest > 0;
               
               return (
-                <div className={`p-5 rounded-xl border-2 ${isSavings ? 'bg-[#c8a863]/10 border-[#c8a863]' : 'bg-orange-50 border-orange-300'}`}>
-                  <h3 className={`font-bold mb-4 text-xl flex items-center gap-2 ${isSavings ? 'text-[#105330]' : 'text-orange-700'}`}>
-                    {isSavings ? '✨ תוצאות - חיסכון משמעותי!' : '⚠️ תוצאות - אין חיסכון'}
-                  </h3>
-                  
-                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <>
+                  {/* Recommendation */}
+                  {results.recommendation && (
+                    <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+                      <h3 className="font-bold text-blue-700 mb-2 flex items-center gap-2">
+                        <Target className="w-5 h-5" />
+                        המלצת מיחזור
+                      </h3>
+                      <p className="text-sm text-blue-800">{results.recommendation.message}</p>
+                    </div>
+                  )}
+
+                  {/* Monthly Payment */}
+                  <div className="p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                    <h3 className="font-bold text-purple-700 mb-2">תשלום חודשי להלוואת מיחזור</h3>
+                    <p className="text-3xl font-bold text-purple-800">₪{Math.round(results.new.monthlyPayment).toLocaleString()}</p>
+                    <p className="text-sm text-purple-600 mt-1">לתקופה של {results.new.months} חודשים</p>
+                  </div>
+
+                  <div className={`p-5 rounded-xl border-2 ${isSavings ? 'bg-[#c8a863]/10 border-[#c8a863]' : 'bg-orange-50 border-orange-300'}`}>
+                    <h3 className={`font-bold mb-4 text-xl flex items-center gap-2 ${isSavings ? 'text-[#105330]' : 'text-orange-700'}`}>
+                      {isSavings ? '✨ תוצאות - חיסכון משמעותי!' : '⚠️ תוצאות - אין חיסכון'}
+                    </h3>
+                    
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
                     {/* Current */}
                     <div className="bg-white p-4 rounded-lg shadow">
                       <p className="text-sm text-gray-500 mb-2">מצב קיים</p>
@@ -692,7 +746,8 @@ export default function DebtManager({ userId }) {
                       </p>
                     </div>
                   )}
-                </div>
+                  </div>
+                </>
               );
             })()}
           </div>
