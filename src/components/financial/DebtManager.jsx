@@ -173,18 +173,31 @@ export default function DebtManager({ userId }) {
       totalCurrentMonths = 60;
     }
 
+    // Current scenario - all debt at current rate
     const currentInterest = calculateTotalInterest(currentTotalDebt, currentAvgInterest, totalCurrentMonths);
     const currentTotal = currentTotalDebt + currentInterest;
 
-    // New loan scenario
-    const newAmount = simulationForm.new_amount || 0;
+    // New scenario with partial refinancing
+    const refinanceAmount = simulationForm.new_amount || 0;
     const newRate = simulationForm.new_interest_rate || 0;
     const newMonths = simulationForm.new_period_months || 0;
     
-    const newInterest = calculateTotalInterest(newAmount, newRate, newMonths);
-    const newTotal = newAmount + newInterest;
+    // Remaining debt that stays at current rate
+    const remainingDebt = currentTotalDebt - refinanceAmount;
+    
+    // Interest on refinanced portion at new rate
+    const refinanceInterest = calculateTotalInterest(refinanceAmount, newRate, newMonths);
+    
+    // Interest on remaining debt at current rate
+    const remainingInterest = remainingDebt > 0 
+      ? calculateTotalInterest(remainingDebt, currentAvgInterest, totalCurrentMonths)
+      : 0;
+    
+    // Total new scenario
+    const newTotalInterest = refinanceInterest + remainingInterest;
+    const newTotal = currentTotalDebt + newTotalInterest;
 
-    const savings = currentInterest - newInterest;
+    const savings = currentInterest - newTotalInterest;
     const totalSavings = currentTotal - newTotal;
 
     return {
@@ -196,8 +209,11 @@ export default function DebtManager({ userId }) {
         avgRate: currentAvgInterest
       },
       new: {
-        principal: newAmount,
-        interest: newInterest,
+        principal: refinanceAmount,
+        remainingDebt: remainingDebt,
+        interest: newTotalInterest,
+        refinanceInterest: refinanceInterest,
+        remainingInterest: remainingInterest,
         total: newTotal,
         months: newMonths,
         rate: newRate
@@ -625,15 +641,23 @@ export default function DebtManager({ userId }) {
 
                     {/* New */}
                     <div className="bg-white p-4 rounded-lg shadow">
-                      <p className="text-sm text-gray-500 mb-2">הלוואה חדשה</p>
+                      <p className="text-sm text-gray-500 mb-2">מצב חדש (מיחזור חלקי)</p>
                       <div className="space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">קרן:</span>
-                          <span className="font-bold">₪{results.new.principal.toLocaleString()}</span>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>מיחזור:</span>
+                          <span>₪{results.new.principal.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>יתרה בריבית קיימת:</span>
+                          <span>₪{results.new.remainingDebt.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">ריבית צפויה:</span>
-                          <span className="font-bold text-green-600">₪{results.new.interest.toLocaleString()}</span>
+                          <span className="text-sm text-gray-600">ריבית על מיחזור:</span>
+                          <span className="font-bold text-green-600">₪{results.new.refinanceInterest.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">ריבית על יתרה:</span>
+                          <span className="font-bold text-orange-600">₪{results.new.remainingInterest.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between border-t pt-1">
                           <span className="font-medium text-gray-700">סה״כ לתשלום:</span>
