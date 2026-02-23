@@ -5,24 +5,24 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         const { event, data } = await req.json();
 
-        // Only process create events
-        if (event?.type !== 'create' || event?.entity_name !== 'User') {
-            return Response.json({ message: 'Not a user creation event' });
+        // Process create events for AllowedUser
+        if (event?.type !== 'create' || event?.entity_name !== 'AllowedUser') {
+            return Response.json({ message: 'Not an AllowedUser creation event' });
         }
 
-        const userId = event.entity_id;
+        const allowedUserId = event.entity_id;
         const userEmail = data?.email;
 
-        if (!userId || !userEmail) {
-            return Response.json({ error: 'Missing user ID or email' }, { status: 400 });
+        if (!allowedUserId || !userEmail) {
+            return Response.json({ error: 'Missing AllowedUser ID or email' }, { status: 400 });
         }
 
         // Check if email has uppercase letters
         const normalizedEmail = userEmail.toLowerCase();
         
         if (normalizedEmail !== userEmail) {
-            // Update user with normalized email
-            await base44.asServiceRole.entities.User.update(userId, {
+            // Update AllowedUser with normalized email
+            await base44.asServiceRole.entities.AllowedUser.update(allowedUserId, {
                 email: normalizedEmail
             });
             
