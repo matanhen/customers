@@ -52,7 +52,6 @@ import AdvisorDashboard from './pages/AdvisorDashboard';
 import Appointments from './pages/Appointments';
 import FinancialFreedom from './pages/FinancialFreedom';
 import FinancialManagement from './pages/FinancialManagement';
-import Home from './pages/Home';
 import Investments from './pages/Investments';
 import __Layout from './Layout.jsx';
 
@@ -63,12 +62,11 @@ export const PAGES = {
     "Appointments": Appointments,
     "FinancialFreedom": FinancialFreedom,
     "FinancialManagement": FinancialManagement,
-    "Home": Home,
     "Investments": Investments,
 }
 
 export const pagesConfig = {
-    mainPage: "Home",
+    mainPage: "AdminDashboard",
     Pages: PAGES,
     Layout: __Layout,
 };
