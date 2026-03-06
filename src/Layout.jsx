@@ -6,6 +6,7 @@ import {
         Home, TrendingUp, PiggyBank, Target, Calendar,
         Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save, GraduationCap
       } from 'lucide-react';
+import FinancialAdvisor from './components/chat/FinancialAdvisor';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
