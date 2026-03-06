@@ -470,6 +470,9 @@ export default function Layout({ children, currentPageName }) {
           {children}
         </div>
       </main>
+
+      {/* Floating AI Financial Advisor */}
+      <FinancialAdvisor />
     </div>
   );
 }
