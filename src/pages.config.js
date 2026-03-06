@@ -53,6 +53,7 @@ import Appointments from './pages/Appointments';
 import FinancialFreedom from './pages/FinancialFreedom';
 import FinancialManagement from './pages/FinancialManagement';
 import Investments from './pages/Investments';
+import Home from './pages/Home';
 import __Layout from './Layout.jsx';
 
 
@@ -63,6 +64,7 @@ export const PAGES = {
     "FinancialFreedom": FinancialFreedom,
     "FinancialManagement": FinancialManagement,
     "Investments": Investments,
+    "Home": Home,
 }
 
 export const pagesConfig = {
