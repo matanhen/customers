@@ -334,7 +334,16 @@ ${conversationHistory}
                     : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-none'
                 }`}>
                   {msg.role === 'assistant' ? (
-                    <ReactMarkdown className="prose prose-sm max-w-none [&>p]:my-1 [&>ul]:my-1 [&>li]:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <ReactMarkdown
+                      className="prose prose-sm max-w-none [&>p]:my-1 [&>ul]:my-1 [&>li]:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                      components={{
+                        a: ({ href, children }) => (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium hover:text-blue-800">
+                            {children}
+                          </a>
+                        )
+                      }}
+                    >
                       {msg.content}
                     </ReactMarkdown>
                   ) : msg.content}
