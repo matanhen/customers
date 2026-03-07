@@ -237,13 +237,35 @@ const buildContext = (data) => {
   if (reflection) {
     const incomes = reflection.incomes || {};
     const incomeValues = Object.values(incomes).filter(v => v > 0);
+
+    // חישוב ממוצע הוצאות קבועות
+    const fixedExpenses = reflection.fixed_expenses || {};
+    const fixedCategoryAvgs = Object.entries(fixedExpenses).map(([cat, months]) => {
+      const vals = Object.values(months).filter(v => v > 0);
+      return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    });
+    const avgFixed = fixedCategoryAvgs.reduce((a, b) => a + b, 0);
+
+    // חישוב ממוצע הוצאות משתנות (יתרת הוצאות)
+    const variableExpenses = reflection.variable_expenses || {};
+    const variableCategoryAvgs = Object.entries(variableExpenses).map(([cat, months]) => {
+      const vals = Object.values(months).filter(v => v > 0);
+      return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    });
+    const avgVariable = variableCategoryAvgs.reduce((a, b) => a + b, 0);
+
     if (incomeValues.length > 0) {
       const avgIncome = incomeValues.reduce((a, b) => a + b, 0) / incomeValues.length;
       const maxIncome = Math.max(...incomeValues);
       const minIncome = Math.min(...incomeValues);
+      const avgLeftover = avgIncome - avgFixed - avgVariable;
       ctx += `💰 שיקוף פיננסי (${incomeValues.length} חודשים אחרונים):\n`;
       ctx += `  • ממוצע הכנסה: ₪${Math.round(avgIncome).toLocaleString()}\n`;
-      ctx += `  • טווח: ₪${minIncome.toLocaleString()} - ₪${maxIncome.toLocaleString()}\n\n`;
+      ctx += `  • טווח הכנסה: ₪${minIncome.toLocaleString()} - ₪${maxIncome.toLocaleString()}\n`;
+      if (avgFixed > 0) ctx += `  • ממוצע הוצאות קבועות: ₪${Math.round(avgFixed).toLocaleString()}\n`;
+      if (avgVariable > 0) ctx += `  • ממוצע יתרת הוצאות (משתנות): ₪${Math.round(avgVariable).toLocaleString()}\n`;
+      if (avgFixed > 0 || avgVariable > 0) ctx += `  • יתרה פנויה ממוצעת: ₪${Math.round(avgLeftover).toLocaleString()}\n`;
+      ctx += '\n';
     }
   }
 
