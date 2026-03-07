@@ -388,8 +388,21 @@ ${conversationHistory}
       {/* Chat Panel */}
       {isOpen && (
         <div
-          className="mb-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
-          style={{ height: '540px' }}
+          className="
+            fixed sm:relative
+            inset-0 sm:inset-auto
+            bottom-0 sm:bottom-auto
+            left-0 sm:left-auto
+            right-0 sm:right-auto
+            top-0 sm:top-auto
+            mb-0 sm:mb-4
+            w-full sm:w-96
+            bg-white
+            sm:rounded-2xl rounded-none
+            shadow-2xl border border-gray-200 flex flex-col overflow-hidden
+            z-50 sm:z-auto
+          "
+          style={{ height: undefined }}
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] p-4 flex items-center justify-between flex-shrink-0">
