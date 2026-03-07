@@ -320,7 +320,7 @@ export default function FinancialAdvisor() {
     setLoadingContext(false);
   };
 
-  const handleOpen = () => {
+  const handleOpen_internal = () => {
     setIsOpen(true);
     if (messages.length === 0) {
       setMessages([{
