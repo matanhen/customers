@@ -263,7 +263,6 @@ const buildContext = (data) => {
 
   if (reflection) {
     const incomes = reflection.incomes || {};
-    const incomeValues = Object.values(incomes).filter(v => v > 0);
 
     // חישוב ממוצע זהה לשיקוף: סכום 3 חודשים ÷ 3 (גם חודשים ריקים נחשבים כ-0)
     const calcCategoryAvg = (categoryObj) => {
