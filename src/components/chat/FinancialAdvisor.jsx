@@ -495,7 +495,7 @@ ${conversationHistory}
                 <Send className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-xs text-gray-400 mt-1 text-center">Enter לשליחה • Shift+Enter לשורה חדשה</p>
+            <p className="text-xs text-gray-400 mt-1 text-center hidden sm:block">Enter לשליחה • Shift+Enter לשורה חדשה</p>
           </div>
         </div>
       )}
