@@ -283,14 +283,18 @@ const buildContext = (data) => {
     })).filter(x => x.avg > 0);
     const avgVariable = variableBreakdown.reduce((sum, x) => sum + x.avg, 0);
 
-    if (incomeValues.length > 0) {
-      const avgIncome = Math.round(incomeValues.reduce((a, b) => a + b, 0) / incomeValues.length);
-      const maxIncome = Math.max(...incomeValues);
-      const minIncome = Math.min(...incomeValues);
+    // ממוצע הכנסה זהה לשיקוף: סכום 6 חודשים ÷ 6
+    const incomeTotal = ['month1','month2','month3','month4','month5','month6'].reduce((sum, m) => sum + (incomes[m] || 0), 0);
+    const avgIncome = Math.round(incomeTotal / 6);
+
+    if (avgIncome > 0 || avgFixed > 0 || avgVariable > 0) {
+      const incomeValues = ['month1','month2','month3','month4','month5','month6'].map(m => incomes[m] || 0).filter(v => v > 0);
+      const maxIncome = incomeValues.length > 0 ? Math.max(...incomeValues) : 0;
+      const minIncome = incomeValues.length > 0 ? Math.min(...incomeValues) : 0;
       const avgLeftover = avgIncome - avgFixed - avgVariable;
 
-      ctx += `💰 שיקוף פיננסי (${incomeValues.length} חודשים אחרונים):\n`;
-      ctx += `  • ממוצע הכנסה חודשית: ₪${avgIncome.toLocaleString()} (טווח: ₪${minIncome.toLocaleString()} - ₪${maxIncome.toLocaleString()})\n`;
+      ctx += `💰 שיקוף פיננסי (6 חודשים אחרונים):\n`;
+      ctx += `  • ממוצע הכנסה חודשית: ₪${avgIncome.toLocaleString()}${incomeValues.length > 1 ? ` (טווח: ₪${minIncome.toLocaleString()} - ₪${maxIncome.toLocaleString()})` : ''}\n`;
 
       if (avgFixed > 0) {
         ctx += `  • ממוצע הוצאות קבועות: ₪${avgFixed.toLocaleString()}\n`;
