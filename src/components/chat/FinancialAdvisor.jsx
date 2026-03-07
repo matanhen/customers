@@ -265,22 +265,22 @@ const buildContext = (data) => {
     const incomes = reflection.incomes || {};
     const incomeValues = Object.values(incomes).filter(v => v > 0);
 
-    // חישוב ממוצע לכל קטגוריה = סכום / מספר חודשים שיש נתון
+    // חישוב ממוצע זהה לשיקוף: סכום 3 חודשים ÷ 3 (גם חודשים ריקים נחשבים כ-0)
     const calcCategoryAvg = (categoryObj) => {
       if (!categoryObj || typeof categoryObj !== 'object') return 0;
-      const vals = Object.values(categoryObj).filter(v => typeof v === 'number' && v > 0);
-      return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      const total = ['month1', 'month2', 'month3'].reduce((sum, m) => sum + (categoryObj[m] || 0), 0);
+      return Math.round(total / 3);
     };
 
     const fixedExpenses = reflection.fixed_expenses || {};
     const fixedBreakdown = Object.entries(fixedExpenses).map(([cat, months]) => ({
-      cat, avg: Math.round(calcCategoryAvg(months))
+      cat, avg: calcCategoryAvg(months)
     })).filter(x => x.avg > 0);
     const avgFixed = fixedBreakdown.reduce((sum, x) => sum + x.avg, 0);
 
     const variableExpenses = reflection.variable_expenses || {};
     const variableBreakdown = Object.entries(variableExpenses).map(([cat, months]) => ({
-      cat, avg: Math.round(calcCategoryAvg(months))
+      cat, avg: calcCategoryAvg(months)
     })).filter(x => x.avg > 0);
     const avgVariable = variableBreakdown.reduce((sum, x) => sum + x.avg, 0);
 
