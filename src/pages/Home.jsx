@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Sparkles, TrendingUp, TrendingDown, Wallet, Target } from 'lucide-react';
+import { Sparkles, TrendingUp, TrendingDown, Wallet, Target, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AIChatAssistant from '../components/chat/AIChatAssistant';
 import {

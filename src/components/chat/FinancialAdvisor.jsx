@@ -478,23 +478,30 @@ ${conversationHistory}
       )}
 
       {/* Floating Toggle Button */}
-      <button
-        onClick={isOpen ? () => setIsOpen(false) : handleOpen}
-        className="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 relative"
-        style={{ background: 'linear-gradient(135deg, #105330, #1a7a4a)' }}
-        title="יועץ פיננסי AI"
-      >
-        {isOpen ? (
-          <X className="w-6 h-6 text-white" />
-        ) : (
-          <>
-            <Sparkles className="w-6 h-6 text-[#c8a863]" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#c8a863] rounded-full flex items-center justify-center">
-              <span className="text-[8px] font-bold text-[#105330]">AI</span>
-            </span>
-          </>
+      <div className="flex flex-col items-center gap-1">
+        <button
+          onClick={isOpen ? () => setIsOpen(false) : handleOpen}
+          className="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 relative"
+          style={{ background: 'linear-gradient(135deg, #105330, #1a7a4a)' }}
+          title="יועץ פיננסי AI"
+        >
+          {isOpen ? (
+            <X className="w-6 h-6 text-white" />
+          ) : (
+            <>
+              <Sparkles className="w-6 h-6 text-[#c8a863]" />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#c8a863] rounded-full flex items-center justify-center">
+                <span className="text-[8px] font-bold text-[#105330]">AI</span>
+              </span>
+            </>
+          )}
+        </button>
+        {!isOpen && (
+          <span className="text-[10px] font-bold text-[#105330] bg-white/90 rounded-full px-2 py-0.5 shadow text-center whitespace-nowrap">
+            יועץ פיננסי AI
+          </span>
         )}
-      </button>
+      </div>
     </div>
   );
 }
