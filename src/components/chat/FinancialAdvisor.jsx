@@ -331,6 +331,8 @@ export default function FinancialAdvisor() {
     if (userId) loadUserContext(userId);
   };
 
+  const handleOpen = handleOpen_internal;
+
   const sendMessage = async () => {
     const text = inputValue.trim();
     if (!text || isLoading) return;
