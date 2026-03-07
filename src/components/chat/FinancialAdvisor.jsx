@@ -276,6 +276,14 @@ export default function FinancialAdvisor() {
   }, []);
 
   useEffect(() => {
+    const handleOpen = () => {
+      if (!isOpen) handleOpen_internal();
+    };
+    window.addEventListener('openFinancialAdvisor', handleOpen);
+    return () => window.removeEventListener('openFinancialAdvisor', handleOpen);
+  }, [isOpen]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
