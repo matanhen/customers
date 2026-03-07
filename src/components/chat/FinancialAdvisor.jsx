@@ -396,7 +396,7 @@ ${conversationHistory}
           right-0 sm:right-auto
           top-0 sm:top-auto
           mb-0 sm:mb-4
-          w-full sm:w-[480px]
+          w-full sm:w-[420px]
           bg-white
           sm:rounded-2xl rounded-none
           shadow-2xl border border-gray-200 flex flex-col overflow-hidden
