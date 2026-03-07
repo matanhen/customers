@@ -381,8 +381,17 @@ export default function FinancialAdvisor() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    base44.auth.me().then(u => setUserId(u?.id)).catch(() => {});
+    base44.auth.me().then(u => {
+      if (u?.id) setUserId(u.id);
+    }).catch(() => {});
   }, []);
+
+  // כאשר userId מוכן וה-chat פתוח - טען קונטקסט אוטומטית
+  useEffect(() => {
+    if (userId && isOpen && !contextLoaded && !loadingContext) {
+      loadUserContext(userId);
+    }
+  }, [userId, isOpen]);
 
   useEffect(() => {
     const onOpen = () => {
@@ -437,7 +446,7 @@ export default function FinancialAdvisor() {
         content: 'שלום! אני היועץ הפיננסי ה-AI שלך 💚\n\nאני מכיר את הנתונים הפיננסיים שלך ויכול לעזור לך בשאלות על תקציב, חובות, השקעות ותכנון לחופש כלכלי.\n\nבמה אוכל לעזור לך היום?'
       }]);
     }
-    if (userId) loadUserContext(userId);
+    if (userId && !contextLoaded) loadUserContext(userId);
   };
 
   const handleOpen = handleOpen_internal;
