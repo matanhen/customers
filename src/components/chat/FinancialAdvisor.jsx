@@ -428,7 +428,7 @@ ${conversationHistory}
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 sm:min-h-[500px]" style={{ WebkitOverflowScrolling: 'touch' }}>
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                 {msg.role === 'assistant' && (
