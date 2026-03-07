@@ -117,6 +117,16 @@ export default function Home() {
           <p className="text-lg text-white/80 max-w-xl mx-auto mb-6">
             מערכת פרימיום לניהול כסף של ה-1%
           </p>
+          <button
+            onClick={() => {
+              const event = new CustomEvent('openFinancialAdvisor');
+              window.dispatchEvent(event);
+            }}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#c8a863] hover:bg-[#d4b87a] text-[#105330] font-bold rounded-2xl shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+          >
+            <Sparkles className="w-5 h-5" />
+            יועץ פיננסי AI
+          </button>
         </div>
       </div>
 
