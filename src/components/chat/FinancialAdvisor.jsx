@@ -276,11 +276,11 @@ export default function FinancialAdvisor() {
   }, []);
 
   useEffect(() => {
-    const handleOpen = () => {
+    const onOpen = () => {
       if (!isOpen) handleOpen_internal();
     };
-    window.addEventListener('openFinancialAdvisor', handleOpen);
-    return () => window.removeEventListener('openFinancialAdvisor', handleOpen);
+    window.addEventListener('openFinancialAdvisor', onOpen);
+    return () => window.removeEventListener('openFinancialAdvisor', onOpen);
   }, [isOpen]);
 
   useEffect(() => {
