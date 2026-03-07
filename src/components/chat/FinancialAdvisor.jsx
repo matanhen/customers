@@ -402,7 +402,7 @@ ${conversationHistory}
           shadow-2xl border border-gray-200 flex flex-col overflow-hidden
           z-50 sm:z-auto
           "
-          style={{ height: undefined, maxHeight: 'calc(100vh - 120px)' }}
+          style={{ height: undefined, maxHeight: 'calc(100vh - 200px)' }}
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] p-4 flex items-center justify-between flex-shrink-0">
