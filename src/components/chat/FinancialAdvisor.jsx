@@ -311,6 +311,7 @@ const buildContext = (data) => {
     }
   }
 
+
   if (debts && debts.length > 0) {
     const totalDebt = debts.reduce((sum, d) => sum + (d.remaining_amount || 0), 0);
     const totalPayment = debts.reduce((sum, d) => sum + (d.current_payment || d.minimum_payment || 0), 0);
