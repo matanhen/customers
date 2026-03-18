@@ -488,6 +488,14 @@ export default function AdminDashboard() {
               <Shield className="w-4 h-4 ml-2" />
               מנהלים ({admins.length})
             </Button>
+            <Button
+              onClick={() => setUserFilter('unassigned')}
+              variant={userFilter === 'unassigned' ? 'default' : 'outline'}
+              className={`rounded-xl ${userFilter === 'unassigned' ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white' : 'border-orange-200 text-orange-600'}`}
+            >
+              <Unlink className="w-4 h-4 ml-2" />
+              ללא יועץ ({unassignedClients.length})
+            </Button>
           </div>
           <div className="relative">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
