@@ -520,6 +520,7 @@ export default function AdminDashboard() {
             {userFilter === 'clients' && `לקוחות (${filteredUsers.length})`}
             {userFilter === 'advisors' && `יועצים (${filteredUsers.length})`}
             {userFilter === 'admins' && `מנהלים (${filteredUsers.length})`}
+            {userFilter === 'unassigned' && `לקוחות ללא יועץ (${filteredUsers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
