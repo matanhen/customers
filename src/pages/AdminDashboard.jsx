@@ -260,6 +260,14 @@ export default function AdminDashboard() {
   const advisors = combinedUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
   const admins = combinedUsers.filter(u => u.user_type === 'admin');
 
+  // Get advisor for a client from assignments (by ID or email)
+  const getClientAssignment = (client) => {
+    return assignments.find(a => a.client_id === client.id || a.client_email === client.email);
+  };
+
+  // Count unassigned clients
+  const unassignedClients = clients.filter(u => !getClientAssignment(u));
+
   // Filter by user type first
   let displayedUsers = combinedUsers;
   if (userFilter === 'clients') {
@@ -277,11 +285,6 @@ export default function AdminDashboard() {
     u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  // Get advisor for a client from assignments (by ID or email)
-  const getClientAssignment = (client) => {
-    return assignments.find(a => a.client_id === client.id || a.client_email === client.email);
-  };
 
   const handleChangeUserType = async (userId, allowedUserId, newType) => {
     // Update User entity
