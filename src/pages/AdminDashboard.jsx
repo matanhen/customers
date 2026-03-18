@@ -48,7 +48,7 @@ export default function AdminDashboard() {
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [userFilter, setUserFilter] = useState('all'); // all, clients, advisors, admins
+  const [userFilter, setUserFilter] = useState('all'); // all, clients, advisors, admins, unassigned
   const queryClient = useQueryClient();
 
   useEffect(() => {
