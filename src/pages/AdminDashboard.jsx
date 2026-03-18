@@ -329,6 +329,9 @@ export default function AdminDashboard() {
     }
   };
 
+  // Count unassigned clients (after getClientAssignment is defined)
+  const unassignedClients = clients.filter(u => !getClientAssignment(u));
+
   const getAdvisorName = (client) => {
     const assignment = getClientAssignment(client);
     if (assignment) {
