@@ -260,6 +260,9 @@ export default function AdminDashboard() {
   const advisors = combinedUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
   const admins = combinedUsers.filter(u => u.user_type === 'admin');
 
+  // Count unassigned clients
+  const unassignedClients = clients.filter(u => !getClientAssignment(u));
+
   // Filter by user type first
   let displayedUsers = combinedUsers;
   if (userFilter === 'clients') {
@@ -268,6 +271,8 @@ export default function AdminDashboard() {
     displayedUsers = combinedUsers.filter(u => u.user_type === 'advisor');
   } else if (userFilter === 'admins') {
     displayedUsers = admins;
+  } else if (userFilter === 'unassigned') {
+    displayedUsers = unassignedClients;
   }
 
   // Then apply search filter
