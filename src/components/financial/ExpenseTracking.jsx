@@ -191,14 +191,21 @@ export default function ExpenseTracking({ userId }) {
 
     // Auto-save when trackingData changes
     useEffect(() => {
-      if (!currentTracking) return; // Only auto-save if tracking already exists
+      // Don't save empty/default data on first render
+      const hasData = trackingData.actual_income > 0 ||
+        Object.values(trackingData.fixed_expenses).some(v => v > 0) ||
+        Object.values(trackingData.variable_expenses).some(v => v > 0) ||
+        trackingData.custom_expenses.length > 0 ||
+        trackingData.freedom_transfer_done;
+
+      if (!hasData) return;
 
       const timeoutId = setTimeout(() => {
         saveMutation.mutate(trackingData);
       }, 1000); // Debounce for 1 second
 
       return () => clearTimeout(timeoutId);
-    }, [trackingData, currentTracking]);
+    }, [trackingData]);
 
   const updateFixedExpense = (category, value) => {
     setTrackingData(prev => ({
