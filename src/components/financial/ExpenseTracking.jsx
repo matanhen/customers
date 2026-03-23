@@ -257,51 +257,54 @@ export default function ExpenseTracking({ userId }) {
     const amount = parseFloat(updateExpense.amount) || 0;
     if (amount === 0) return;
 
+    let newTrackingData;
+
     if (updateExpense.isCustom) {
-      // Add as custom expense
       if (!updateExpense.customName) return;
       const existing = trackingData.custom_expenses.find(
         e => e.name === updateExpense.customName && e.type === updateExpense.type
       );
       if (existing) {
-        setTrackingData(prev => ({
-          ...prev,
-          custom_expenses: prev.custom_expenses.map(e => 
-            e.name === updateExpense.customName && e.type === updateExpense.type 
+        newTrackingData = {
+          ...trackingData,
+          custom_expenses: trackingData.custom_expenses.map(e =>
+            e.name === updateExpense.customName && e.type === updateExpense.type
               ? { ...e, amount: (e.amount || 0) + amount }
               : e
           )
-        }));
+        };
       } else {
-        setTrackingData(prev => ({
-          ...prev,
-          custom_expenses: [...prev.custom_expenses, { 
-            name: updateExpense.customName, 
-            type: updateExpense.type, 
-            amount 
+        newTrackingData = {
+          ...trackingData,
+          custom_expenses: [...trackingData.custom_expenses, {
+            name: updateExpense.customName,
+            type: updateExpense.type,
+            amount
           }]
-        }));
+        };
       }
     } else {
-      // Update existing category
       if (updateExpense.type === 'fixed') {
-        setTrackingData(prev => ({
-          ...prev,
+        newTrackingData = {
+          ...trackingData,
           fixed_expenses: {
-            ...prev.fixed_expenses,
-            [updateExpense.category]: (prev.fixed_expenses[updateExpense.category] || 0) + amount
+            ...trackingData.fixed_expenses,
+            [updateExpense.category]: (trackingData.fixed_expenses[updateExpense.category] || 0) + amount
           }
-        }));
+        };
       } else {
-        setTrackingData(prev => ({
-          ...prev,
+        newTrackingData = {
+          ...trackingData,
           variable_expenses: {
-            ...prev.variable_expenses,
-            [updateExpense.category]: (prev.variable_expenses[updateExpense.category] || 0) + amount
+            ...trackingData.variable_expenses,
+            [updateExpense.category]: (trackingData.variable_expenses[updateExpense.category] || 0) + amount
           }
-        }));
+        };
       }
     }
+
+    setTrackingData(newTrackingData);
+    saveMutation.mutate(newTrackingData);
 
     setUpdateExpense({ type: 'fixed', category: '', amount: 0, isCustom: false, customName: '' });
     setShowUpdateDialog(false);
