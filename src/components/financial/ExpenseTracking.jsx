@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import PDFExpenseImport from './PDFExpenseImport';
 
 const FIXED_EXPENSE_CATEGORIES = [
   'ביטוחי רכב',
@@ -73,6 +74,7 @@ export default function ExpenseTracking({ userId }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
   const [newExpense, setNewExpense] = useState({ name: '', type: 'fixed', amount: 0 });
@@ -511,6 +513,14 @@ export default function ExpenseTracking({ userId }) {
       {/* Action Buttons */}
       <div className="flex justify-end gap-3">
         <Button
+          onClick={() => setShowPDFImportDialog(true)}
+          variant="outline"
+          className="border-red-400 text-red-600 hover:bg-red-50"
+        >
+          <FileText className="w-4 h-4 ml-2" />
+          ייבוא מ-PDF
+        </Button>
+        <Button
           onClick={() => setShowImportDialog(true)}
           variant="outline"
           className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
@@ -882,8 +892,49 @@ export default function ExpenseTracking({ userId }) {
         </CardContent>
         </Card>
 
+      <PDFExpenseImport
+        open={showPDFImportDialog}
+        onOpenChange={setShowPDFImportDialog}
+        onApply={(items) => {
+          let newData = { ...trackingData };
+          items.forEach(item => {
+            if (item.isCustom) {
+              const existing = newData.custom_expenses.find(e => e.name === item.customName && e.type === item.type);
+              if (existing) {
+                newData = {
+                  ...newData,
+                  custom_expenses: newData.custom_expenses.map(e =>
+                    e.name === item.customName && e.type === item.type
+                      ? { ...e, amount: (e.amount || 0) + item.amount }
+                      : e
+                  )
+                };
+              } else {
+                newData = {
+                  ...newData,
+                  custom_expenses: [...newData.custom_expenses, { name: item.customName, type: item.type, amount: item.amount }]
+                };
+              }
+            } else if (item.type === 'fixed') {
+              newData = {
+                ...newData,
+                fixed_expenses: { ...newData.fixed_expenses, [item.category]: (newData.fixed_expenses[item.category] || 0) + item.amount }
+              };
+            } else {
+              newData = {
+                ...newData,
+                variable_expenses: { ...newData.variable_expenses, [item.category]: (newData.variable_expenses[item.category] || 0) + item.amount }
+              };
+            }
+          });
+          setTrackingData(newData);
+          saveMutation.mutate(newData);
+        }}
+      />
+
       {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+      <Dialog open={showImportDialog}
+        onOpenChange={setShowImportDialog}>
         <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>ייבוא הוצאות מטקסט</DialogTitle>
