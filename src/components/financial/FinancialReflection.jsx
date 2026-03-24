@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import PDFReflectionImport from './PDFReflectionImport';
 
 const FIXED_EXPENSES = [
   'ביטוחי רכב',
@@ -72,6 +73,7 @@ export default function FinancialReflection({ userId }) {
   const [variableExpenses, setVariableExpenses] = useState({});
   const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
   const [parsedItems, setParsedItems] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -283,14 +285,24 @@ export default function FinancialReflection({ userId }) {
             {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
           </Button>
           
-          <Button
-            onClick={() => setShowImportDialog(true)}
-            variant="outline"
-            className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
-          >
-            <FileText className="w-4 h-4 ml-2" />
-            ייבוא הוצאות מטקסט
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowPDFImportDialog(true)}
+              variant="outline"
+              className="border-red-400 text-red-600 hover:bg-red-50"
+            >
+              <FileText className="w-4 h-4 ml-2" />
+              ייבוא מ-PDF
+            </Button>
+            <Button
+              onClick={() => setShowImportDialog(true)}
+              variant="outline"
+              className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
+            >
+              <FileText className="w-4 h-4 ml-2" />
+              ייבוא הוצאות מטקסט
+            </Button>
+          </div>
         </div>
       )}
       
@@ -497,6 +509,19 @@ export default function FinancialReflection({ userId }) {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      <PDFReflectionImport
+        open={showPDFImportDialog}
+        onOpenChange={setShowPDFImportDialog}
+        onApply={(items) => {
+          items.forEach(item => {
+            const currentValue = item.type === 'fixed'
+              ? (fixedExpenses[item.category]?.[item.month] || 0)
+              : (variableExpenses[item.category]?.[item.month] || 0);
+            updateExpense(item.category, item.month, currentValue + item.amount, item.type);
+          });
+        }}
+      />
 
       {/* Import Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
