@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { createPageUrl } from '../utils';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, Search, Eye, 
-  Mail, Calendar, AlertCircle
+  Mail, Calendar, AlertCircle, UserPlus
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +18,12 @@ import AdvisorNotifications from '../components/notifications/AdvisorNotificatio
 export default function AdvisorDashboard() {
   const [user, setUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientName, setNewClientName] = useState('');
+  const [addingClient, setAddingClient] = useState(false);
+  const [addError, setAddError] = useState('');
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     loadUser();
@@ -144,6 +152,38 @@ export default function AdvisorDashboard() {
     window.location.href = createPageUrl('Home');
   };
 
+  const handleAddClient = async () => {
+    if (!newClientEmail.trim()) return;
+    setAddingClient(true);
+    setAddError('');
+    try {
+      // Create AllowedUser
+      const allowedUser = await base44.entities.AllowedUser.create({
+        email: newClientEmail.trim().toLowerCase(),
+        full_name: newClientName.trim(),
+        user_type: 'client'
+      });
+      // Create assignment
+      await base44.entities.ClientAdvisorAssignment.create({
+        client_id: '',
+        client_email: newClientEmail.trim().toLowerCase(),
+        client_name: newClientName.trim(),
+        advisor_id: user.id,
+        advisor_email: user.email
+      });
+      // Invite user
+      await base44.users.inviteUser(newClientEmail.trim().toLowerCase(), 'user');
+      queryClient.invalidateQueries({ queryKey: ['allowedUsersForAdvisor'] });
+      queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
+      setShowAddClient(false);
+      setNewClientEmail('');
+      setNewClientName('');
+    } catch (e) {
+      setAddError('שגיאה בהוספת הלקוח. ייתכן שהאימייל כבר קיים במערכת.');
+    }
+    setAddingClient(false);
+  };
+
   if (!user || (!isAdvisor && !isAdmin)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -196,6 +236,17 @@ export default function AdvisorDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Client Button - advisors and admins */}
+      <div className="mb-4 flex justify-end">
+        <Button
+          onClick={() => { setShowAddClient(true); setAddError(''); }}
+          className="bg-[#105330] hover:bg-[#0d4027] gap-2"
+        >
+          <UserPlus className="w-4 h-4" />
+          הוסף לקוח חדש
+        </Button>
+      </div>
 
       <Card className="mb-6 border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
         <CardContent className="p-5">
@@ -285,6 +336,54 @@ export default function AdvisorDashboard() {
       {!isLoading && !hasError && (
         <AdvisorNotifications advisorId={user?.id} clients={clients} />
       )}
+
+      {/* Add Client Dialog */}
+      <Dialog open={showAddClient} onOpenChange={setShowAddClient}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-[#105330]" />
+              הוספת לקוח חדש
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>שם מלא</Label>
+              <Input
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                placeholder="שם הלקוח"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>אימייל *</Label>
+              <Input
+                type="email"
+                value={newClientEmail}
+                onChange={(e) => setNewClientEmail(e.target.value)}
+                placeholder="email@example.com"
+              />
+            </div>
+            {addError && (
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {addError}
+              </div>
+            )}
+            <p className="text-sm text-slate-500">לאחר ההוספה, הלקוח יקבל הזמנה במייל להצטרף למערכת.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddClient(false)}>ביטול</Button>
+            <Button
+              onClick={handleAddClient}
+              disabled={!newClientEmail.trim() || addingClient}
+              className="bg-[#105330] hover:bg-[#0d4027]"
+            >
+              {addingClient ? 'מוסיף...' : 'הוסף לקוח'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
