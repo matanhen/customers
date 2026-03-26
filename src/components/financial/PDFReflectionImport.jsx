@@ -24,6 +24,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
   const [step, setStep] = useState('upload'); // upload | loading | review
   const [parsedItems, setParsedItems] = useState([]);
   const [error, setError] = useState('');
+  const [globalMonth, setGlobalMonth] = useState('month1');
   const fileInputRef = useRef(null);
 
   const handleFileChange = async (e) => {
@@ -83,7 +84,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
         confirmed: true,
       }));
 
-      setParsedItems(items);
+      setParsedItems(items.map(i => ({ ...i, month: globalMonth })));
       setStep('review');
     } catch (err) {
       setError('שגיאה בעיבוד הקובץ. נסה שנית.');
@@ -104,10 +105,16 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
     handleClose();
   };
 
+  const applyGlobalMonth = (month) => {
+    setGlobalMonth(month);
+    setParsedItems(prev => prev.map(item => ({ ...item, month })));
+  };
+
   const handleClose = () => {
     setStep('upload');
     setParsedItems([]);
     setError('');
+    setGlobalMonth('month1');
     onOpenChange(false);
   };
 
@@ -164,7 +171,23 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
         {step === 'review' && (
           <div className="space-y-4 py-2">
             <div className="p-3 bg-emerald-50 rounded-lg text-sm text-emerald-800">
-              <p className="font-semibold">נמצאו {parsedItems.length} הוצאות. בחר לכל אחת קטגוריה וחודש:</p>
+              <p className="font-semibold">נמצאו {parsedItems.length} הוצאות.</p>
+            </div>
+
+            {/* Global month selector */}
+            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+              <span className="text-sm font-semibold text-blue-800 shrink-0">שייך את כל ההוצאות לחודש:</span>
+              <Select value={globalMonth} onValueChange={applyGlobalMonth}>
+                <SelectTrigger className="h-9 w-36 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month1">חודש 1</SelectItem>
+                  <SelectItem value="month2">חודש 2</SelectItem>
+                  <SelectItem value="month3">חודש 3</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-blue-600">ניתן לשנות לכל הוצאה בנפרד</span>
             </div>
 
             <div className="space-y-3 max-h-[420px] overflow-y-auto">
