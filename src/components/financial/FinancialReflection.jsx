@@ -122,17 +122,24 @@ export default function FinancialReflection({ userId }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // Allow both advisors and admins to edit
-      if (isViewingOtherUser && currentUser?.user_type !== 'admin' && currentUser?.user_type !== 'advisor') {
-        throw new Error('אין הרשאה לערוך נתוני לקוח אחר');
-      }
-      
       const data = {
         user_id: userId,
         incomes,
         fixed_expenses: fixedExpenses,
         variable_expenses: variableExpenses,
       };
+
+      // Advisor or admin viewing another user - use backend function
+      if (isViewingOtherUser && (currentUser?.user_type === 'admin' || currentUser?.user_type === 'advisor')) {
+        const response = await base44.functions.invoke('saveClientData', {
+          entityName: 'FinancialReflection',
+          clientUserId: userId,
+          data,
+          recordId: reflection?.id || null,
+        });
+        return response.data;
+      }
+
       if (reflection) {
         return base44.entities.FinancialReflection.update(reflection.id, data);
       }
