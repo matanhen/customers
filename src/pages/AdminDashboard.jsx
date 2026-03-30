@@ -49,6 +49,10 @@ export default function AdminDashboard() {
   const [newClientEmail, setNewClientEmail] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [userFilter, setUserFilter] = useState('all'); // all, clients, advisors, admins, unassigned
+  const [selectedClients, setSelectedClients] = useState(new Set());
+  const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
+  const [bulkAdvisor, setBulkAdvisor] = useState('');
+  const [bulkAssigning, setBulkAssigning] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -332,6 +336,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleBulkAssign = async () => {
+    if (!bulkAdvisor || selectedClients.size === 0) return;
+    setBulkAssigning(true);
+    const selectedAdvisorUser = advisors.find(a => a.id === bulkAdvisor);
+    for (const clientId of selectedClients) {
+      const client = filteredUsers.find(u => u.id === clientId);
+      if (!client) continue;
+      const existing = getClientAssignment(client);
+      if (existing) await base44.entities.ClientAdvisorAssignment.delete(existing.id);
+      await base44.entities.ClientAdvisorAssignment.create({
+        client_id: client.id,
+        client_email: client.email,
+        client_name: client.full_name || '',
+        advisor_id: bulkAdvisor,
+        advisor_email: selectedAdvisorUser?.email || ''
+      });
+    }
+    queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
+    setSelectedClients(new Set());
+    setBulkAdvisor('');
+    setShowBulkAssignDialog(false);
+    setBulkAssigning(false);
+  };
+
   const getAdvisorName = (client) => {
     const assignment = getClientAssignment(client);
     if (assignment) {
@@ -512,15 +540,26 @@ export default function AdminDashboard() {
       {/* Users Table */}
       <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
         <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100/50">
-          <CardTitle className="flex items-center gap-3 text-slate-800">
-            <div className="p-2 rounded-xl bg-indigo-100">
-              <UserCog className="w-5 h-5 text-indigo-600" />
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-slate-800">
+              <div className="p-2 rounded-xl bg-indigo-100">
+                <UserCog className="w-5 h-5 text-indigo-600" />
+              </div>
+              {userFilter === 'all' && `כל המשתמשים (${filteredUsers.length})`}
+              {userFilter === 'clients' && `לקוחות (${filteredUsers.length})`}
+              {userFilter === 'advisors' && `יועצים (${filteredUsers.length})`}
+              {userFilter === 'admins' && `מנהלים (${filteredUsers.length})`}
+              {userFilter === 'unassigned' && `לקוחות ללא יועץ (${filteredUsers.length})`}
             </div>
-            {userFilter === 'all' && `כל המשתמשים (${filteredUsers.length})`}
-            {userFilter === 'clients' && `לקוחות (${filteredUsers.length})`}
-            {userFilter === 'advisors' && `יועצים (${filteredUsers.length})`}
-            {userFilter === 'admins' && `מנהלים (${filteredUsers.length})`}
-            {userFilter === 'unassigned' && `לקוחות ללא יועץ (${filteredUsers.length})`}
+            {userFilter === 'unassigned' && selectedClients.size > 0 && (
+              <Button
+                onClick={() => setShowBulkAssignDialog(true)}
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-xl shadow-lg"
+              >
+                <Link2 className="w-4 h-4 ml-2" />
+                שייך {selectedClients.size} לקוחות ליועץ
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -528,6 +567,22 @@ export default function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50">
+                  {userFilter === 'unassigned' && (
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded cursor-pointer"
+                        checked={filteredUsers.length > 0 && filteredUsers.every(u => selectedClients.has(u.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedClients(new Set(filteredUsers.map(u => u.id)));
+                          } else {
+                            setSelectedClients(new Set());
+                          }
+                        }}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead className="text-right font-semibold text-slate-600">שם</TableHead>
                   <TableHead className="text-right font-semibold text-slate-600">אימייל</TableHead>
                   <TableHead className="text-right font-semibold text-slate-600">תפקיד</TableHead>
@@ -539,6 +594,21 @@ export default function AdminDashboard() {
               <TableBody>
                 {filteredUsers.map((u) => (
                   <TableRow key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                    {userFilter === 'unassigned' && (
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded cursor-pointer"
+                          checked={selectedClients.has(u.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedClients);
+                            if (e.target.checked) next.add(u.id);
+                            else next.delete(u.id);
+                            setSelectedClients(next);
+                          }}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-semibold text-slate-800">
                       {u.full_name || 'ללא שם'}
                     </TableCell>
@@ -729,6 +799,42 @@ export default function AdminDashboard() {
               className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330] rounded-xl shadow-lg"
             >
               {updateUserMutation.isPending ? 'שומר...' : 'שמור'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Assign Dialog */}
+      <Dialog open={showBulkAssignDialog} onOpenChange={setShowBulkAssignDialog}>
+        <DialogContent className="sm:max-w-md border-0 shadow-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-slate-800">שיוך {selectedClients.size} לקוחות ליועץ</DialogTitle>
+          </DialogHeader>
+          <div className="py-6">
+            <p className="text-slate-600 mb-4">בחר יועץ לשיוך כל הלקוחות הנבחרים:</p>
+            <Select value={bulkAdvisor} onValueChange={setBulkAdvisor}>
+              <SelectTrigger className="border-slate-200 rounded-xl py-6">
+                <SelectValue placeholder="בחר יועץ" />
+              </SelectTrigger>
+              <SelectContent>
+                {advisors.map((advisor) => (
+                  <SelectItem key={advisor.id} value={advisor.id}>
+                    {advisor.full_name || advisor.email} {advisor.user_type === 'admin' && '(מנהל)'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkAssignDialog(false)} className="rounded-xl border-slate-200">
+              ביטול
+            </Button>
+            <Button
+              onClick={handleBulkAssign}
+              disabled={!bulkAdvisor || bulkAssigning}
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-xl shadow-lg"
+            >
+              {bulkAssigning ? 'משייך...' : `שייך ${selectedClients.size} לקוחות`}
             </Button>
           </DialogFooter>
         </DialogContent>
