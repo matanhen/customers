@@ -142,8 +142,8 @@ export default function Home() {
                 <div className="text-5xl group-hover:scale-110 transition-transform duration-300">🚀</div>
                 <div>
                   <p className="text-[#105330]/70 text-sm font-bold uppercase tracking-wider mb-1">המדריך המלא</p>
-                  <h2 className="text-2xl lg:text-3xl font-black text-[#105330]">סיסטם 5 השלבים</h2>
-                  <p className="text-[#105330]/70 text-sm mt-1">7 מערכות • כל הצעדים לחופש כלכלי</p>
+                  <h2 className="text-2xl lg:text-3xl font-black text-[#105330]">סיסטמים</h2>
+                  <p className="text-[#105330]/70 text-sm mt-1">2 סיסטמים • כל הצעדים לחופש כלכלי</p>
                 </div>
               </div>
               <div className="text-4xl text-[#105330]/40 group-hover:translate-x-1 transition-transform duration-300">←</div>
