@@ -61,10 +61,18 @@ const generateEndTimeSlots = () => {
 
 export default function AdvisorAvailability({ user }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [slotMode, setSlotMode] = useState('single'); // 'single' | 'multiple'
   const [newSlot, setNewSlot] = useState({
     date: '',
     start_time: '',
     end_time: '',
+    location_type: 'office'
+  });
+  const [multiSlot, setMultiSlot] = useState({
+    date: '',
+    start_time: '',
+    range_end_time: '',
+    break_minutes: '30',
     location_type: 'office'
   });
   const [conflictError, setConflictError] = useState('');
@@ -114,14 +122,48 @@ export default function AdvisorAvailability({ user }) {
       queryClient.invalidateQueries({ queryKey: ['allAppointments'] });
       setShowAddDialog(false);
       setConflictError('');
-      setNewSlot({
-        date: '',
-        start_time: '',
-        end_time: '',
-        location_type: 'office'
-      });
+      setNewSlot({ date: '', start_time: '', end_time: '', location_type: 'office' });
+      setMultiSlot({ date: '', start_time: '', range_end_time: '', break_minutes: '30', location_type: 'office' });
+      setSlotMode('single');
     },
   });
+
+  const createMultipleSlots = async () => {
+    const { date, start_time, range_end_time, break_minutes, location_type } = multiSlot;
+    const breakMins = parseInt(break_minutes) || 30;
+    const meetingDuration = 60; // 1 hour per meeting
+    const rangeEndMinutes = timeToMinutes(range_end_time);
+
+    let currentStart = timeToMinutes(start_time);
+    const slotsToCreate = [];
+
+    while (currentStart + meetingDuration <= rangeEndMinutes) {
+      const slotStart = minutesToTime(currentStart);
+      const slotEnd = minutesToTime(currentStart + meetingDuration);
+      const conflict = checkConflicts(date, slotStart, slotEnd);
+      if (conflict) {
+        setConflictError(conflict);
+        return;
+      }
+      slotsToCreate.push({ date, start_time: slotStart, end_time: slotEnd, location_type });
+      currentStart += meetingDuration + breakMins;
+    }
+
+    if (slotsToCreate.length === 0) {
+      setConflictError('אין מספיק זמן ליצור פגישה אחת לפחות');
+      return;
+    }
+
+    setConflictError('');
+    for (const slot of slotsToCreate) {
+      await base44.entities.AvailabilitySlot.create({ ...slot, advisor_id: user.id, is_booked: false });
+    }
+    queryClient.invalidateQueries({ queryKey: ['advisorSlots'] });
+    queryClient.invalidateQueries({ queryKey: ['allAppointments'] });
+    setShowAddDialog(false);
+    setMultiSlot({ date: '', start_time: '', range_end_time: '', break_minutes: '30', location_type: 'office' });
+    setSlotMode('single');
+  };
 
   const deleteSlotMutation = useMutation({
     mutationFn: (id) => base44.entities.AvailabilitySlot.delete(id),
@@ -189,15 +231,37 @@ export default function AdvisorAvailability({ user }) {
     return hours * 60 + minutes;
   };
 
+  const minutesToTime = (totalMinutes) => {
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  const previewMultipleSlots = () => {
+    if (!multiSlot.start_time || !multiSlot.range_end_time) return [];
+    const breakMins = parseInt(multiSlot.break_minutes) || 30;
+    const meetingDuration = 60;
+    const rangeEndMinutes = timeToMinutes(multiSlot.range_end_time);
+    let currentStart = timeToMinutes(multiSlot.start_time);
+    const slots = [];
+    while (currentStart + meetingDuration <= rangeEndMinutes) {
+      slots.push({ start: minutesToTime(currentStart), end: minutesToTime(currentStart + meetingDuration) });
+      currentStart += meetingDuration + breakMins;
+    }
+    return slots;
+  };
+
   const handleAddSlot = () => {
+    if (slotMode === 'multiple') {
+      createMultipleSlots();
+      return;
+    }
     if (newSlot.date && newSlot.start_time && newSlot.end_time) {
-      // Check for conflicts
       const conflict = checkConflicts(newSlot.date, newSlot.start_time, newSlot.end_time);
       if (conflict) {
         setConflictError(conflict);
         return;
       }
-      
       setConflictError('');
       createSlotMutation.mutate(newSlot);
     }
@@ -316,99 +380,182 @@ export default function AdvisorAvailability({ user }) {
       </Card>
 
       {/* Add Slot Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent dir="rtl">
+      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setConflictError(''); setSlotMode('single'); } }}>
+        <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
             <DialogTitle>הוספת זמינות חדשה</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
+
+            {/* Mode toggle */}
+            <div className="space-y-2">
+              <Label>סוג הוספה</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { setSlotMode('single'); setConflictError(''); }}
+                  className={`py-2 px-4 rounded-xl text-sm font-bold border-2 transition-all ${
+                    slotMode === 'single' ? 'bg-[#105330] text-white border-[#105330]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#105330]'
+                  }`}
+                >פגישה בודדת</button>
+                <button
+                  onClick={() => { setSlotMode('multiple'); setConflictError(''); }}
+                  className={`py-2 px-4 rounded-xl text-sm font-bold border-2 transition-all ${
+                    slotMode === 'multiple' ? 'bg-[#105330] text-white border-[#105330]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#105330]'
+                  }`}
+                >כמה פגישות</button>
+              </div>
+            </div>
+
+            {/* Date (shared) */}
             <div className="space-y-2">
               <Label>תאריך</Label>
               <Input
                 type="date"
-                value={newSlot.date}
+                value={slotMode === 'single' ? newSlot.date : multiSlot.date}
                 onChange={(e) => {
-                  setNewSlot({ ...newSlot, date: e.target.value });
+                  const val = e.target.value;
+                  if (slotMode === 'single') setNewSlot({ ...newSlot, date: val });
+                  else setMultiSlot({ ...multiSlot, date: val });
                   setConflictError('');
                 }}
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>שעת התחלה</Label>
-                <Select
-                  value={newSlot.start_time}
-                  onValueChange={(value) => {
-                    handleStartTimeChange(value);
-                    setConflictError('');
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="בחר שעה" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {startTimeSlots.map((time) => (
-                      <SelectItem key={time} value={time}>
-                        {time}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>שעת סיום (ברירת מחדל: שעה לאחר ההתחלה)</Label>
-                <Select
-                  value={newSlot.end_time}
-                  onValueChange={(value) => {
-                    setNewSlot({ ...newSlot, end_time: value });
-                    setConflictError('');
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="בחר שעה" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {endTimeSlots.map((time) => (
-                      <SelectItem key={time} value={time}>
-                        {time}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {conflictError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {conflictError}
-              </div>
+
+            {slotMode === 'single' ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>שעת התחלה</Label>
+                    <Select
+                      value={newSlot.start_time}
+                      onValueChange={(value) => { handleStartTimeChange(value); setConflictError(''); }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="בחר שעה" /></SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {startTimeSlots.map((time) => (<SelectItem key={time} value={time}>{time}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>שעת סיום</Label>
+                    <Select
+                      value={newSlot.end_time}
+                      onValueChange={(value) => { setNewSlot({ ...newSlot, end_time: value }); setConflictError(''); }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="בחר שעה" /></SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {endTimeSlots.map((time) => (<SelectItem key={time} value={time}>{time}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>שעת התחלה (פגישה ראשונה)</Label>
+                    <Select
+                      value={multiSlot.start_time}
+                      onValueChange={(value) => { setMultiSlot({ ...multiSlot, start_time: value }); setConflictError(''); }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="בחר שעה" /></SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {startTimeSlots.map((time) => (<SelectItem key={time} value={time}>{time}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>שעת סיום (פגישה אחרונה)</Label>
+                    <Select
+                      value={multiSlot.range_end_time}
+                      onValueChange={(value) => { setMultiSlot({ ...multiSlot, range_end_time: value }); setConflictError(''); }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="בחר שעה" /></SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {endTimeSlots.map((time) => (<SelectItem key={time} value={time}>{time}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>הפסקה בין פגישות (דקות)</Label>
+                  <Select
+                    value={multiSlot.break_minutes}
+                    onValueChange={(value) => setMultiSlot({ ...multiSlot, break_minutes: value })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">ללא הפסקה</SelectItem>
+                      <SelectItem value="15">15 דקות</SelectItem>
+                      <SelectItem value="30">30 דקות</SelectItem>
+                      <SelectItem value="45">45 דקות</SelectItem>
+                      <SelectItem value="60">שעה</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Preview */}
+                {multiSlot.start_time && multiSlot.range_end_time && (() => {
+                  const preview = previewMultipleSlots();
+                  return preview.length > 0 ? (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                      <p className="text-xs font-bold text-emerald-700 mb-2">תצוגה מקדימה – {preview.length} פגישות:</p>
+                      <div className="space-y-1">
+                        {preview.map((s, i) => (
+                          <div key={i} className="text-xs text-emerald-800 bg-white rounded-lg px-3 py-1.5 font-medium">
+                            {i + 1}. {s.start} – {s.end}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-700">
+                      אין מספיק זמן לפגישה אחת לפחות
+                    </div>
+                  );
+                })()}
+              </>
             )}
+
+            {/* Location (shared) */}
             <div className="space-y-2">
               <Label>סוג פגישה</Label>
-              <Select 
-                value={newSlot.location_type} 
-                onValueChange={(value) => setNewSlot({ ...newSlot, location_type: value })}
+              <Select
+                value={slotMode === 'single' ? newSlot.location_type : multiSlot.location_type}
+                onValueChange={(value) => {
+                  if (slotMode === 'single') setNewSlot({ ...newSlot, location_type: value });
+                  else setMultiSlot({ ...multiSlot, location_type: value });
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="office">במשרד</SelectItem>
                   <SelectItem value="zoom">זום</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {conflictError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {conflictError}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               ביטול
             </Button>
-            <Button 
+            <Button
               onClick={handleAddSlot}
-              disabled={!newSlot.date || !newSlot.start_time || !newSlot.end_time || createSlotMutation.isPending}
+              disabled={
+                slotMode === 'single'
+                  ? (!newSlot.date || !newSlot.start_time || !newSlot.end_time || createSlotMutation.isPending)
+                  : (!multiSlot.date || !multiSlot.start_time || !multiSlot.range_end_time || previewMultipleSlots().length === 0)
+              }
               className="bg-[#105330] hover:bg-[#0d4027]"
             >
-              {createSlotMutation.isPending ? 'מוסיף...' : 'הוסף זמינות'}
+              {createSlotMutation.isPending ? 'מוסיף...' : slotMode === 'multiple' ? `הוסף ${previewMultipleSlots().length} פגישות` : 'הוסף זמינות'}
             </Button>
           </DialogFooter>
         </DialogContent>
