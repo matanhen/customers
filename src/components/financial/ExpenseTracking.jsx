@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subMonths } from 'date-fns';
@@ -145,8 +145,14 @@ export default function ExpenseTracking({ userId }) {
   const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
   const prevTracking = allTracking.find(t => t.month === prevMonth);
 
+  const lastLoadedMonthRef = useRef(null);
+
   useEffect(() => {
+    // Only reload from DB when the month changes or data first arrives – don't overwrite user edits
+    if (lastLoadedMonthRef.current === currentMonth) return;
+
     if (currentTracking) {
+      lastLoadedMonthRef.current = currentMonth;
       setTrackingData({
         actual_income: currentTracking.actual_income || 0,
         fixed_expenses: currentTracking.fixed_expenses || {},
@@ -154,25 +160,33 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: currentTracking.custom_expenses || [],
         freedom_transfer_done: currentTracking.freedom_transfer_done || false
       });
-    } else if (prevTracking) {
-      // Use previous month's fixed expenses as defaults
-      setTrackingData({
-        actual_income: 0,
-        fixed_expenses: prevTracking.fixed_expenses || {},
-        variable_expenses: {},
-        custom_expenses: prevTracking.custom_expenses?.filter(e => e.type === 'fixed') || [],
-        freedom_transfer_done: false
-      });
-    } else {
-      setTrackingData({
-        actual_income: 0,
-        fixed_expenses: {},
-        variable_expenses: {},
-        custom_expenses: [],
-        freedom_transfer_done: false
-      });
+    } else if (prevTracking !== undefined) {
+      // Only set defaults once we know there's no current tracking (query finished)
+      lastLoadedMonthRef.current = currentMonth;
+      if (prevTracking) {
+        setTrackingData({
+          actual_income: 0,
+          fixed_expenses: prevTracking.fixed_expenses || {},
+          variable_expenses: {},
+          custom_expenses: prevTracking.custom_expenses?.filter(e => e.type === 'fixed') || [],
+          freedom_transfer_done: false
+        });
+      } else {
+        setTrackingData({
+          actual_income: 0,
+          fixed_expenses: {},
+          variable_expenses: {},
+          custom_expenses: [],
+          freedom_transfer_done: false
+        });
+      }
     }
   }, [currentTracking, prevTracking, currentMonth]);
+
+  // Reset ref when month changes so next month loads fresh
+  useEffect(() => {
+    lastLoadedMonthRef.current = null;
+  }, [currentMonth]);
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
