@@ -1,4 +1,17 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+
+const ALLOWED_ENTITIES = [
+  'FinancialReflection',
+  'ExpenseTracking',
+  'MonthlyPlan',
+  'Debt',
+  'Investment',
+  'PortfolioSettings',
+  'GoalSettings',
+  'FinancialGoal',
+  'PensionData',
+  'FinancialPlan',
+];
 
 Deno.serve(async (req) => {
     try {
@@ -9,7 +22,6 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Only advisors and admins can use this function
         if (currentUser.user_type !== 'advisor' && currentUser.user_type !== 'admin') {
             return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
@@ -20,17 +32,11 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Missing parameters' }, { status: 400 });
         }
 
-        // Use service role to fetch client data
-        let data;
-        if (entityName === 'FinancialReflection') {
-            data = await base44.asServiceRole.entities.FinancialReflection.filter({ user_id: clientUserId });
-        } else if (entityName === 'ExpenseTracking') {
-            data = await base44.asServiceRole.entities.ExpenseTracking.filter({ user_id: clientUserId });
-        } else if (entityName === 'MonthlyPlan') {
-            data = await base44.asServiceRole.entities.MonthlyPlan.filter({ user_id: clientUserId });
-        } else {
+        if (!ALLOWED_ENTITIES.includes(entityName)) {
             return Response.json({ error: 'Invalid entity name' }, { status: 400 });
         }
+
+        const data = await base44.asServiceRole.entities[entityName].filter({ user_id: clientUserId });
 
         return Response.json({ success: true, data });
     } catch (error) {

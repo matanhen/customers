@@ -80,7 +80,6 @@ export default function ExpenseTracking({ userId }) {
   const [newExpense, setNewExpense] = useState({ name: '', type: 'fixed', amount: 0 });
   const [updateExpense, setUpdateExpense] = useState({ type: 'fixed', category: '', amount: 0, isCustom: false, customName: '' });
   const [currentUser, setCurrentUser] = useState(null);
-  const [isViewingOtherUser, setIsViewingOtherUser] = useState(false);
   
   const [trackingData, setTrackingData] = useState({
     actual_income: 0,
@@ -93,12 +92,14 @@ export default function ExpenseTracking({ userId }) {
   const queryClient = useQueryClient();
   const currentMonth = format(currentDate, 'yyyy-MM');
 
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
   useEffect(() => {
     const loadUser = async () => {
       try {
         const user = await base44.auth.me();
         setCurrentUser(user);
-        setIsViewingOtherUser(user.id !== userId);
       } catch (e) {
         console.log('Failed to load user');
       }
@@ -107,9 +108,9 @@ export default function ExpenseTracking({ userId }) {
   }, [userId]);
 
   const { data: allTracking = [], isLoading: trackingLoading } = useQuery({
-    queryKey: ['expenseTracking', userId],
+    queryKey: ['expenseTracking', userId, currentUser?.id],
     queryFn: async () => {
-      if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
+      if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
           entityName: 'ExpenseTracking'
@@ -123,9 +124,9 @@ export default function ExpenseTracking({ userId }) {
   });
 
   const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
-    queryKey: ['monthlyPlans', userId],
+    queryKey: ['monthlyPlans', userId, currentUser?.id],
     queryFn: async () => {
-      if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
+      if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
           entityName: 'MonthlyPlan'
@@ -190,6 +191,15 @@ export default function ExpenseTracking({ userId }) {
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', {
+          entityName: 'ExpenseTracking',
+          clientUserId: userId,
+          data: { ...data, user_id: userId, month: currentMonth },
+          recordId: currentTracking?.id || null,
+        });
+        return response.data;
+      }
       if (currentTracking) {
         return base44.entities.ExpenseTracking.update(currentTracking.id, data);
       } else {
@@ -201,9 +211,9 @@ export default function ExpenseTracking({ userId }) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenseTracking', userId] });
+      queryClient.invalidateQueries({ queryKey: ['expenseTracking', userId, currentUser?.id] });
     },
-    });
+  });
 
     // Auto-save when trackingData changes
     useEffect(() => {

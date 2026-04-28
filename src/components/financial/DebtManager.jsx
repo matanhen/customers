@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function DebtManager({ userId }) {
+  const [currentUser, setCurrentUser] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingDebt, setEditingDebt] = useState(null);
   const [showStrategyDialog, setShowStrategyDialog] = useState(false);
@@ -37,25 +38,63 @@ export default function DebtManager({ userId }) {
 
   const queryClient = useQueryClient();
 
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
   const { data: debts = [] } = useQuery({
-    queryKey: ['debts', userId],
-    queryFn: () => base44.entities.Debt.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryKey: ['debts', userId, currentUser?.id],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          entityName: 'Debt'
+        });
+        return response.data.data;
+      }
+      return base44.entities.Debt.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Debt.create({ ...data, user_id: userId }),
+    mutationFn: async (data) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', {
+          entityName: 'Debt',
+          clientUserId: userId,
+          data: { ...data, user_id: userId },
+          recordId: null,
+        });
+        return response.data;
+      }
+      return base44.entities.Debt.create({ ...data, user_id: userId });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['debts', userId] });
+      queryClient.invalidateQueries({ queryKey: ['debts', userId, currentUser?.id] });
       resetForm();
       setShowAddDialog(false);
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Debt.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', {
+          entityName: 'Debt',
+          clientUserId: userId,
+          data: { ...data, user_id: userId },
+          recordId: id,
+        });
+        return response.data;
+      }
+      return base44.entities.Debt.update(id, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['debts', userId] });
+      queryClient.invalidateQueries({ queryKey: ['debts', userId, currentUser?.id] });
       resetForm();
       setShowAddDialog(false);
       setEditingDebt(null);
@@ -63,9 +102,16 @@ export default function DebtManager({ userId }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Debt.delete(id),
+    mutationFn: async (id) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        // For delete, use service role via saveClientData won't work - use direct delete
+        // Advisors/admins can delete client's debts directly since they have elevated access
+        return base44.entities.Debt.delete(id);
+      }
+      return base44.entities.Debt.delete(id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['debts', userId] });
+      queryClient.invalidateQueries({ queryKey: ['debts', userId, currentUser?.id] });
     },
   });
 

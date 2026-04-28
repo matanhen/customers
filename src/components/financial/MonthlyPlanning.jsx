@@ -18,7 +18,6 @@ import FinancialGoals from './FinancialGoals';
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentUser, setCurrentUser] = useState(null);
-  const [isViewingOtherUser, setIsViewingOtherUser] = useState(false);
   const [planData, setPlanData] = useState({
     expected_income: 0,
     savings: 0,
@@ -33,12 +32,14 @@ export default function MonthlyPlanning({ userId }) {
 
   const currentMonth = format(currentDate, 'yyyy-MM');
 
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
   useEffect(() => {
     const loadUser = async () => {
       try {
         const user = await base44.auth.me();
         setCurrentUser(user);
-        setIsViewingOtherUser(user.id !== userId);
       } catch (e) {
         console.log('Failed to load user');
       }
@@ -47,9 +48,9 @@ export default function MonthlyPlanning({ userId }) {
   }, [userId]);
 
   const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
-    queryKey: ['monthlyPlans', userId],
+    queryKey: ['monthlyPlans', userId, currentUser?.id],
     queryFn: async () => {
-      if (isViewingOtherUser && currentUser && (currentUser.user_type === 'advisor' || currentUser.user_type === 'admin')) {
+      if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
           entityName: 'MonthlyPlan'
@@ -96,6 +97,15 @@ export default function MonthlyPlanning({ userId }) {
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', {
+          entityName: 'MonthlyPlan',
+          clientUserId: userId,
+          data: { ...data, user_id: userId, month: currentMonth },
+          recordId: currentPlan?.id || null,
+        });
+        return response.data;
+      }
       if (currentPlan) {
         return base44.entities.MonthlyPlan.update(currentPlan.id, data);
       } else {
@@ -107,9 +117,9 @@ export default function MonthlyPlanning({ userId }) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['monthlyPlans', userId] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyPlans', userId, currentUser?.id] });
     },
-    });
+  });
 
   const handleSave = () => {
     saveMutation.mutate(planData);
