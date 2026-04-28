@@ -108,7 +108,7 @@ export default function ExpenseTracking({ userId }) {
   }, [userId]);
 
   const { data: allTracking = [], isLoading: trackingLoading } = useQuery({
-    queryKey: ['expenseTracking', userId, currentUser?.id],
+    queryKey: ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
@@ -120,11 +120,10 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.ExpenseTracking.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
-    staleTime: 2 * 60 * 1000,
   });
 
   const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
-    queryKey: ['monthlyPlans', userId, currentUser?.id],
+    queryKey: ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
@@ -136,7 +135,6 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.MonthlyPlan.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
-    staleTime: 2 * 60 * 1000,
   });
 
   const currentTracking = allTracking.find(t => t.month === currentMonth);

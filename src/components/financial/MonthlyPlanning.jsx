@@ -48,7 +48,7 @@ export default function MonthlyPlanning({ userId }) {
   }, [userId]);
 
   const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
-    queryKey: ['monthlyPlans', userId, currentUser?.id],
+    queryKey: ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
@@ -60,7 +60,6 @@ export default function MonthlyPlanning({ userId }) {
       return base44.entities.MonthlyPlan.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
-    staleTime: 2 * 60 * 1000,
   });
 
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);

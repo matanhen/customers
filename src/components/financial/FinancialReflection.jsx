@@ -95,7 +95,7 @@ export default function FinancialReflection({ userId }) {
   const isViewingOther = !!currentUser && currentUser.id !== userId;
 
   const { data: reflection, isLoading: reflectionLoading } = useQuery({
-    queryKey: ['financialReflection', userId, currentUser?.id],
+    queryKey: ['financialReflection', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       // If advisor/admin viewing another user's data - use backend function
       if (isViewingOther && isAdvisorOrAdmin) {
@@ -110,7 +110,6 @@ export default function FinancialReflection({ userId }) {
       return results[0];
     },
     enabled: !!userId && !!currentUser,
-    staleTime: 3 * 60 * 1000,
   });
 
   useEffect(() => {

@@ -46,7 +46,7 @@ export default function DebtManager({ userId }) {
   }, [userId]);
 
   const { data: debts = [] } = useQuery({
-    queryKey: ['debts', userId, currentUser?.id],
+    queryKey: ['debts', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {

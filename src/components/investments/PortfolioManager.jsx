@@ -51,7 +51,7 @@ export default function PortfolioManager({ userId }) {
   }, [userId]);
 
   const { data: investments = [] } = useQuery({
-    queryKey: ['investments', userId, currentUser?.id],
+    queryKey: ['investments', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'Investment' });
@@ -63,7 +63,7 @@ export default function PortfolioManager({ userId }) {
   });
 
   const { data: settings } = useQuery({
-    queryKey: ['portfolioSettings', userId, currentUser?.id],
+    queryKey: ['portfolioSettings', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PortfolioSettings' });

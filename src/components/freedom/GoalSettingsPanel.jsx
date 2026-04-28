@@ -27,7 +27,7 @@ export default function GoalSettingsPanel({ userId }) {
   }, [userId]);
 
   const { data: goalSettings } = useQuery({
-    queryKey: ['goalSettings', userId, currentUser?.id],
+    queryKey: ['goalSettings', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'GoalSettings' });
@@ -40,7 +40,7 @@ export default function GoalSettingsPanel({ userId }) {
   });
 
   const { data: pensionData = [] } = useQuery({
-    queryKey: ['pensionData', userId, currentUser?.id],
+    queryKey: ['pensionData', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PensionData' });

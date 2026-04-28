@@ -23,7 +23,7 @@ export default function PensionManager({ userId }) {
   }, [userId]);
 
   const { data: pensionData = [] } = useQuery({
-    queryKey: ['pensionData', userId, currentUser?.id],
+    queryKey: ['pensionData', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PensionData' });
