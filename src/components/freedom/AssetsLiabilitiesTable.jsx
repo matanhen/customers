@@ -76,6 +76,7 @@ const LIABILITY_CATEGORIES = {
 };
 
 export default function AssetsLiabilitiesTable({ userId, planType }) {
+  const [currentUser, setCurrentUser] = useState(null);
   const [openSections, setOpenSections] = useState({});
   const [formData, setFormData] = useState({
     monthly_salary: 0,
@@ -86,13 +87,25 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
   });
   const queryClient = useQueryClient();
 
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
   const { data: plan } = useQuery({
-    queryKey: ['financialPlan', userId, planType],
+    queryKey: ['financialPlan', userId, planType, currentUser?.id],
     queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'FinancialPlan' });
+        const plans = response.data.data;
+        return plans.find(p => p.plan_type === planType);
+      }
       const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: planType });
       return results[0];
     },
-    enabled: !!userId,
+    enabled: !!userId && !!currentUser,
   });
 
   useEffect(() => {
@@ -127,13 +140,17 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
         assets: formData.assets,
         liabilities: formData.liabilities
       };
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'FinancialPlan', clientUserId: userId, data, recordId: plan?.id || null });
+        return response.data;
+      }
       if (plan) {
         return base44.entities.FinancialPlan.update(plan.id, data);
       }
       return base44.entities.FinancialPlan.create(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financialPlan', userId, planType] });
+      queryClient.invalidateQueries({ queryKey: ['financialPlan', userId, planType, currentUser?.id] });
       queryClient.invalidateQueries({ queryKey: ['allFinancialPlans', userId] });
     },
   });

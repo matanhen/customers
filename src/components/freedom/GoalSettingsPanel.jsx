@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function GoalSettingsPanel({ userId }) {
+  const [currentUser, setCurrentUser] = useState(null);
   const [settings, setSettings] = useState({
     goal_type: 'financial_freedom',
     gender: 'male',
@@ -18,19 +19,36 @@ export default function GoalSettingsPanel({ userId }) {
   });
   const queryClient = useQueryClient();
 
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
   const { data: goalSettings } = useQuery({
-    queryKey: ['goalSettings', userId],
+    queryKey: ['goalSettings', userId, currentUser?.id],
     queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'GoalSettings' });
+        return response.data.data?.[0];
+      }
       const results = await base44.entities.GoalSettings.filter({ user_id: userId });
       return results[0];
     },
-    enabled: !!userId,
+    enabled: !!userId && !!currentUser,
   });
 
   const { data: pensionData = [] } = useQuery({
-    queryKey: ['pensionData', userId],
-    queryFn: () => base44.entities.PensionData.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryKey: ['pensionData', userId, currentUser?.id],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PensionData' });
+        return response.data.data;
+      }
+      return base44.entities.PensionData.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   // Get data based on selected gender
@@ -61,13 +79,17 @@ export default function GoalSettingsPanel({ userId }) {
         male_current_age: pensionData.find(p => p.gender === 'male' && p.fund_type === 'pension')?.current_age || 0,
         female_current_age: pensionData.find(p => p.gender === 'female' && p.fund_type === 'pension')?.current_age || 0,
       };
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'GoalSettings', clientUserId: userId, data: saveData, recordId: goalSettings?.id || null });
+        return response.data;
+      }
       if (goalSettings) {
         return base44.entities.GoalSettings.update(goalSettings.id, saveData);
       }
       return base44.entities.GoalSettings.create(saveData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goalSettings', userId] });
+      queryClient.invalidateQueries({ queryKey: ['goalSettings', userId, currentUser?.id] });
     },
   });
 

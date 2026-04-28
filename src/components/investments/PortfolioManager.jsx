@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function PortfolioManager({ userId }) {
+  const [currentUser, setCurrentUser] = useState(null);
   const [showAddStock, setShowAddStock] = useState(false);
   const [editingStock, setEditingStock] = useState(null);
   const [stockToDelete, setStockToDelete] = useState(null);
@@ -42,19 +43,36 @@ export default function PortfolioManager({ userId }) {
 
   const queryClient = useQueryClient();
 
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
   const { data: investments = [] } = useQuery({
-    queryKey: ['investments', userId],
-    queryFn: () => base44.entities.Investment.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryKey: ['investments', userId, currentUser?.id],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'Investment' });
+        return response.data.data;
+      }
+      return base44.entities.Investment.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const { data: settings } = useQuery({
-    queryKey: ['portfolioSettings', userId],
+    queryKey: ['portfolioSettings', userId, currentUser?.id],
     queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PortfolioSettings' });
+        return response.data.data?.[0];
+      }
       const results = await base44.entities.PortfolioSettings.filter({ user_id: userId });
       return results[0];
     },
-    enabled: !!userId,
+    enabled: !!userId && !!currentUser,
   });
 
   useEffect(() => {
@@ -67,18 +85,30 @@ export default function PortfolioManager({ userId }) {
   }, [settings]);
 
   const createInvestmentMutation = useMutation({
-    mutationFn: (data) => base44.entities.Investment.create({ ...data, user_id: userId }),
+    mutationFn: async (data) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'Investment', clientUserId: userId, data: { ...data, user_id: userId }, recordId: null });
+        return response.data;
+      }
+      return base44.entities.Investment.create({ ...data, user_id: userId });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investments', userId] });
+      queryClient.invalidateQueries({ queryKey: ['investments', userId, currentUser?.id] });
       setShowAddStock(false);
       setNewStock({ name: '', quantity: 0, current_price: 0, target_percentage: 0 });
     },
   });
 
   const updateInvestmentMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Investment.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'Investment', clientUserId: userId, data: { ...data, user_id: userId }, recordId: id });
+        return response.data;
+      }
+      return base44.entities.Investment.update(id, data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investments', userId] });
+      queryClient.invalidateQueries({ queryKey: ['investments', userId, currentUser?.id] });
       setEditingStock(null);
     },
   });
@@ -86,20 +116,24 @@ export default function PortfolioManager({ userId }) {
   const deleteInvestmentMutation = useMutation({
     mutationFn: (id) => base44.entities.Investment.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investments', userId] });
+      queryClient.invalidateQueries({ queryKey: ['investments', userId, currentUser?.id] });
       setStockToDelete(null);
     },
   });
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (data) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'PortfolioSettings', clientUserId: userId, data: { ...data, user_id: userId }, recordId: settings?.id || null });
+        return response.data;
+      }
       if (settings) {
         return base44.entities.PortfolioSettings.update(settings.id, data);
       }
       return base44.entities.PortfolioSettings.create({ ...data, user_id: userId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['portfolioSettings', userId] });
+      queryClient.invalidateQueries({ queryKey: ['portfolioSettings', userId, currentUser?.id] });
     },
   });
 

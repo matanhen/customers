@@ -10,14 +10,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function PensionManager({ userId }) {
+  const [currentUser, setCurrentUser] = useState(null);
   const [activeGender, setActiveGender] = useState('male');
   const [activeFund, setActiveFund] = useState('pension');
   const queryClient = useQueryClient();
 
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
   const { data: pensionData = [] } = useQuery({
-    queryKey: ['pensionData', userId],
-    queryFn: () => base44.entities.PensionData.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryKey: ['pensionData', userId, currentUser?.id],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PensionData' });
+        return response.data.data;
+      }
+      return base44.entities.PensionData.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const getFundData = (gender, fundType) => {
@@ -36,18 +50,23 @@ export default function PensionManager({ userId }) {
   const saveMutation = useMutation({
     mutationFn: async ({ gender, fundType, data }) => {
       const existing = pensionData.find(p => p.gender === gender && p.fund_type === fundType);
+      const fullData = { ...data, user_id: userId, gender, fund_type: fundType };
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', {
+          entityName: 'PensionData',
+          clientUserId: userId,
+          data: fullData,
+          recordId: existing?.id || null,
+        });
+        return response.data;
+      }
       if (existing) {
         return base44.entities.PensionData.update(existing.id, data);
       }
-      return base44.entities.PensionData.create({
-        ...data,
-        user_id: userId,
-        gender,
-        fund_type: fundType,
-      });
+      return base44.entities.PensionData.create(fullData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pensionData', userId] });
+      queryClient.invalidateQueries({ queryKey: ['pensionData', userId, currentUser?.id] });
     },
   });
 
