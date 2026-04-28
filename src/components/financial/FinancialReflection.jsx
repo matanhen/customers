@@ -399,7 +399,7 @@ export default function FinancialReflection({ userId }) {
                       onChange={(e) => setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 })}
                       placeholder="סכום"
                       className="border-slate-200"
-                      disabled={isViewingOtherUser && currentUser?.user_type !== 'admin' && currentUser?.user_type !== 'advisor'}
+                      disabled={isViewingOther && !isAdvisorOrAdmin}
                       />
                       </div>
                       ))}
