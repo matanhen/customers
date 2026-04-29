@@ -266,7 +266,7 @@ export default function AdminDashboard() {
       created_date: au.created_date
     }));
 
-  const combinedUsers = [...allUsers, ...allowedUsersNotInSystem];
+  const combinedUsers = [...allUsers, ...allowedUsersNotInSystem].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
   const clients = combinedUsers.filter(u => u.user_type === 'client');
   const advisors = combinedUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
