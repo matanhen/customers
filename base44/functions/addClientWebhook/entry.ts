@@ -39,17 +39,10 @@ Deno.serve(async (req) => {
             user_type: 'client'
         });
 
-        // Create User entity
-        const newUser = await base44.asServiceRole.entities.User.create({
-            email: email,
-            full_name: name,
-            user_type: 'client'
-        });
-
-        // Create ClientAdvisorAssignment
+        // Create ClientAdvisorAssignment (client_id filled when user logs in)
         if (adminId) {
             await base44.asServiceRole.entities.ClientAdvisorAssignment.create({
-                client_id: newUser.id,
+                client_id: '',
                 client_email: email,
                 client_name: name,
                 advisor_id: adminId,
@@ -61,7 +54,6 @@ Deno.serve(async (req) => {
             success: true,
             message: 'Client added successfully',
             client: {
-                id: newUser.id,
                 name: name,
                 email: email
             }

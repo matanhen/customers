@@ -203,45 +203,40 @@ export default function AdminDashboard() {
     }
   };
 
+  const [addClientSuccess, setAddClientSuccess] = useState(false);
+
   const createClientMutation = useMutation({
     mutationFn: async (data) => {
       // Create AllowedUser
-      const allowedUser = await base44.entities.AllowedUser.create({
+      await base44.entities.AllowedUser.create({
         email: data.email,
         full_name: data.full_name,
         user_type: 'client',
-        advisor_id: 0,
-        phone: 0
       });
 
-      // Create User entity immediately
-      const newUser = await base44.entities.User.create({
-        email: data.email,
-        full_name: data.full_name,
-        user_type: 'client',
-        advisor_id: 0,
-        phone: 0
-      });
-
-      // Create assignment with the actual user ID
+      // Create assignment (client_id will be updated when they first log in)
+      const selectedAdvisorUser = advisors.find(a => a.id === data.advisor_id);
       await base44.entities.ClientAdvisorAssignment.create({
-        client_id: newUser.id,
+        client_id: '',
         client_email: data.email,
         client_name: data.full_name,
         advisor_id: data.advisor_id || user.id,
-        advisor_email: user.email
+        advisor_email: selectedAdvisorUser?.email || user.email
       });
-
-      return newUser;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
       queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
-      setShowAddClientDialog(false);
+      setAddClientSuccess(true);
       setNewClientName('');
       setNewClientEmail('');
+      setSelectedAdvisor('');
+      setTimeout(() => {
+        setAddClientSuccess(false);
+        setShowAddClientDialog(false);
+      }, 2000);
     },
   });
 
@@ -881,6 +876,11 @@ export default function AdminDashboard() {
                 </SelectContent>
               </Select>
             </div>
+            {addClientSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-medium text-center">
+                ✓ הלקוח הצטרף בהצלחה
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddClientDialog(false)} className="rounded-xl border-slate-200">
