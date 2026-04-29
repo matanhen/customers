@@ -214,10 +214,23 @@ export default function AdminDashboard() {
         user_type: 'client',
       });
 
-      // Create assignment (client_id will be updated when they first log in)
+      // Invite the user so they appear in the system immediately
+      await base44.users.inviteUser(data.email, 'user');
+
+      // Wait briefly for the user to be created, then find them
+      await new Promise(r => setTimeout(r, 1500));
+      const systemUsers = await base44.entities.User.filter({ email: data.email });
+      const newUserId = systemUsers[0]?.id || '';
+
+      // Update user_type to client
+      if (newUserId) {
+        await base44.entities.User.update(newUserId, { user_type: 'client', full_name: data.full_name });
+      }
+
+      // Create assignment
       const selectedAdvisorUser = advisors.find(a => a.id === data.advisor_id);
       await base44.entities.ClientAdvisorAssignment.create({
-        client_id: '',
+        client_id: newUserId,
         client_email: data.email,
         client_name: data.full_name,
         advisor_id: data.advisor_id || user.id,

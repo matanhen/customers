@@ -39,10 +39,23 @@ Deno.serve(async (req) => {
             user_type: 'client'
         });
 
-        // Create ClientAdvisorAssignment (client_id filled when user logs in)
+        // Invite the user so they appear in the system immediately
+        await base44.asServiceRole.users.inviteUser(email, 'user');
+
+        // Wait briefly then find the created user
+        await new Promise(r => setTimeout(r, 1500));
+        const systemUsers = await base44.asServiceRole.entities.User.filter({ email });
+        const newUserId = systemUsers[0]?.id || '';
+
+        // Update user_type to client
+        if (newUserId) {
+            await base44.asServiceRole.entities.User.update(newUserId, { user_type: 'client', full_name: name });
+        }
+
+        // Create ClientAdvisorAssignment
         if (adminId) {
             await base44.asServiceRole.entities.ClientAdvisorAssignment.create({
-                client_id: '',
+                client_id: newUserId,
                 client_email: email,
                 client_name: name,
                 advisor_id: adminId,
