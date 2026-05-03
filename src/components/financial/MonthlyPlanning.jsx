@@ -32,7 +32,9 @@ export default function MonthlyPlanning({ userId }) {
 
   const currentMonth = format(currentDate, 'yyyy-MM');
 
-  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isAdvisorOrAdmin = 
+    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin' ||
+    currentUser?.data?.user_type === 'advisor' || currentUser?.data?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
 
   useEffect(() => {

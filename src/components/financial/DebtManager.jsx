@@ -38,7 +38,9 @@ export default function DebtManager({ userId }) {
 
   const queryClient = useQueryClient();
 
-  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isAdvisorOrAdmin = 
+    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin' ||
+    currentUser?.data?.user_type === 'advisor' || currentUser?.data?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
 
   useEffect(() => {

@@ -91,7 +91,9 @@ export default function FinancialReflection({ userId }) {
     loadUser();
   }, [userId]);
 
-  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isAdvisorOrAdmin = 
+    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin' ||
+    currentUser?.data?.user_type === 'advisor' || currentUser?.data?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
 
   const { data: reflection, isLoading: reflectionLoading } = useQuery({
