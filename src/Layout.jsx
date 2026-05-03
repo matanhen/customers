@@ -68,17 +68,27 @@ export default function Layout({ children, currentPageName }) {
         }
       }
       
-      // If user already has a valid user_type, allow access immediately
+      // Check AllowedUser to always sync user_type
+      const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
+
+      // If user already has a valid user_type and matches AllowedUser, allow access immediately
+      const allowedUserType = allowedUsers[0]?.user_type;
       if (currentUser.user_type && ['client', 'advisor', 'admin'].includes(currentUser.user_type)) {
+        // Sync user_type if AllowedUser has a different value (e.g. role was changed)
+        if (allowedUserType && allowedUserType !== currentUser.user_type) {
+          try {
+            await base44.entities.User.update(currentUser.id, { user_type: allowedUserType });
+            currentUser = await base44.auth.me();
+          } catch (e) {
+            console.log('Failed to sync user_type', e);
+          }
+        }
         setUser(currentUser);
         setEditName(currentUser.full_name || '');
         sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
         setIsLoading(false);
         return;
       }
-      
-      // No user_type - check AllowedUser
-      const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
       
       // User not in AllowedUser - not authorized
       if (allowedUsers.length === 0) {
