@@ -16,9 +16,12 @@ export default function PensionManager({ userId }) {
   const queryClient = useQueryClient();
 
   const isAdvisorOrAdmin = 
-    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin' ||
-    currentUser?.data?.user_type === 'advisor' || currentUser?.data?.user_type === 'admin';
+    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  const viewingClientEmail = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
+  })();
 
   useEffect(() => {
     base44.auth.me().then(setCurrentUser).catch(() => {});
@@ -28,7 +31,7 @@ export default function PensionManager({ userId }) {
     queryKey: ['pensionData', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
-        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PensionData' });
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'PensionData' });
         return response.data.data;
       }
       return base44.entities.PensionData.filter({ user_id: userId });

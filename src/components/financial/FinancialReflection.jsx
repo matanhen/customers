@@ -90,9 +90,13 @@ export default function FinancialReflection({ userId }) {
   }, [userId]);
 
   const isAdvisorOrAdmin = 
-    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin' ||
-    currentUser?.data?.user_type === 'advisor' || currentUser?.data?.user_type === 'admin';
+    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  // Get client email from sessionStorage for fallback lookup
+  const viewingClientEmail = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
+  })();
 
   const { data: reflection, isLoading: reflectionLoading } = useQuery({
     queryKey: ['financialReflection', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
@@ -101,6 +105,7 @@ export default function FinancialReflection({ userId }) {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
+          clientEmail: viewingClientEmail,
           entityName: 'FinancialReflection'
         });
         return response.data.data[0];

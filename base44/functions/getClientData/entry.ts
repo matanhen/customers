@@ -26,17 +26,34 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        const { clientUserId, entityName } = await req.json();
+        const { clientUserId, clientEmail, entityName } = await req.json();
 
-        if (!clientUserId || !entityName) {
-            return Response.json({ error: 'Missing parameters' }, { status: 400 });
+        if (!entityName) {
+            return Response.json({ error: 'Missing entityName parameter' }, { status: 400 });
         }
 
         if (!ALLOWED_ENTITIES.includes(entityName)) {
             return Response.json({ error: 'Invalid entity name' }, { status: 400 });
         }
 
-        const data = await base44.asServiceRole.entities[entityName].filter({ user_id: clientUserId });
+        // Strategy: try by clientUserId first, then fallback to all User IDs matching the email
+        let data = [];
+
+        if (clientUserId) {
+            data = await base44.asServiceRole.entities[entityName].filter({ user_id: clientUserId });
+        }
+
+        // If nothing found and we have an email, try to find the correct user_id by email
+        if (data.length === 0 && clientEmail) {
+            const users = await base44.asServiceRole.entities.User.filter({ email: clientEmail });
+            for (const user of users) {
+                const records = await base44.asServiceRole.entities[entityName].filter({ user_id: user.id });
+                if (records.length > 0) {
+                    data = records;
+                    break;
+                }
+            }
+        }
 
         return Response.json({ success: true, data });
     } catch (error) {

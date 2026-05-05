@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { format, subMonths } from 'date-fns';
@@ -19,20 +20,42 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export default function BeforeAfterComparison({ userId }) {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  const viewingClientEmail = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
+  })();
 
   const { data: monthlyPlans = [] } = useQuery({
-    queryKey: ['monthlyPlans', userId],
-    queryFn: () => base44.entities.MonthlyPlan.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryKey: ['monthlyPlans', userId, currentUser?.id],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'MonthlyPlan' });
+        return response.data.data;
+      }
+      return base44.entities.MonthlyPlan.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const { data: reflection } = useQuery({
-    queryKey: ['financialReflection', userId],
+    queryKey: ['financialReflection', userId, currentUser?.id],
     queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'FinancialReflection' });
+        return response.data.data[0];
+      }
       const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
       return results[0];
     },
-    enabled: !!userId,
+    enabled: !!userId && !!currentUser,
   });
 
   const selectedPlan = monthlyPlans.find(p => p.month === selectedMonth);

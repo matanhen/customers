@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInMonths } from 'date-fns';
@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 export default function FinancialGoals({ userId, monthlyDreamsSavings = 0 }) {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [newGoal, setNewGoal] = useState({
     name: '',
     target_amount: 0,
@@ -40,10 +41,26 @@ export default function FinancialGoals({ userId, monthlyDreamsSavings = 0 }) {
   });
   const queryClient = useQueryClient();
 
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isViewingOther = !!currentUser && currentUser.id !== userId;
+  const viewingClientEmail = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
+  })();
+
   const { data: goals = [] } = useQuery({
-    queryKey: ['financialGoals', userId],
-    queryFn: () => base44.entities.FinancialGoal.filter({ user_id: userId }),
-    enabled: !!userId,
+    queryKey: ['financialGoals', userId, currentUser?.id],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'FinancialGoal' });
+        return response.data.data;
+      }
+      return base44.entities.FinancialGoal.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
   });
 
   const createMutation = useMutation({

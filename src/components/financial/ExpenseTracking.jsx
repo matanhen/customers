@@ -90,9 +90,13 @@ export default function ExpenseTracking({ userId }) {
   const currentMonth = format(currentDate, 'yyyy-MM');
 
   const isAdvisorOrAdmin = 
-    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin' ||
-    currentUser?.data?.user_type === 'advisor' || currentUser?.data?.user_type === 'admin';
+    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  // Get client email from sessionStorage for fallback lookup
+  const viewingClientEmail = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
+  })();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -112,6 +116,7 @@ export default function ExpenseTracking({ userId }) {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
+          clientEmail: viewingClientEmail,
           entityName: 'ExpenseTracking'
         });
         return response.data.data;
@@ -127,6 +132,7 @@ export default function ExpenseTracking({ userId }) {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
+          clientEmail: viewingClientEmail,
           entityName: 'MonthlyPlan'
         });
         return response.data.data;

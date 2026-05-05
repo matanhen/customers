@@ -44,9 +44,12 @@ export default function PortfolioManager({ userId }) {
   const queryClient = useQueryClient();
 
   const isAdvisorOrAdmin = 
-    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin' ||
-    currentUser?.data?.user_type === 'advisor' || currentUser?.data?.user_type === 'admin';
+    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
+
+  const viewingClientEmail = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
+  })();
 
   useEffect(() => {
     base44.auth.me().then(setCurrentUser).catch(() => {});
@@ -56,7 +59,7 @@ export default function PortfolioManager({ userId }) {
     queryKey: ['investments', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
-        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'Investment' });
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'Investment' });
         return response.data.data;
       }
       return base44.entities.Investment.filter({ user_id: userId });
@@ -68,7 +71,7 @@ export default function PortfolioManager({ userId }) {
     queryKey: ['portfolioSettings', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
-        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, entityName: 'PortfolioSettings' });
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'PortfolioSettings' });
         return response.data.data?.[0];
       }
       const results = await base44.entities.PortfolioSettings.filter({ user_id: userId });
