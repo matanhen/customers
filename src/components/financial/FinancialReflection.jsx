@@ -72,10 +72,7 @@ export default function FinancialReflection({ userId }) {
   const [fixedExpenses, setFixedExpenses] = useState({});
   const [variableExpenses, setVariableExpenses] = useState({});
   const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
-  const [showImportDialog, setShowImportDialog] = useState(false);
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
-  const [importText, setImportText] = useState('');
-  const [parsedItems, setParsedItems] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const queryClient = useQueryClient();
 
@@ -206,62 +203,7 @@ export default function FinancialReflection({ userId }) {
     }
   };
 
-  const parseImportedText = (text) => {
-    const lines = text.trim().split('\n');
-    const items = [];
-    
-    lines.forEach(line => {
-      if (!line.trim()) return;
-      
-      // Try to match pattern: text followed by number
-      // Support both comma and dot as decimal separator
-      const match = line.match(/^(.+?)\s+([\d,]+\.?\d*)\s*$/);
-      
-      if (match) {
-        const description = match[1].trim();
-        const amountStr = match[2].replace(/,/g, '');
-        const amount = parseFloat(amountStr);
-        
-        if (!isNaN(amount) && amount > 0) {
-          items.push({
-            description,
-            amount: Math.round(amount * 100) / 100,
-            assignedTo: null, // { category, month, type }
-          });
-        }
-      }
-    });
-    
-    return items;
-  };
 
-  const handleImport = () => {
-    const items = parseImportedText(importText);
-    setParsedItems(items);
-  };
-
-  const assignItem = (index, category, month, type) => {
-    setParsedItems(prev => prev.map((item, i) => 
-      i === index ? { ...item, assignedTo: { category, month, type } } : item
-    ));
-  };
-
-  const applyImportedItems = () => {
-    parsedItems.forEach(item => {
-      if (item.assignedTo) {
-        const { category, month, type } = item.assignedTo;
-        const currentValue = type === 'fixed' 
-          ? (fixedExpenses[category]?.[month] || 0)
-          : (variableExpenses[category]?.[month] || 0);
-        
-        updateExpense(category, month, currentValue + item.amount, type);
-      }
-    });
-    
-    setShowImportDialog(false);
-    setImportText('');
-    setParsedItems([]);
-  };
 
   if (reflectionLoading) {
     return (
@@ -303,14 +245,7 @@ export default function FinancialReflection({ userId }) {
               <FileText className="w-4 h-4 ml-2" />
               ייבוא מ-PDF
             </Button>
-            <Button
-              onClick={() => setShowImportDialog(true)}
-              variant="outline"
-              className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
-            >
-              <FileText className="w-4 h-4 ml-2" />
-              ייבוא הוצאות מטקסט
-            </Button>
+
           </div>
         </div>
       )}
@@ -532,155 +467,7 @@ export default function FinancialReflection({ userId }) {
         }}
       />
 
-      {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent dir="rtl" className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>ייבוא הוצאות מטקסט</DialogTitle>
-          </DialogHeader>
-          
-          {parsedItems.length === 0 ? (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>הדבק טקסט עם הוצאות (שורה אחת = תיאור + סכום)</Label>
-                <Textarea
-                  value={importText}
-                  onChange={(e) => setImportText(e.target.value)}
-                  placeholder="לדוגמה:&#10;ALIEXPRESS	46.39&#10;ביטוח רכב	2,210.00&#10;מסעדה	190.00"
-                  className="min-h-[200px] font-mono text-sm"
-                />
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-                <p className="font-semibold mb-1">הוראות שימוש:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>כל שורה צריכה להכיל תיאור ואחריו סכום</li>
-                  <li>ניתן להשתמש בעברית או אנגלית</li>
-                  <li>ניתן להשתמש בפסיק או נקודה כמפריד עשרוני</li>
-                </ul>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowImportDialog(false)}>
-                  ביטול
-                </Button>
-                <Button 
-                  onClick={handleImport}
-                  disabled={!importText.trim()}
-                  className="bg-[#105330] hover:bg-[#0d4027]"
-                >
-                  המשך
-                </Button>
-              </DialogFooter>
-            </div>
-          ) : (
-            <div className="space-y-4 py-4">
-              <div className="p-3 bg-emerald-50 rounded-lg text-sm text-emerald-800">
-                <p className="font-semibold">נמצאו {parsedItems.length} פריטים. שייך כל פריט לקטגוריה וחודש:</p>
-              </div>
-              
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {parsedItems.map((item, index) => (
-                  <div key={index} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="font-semibold text-slate-800">{item.description}</p>
-                        <p className="text-lg font-bold text-[#105330]">₪{item.amount.toLocaleString()}</p>
-                      </div>
-                      {item.assignedTo && (
-                        <Check className="w-5 h-5 text-emerald-600" />
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <Label className="text-xs mb-1">סוג הוצאה</Label>
-                        <Select
-                          value={item.assignedTo?.type || ''}
-                          onValueChange={(value) => {
-                            const newAssignment = { 
-                              ...item.assignedTo, 
-                              type: value,
-                              category: null,
-                              month: item.assignedTo?.month || 'month1'
-                            };
-                            assignItem(index, newAssignment.category, newAssignment.month, newAssignment.type);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="בחר סוג" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">הוצאה קבועה</SelectItem>
-                            <SelectItem value="variable">יתרת הוצאה</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-xs mb-1">קטגוריה</Label>
-                        <Select
-                          value={item.assignedTo?.category || ''}
-                          onValueChange={(value) => {
-                            assignItem(index, value, item.assignedTo?.month || 'month1', item.assignedTo?.type);
-                          }}
-                          disabled={!item.assignedTo?.type}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="בחר קטגוריה" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[200px]">
-                            {(item.assignedTo?.type === 'fixed' ? FIXED_EXPENSES : VARIABLE_EXPENSES).map(cat => (
-                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-xs mb-1">חודש</Label>
-                        <Select
-                          value={item.assignedTo?.month || 'month1'}
-                          onValueChange={(value) => {
-                            assignItem(index, item.assignedTo?.category, value, item.assignedTo?.type);
-                          }}
-                          disabled={!item.assignedTo?.type}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="בחר חודש" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="month1">חודש 1</SelectItem>
-                            <SelectItem value="month2">חודש 2</SelectItem>
-                            <SelectItem value="month3">חודש 3</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <DialogFooter className="gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setParsedItems([]);
-                    setImportText('');
-                  }}
-                >
-                  התחל מחדש
-                </Button>
-                <Button 
-                  onClick={applyImportedItems}
-                  disabled={!parsedItems.some(item => item.assignedTo?.category)}
-                  className="bg-[#105330] hover:bg-[#0d4027]"
-                >
-                  יישם שינויים ({parsedItems.filter(item => item.assignedTo?.category).length}/{parsedItems.length})
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }
