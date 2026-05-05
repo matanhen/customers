@@ -184,11 +184,14 @@ export default function Layout({ children, currentPageName }) {
     { name: 'האקדמיה', externalUrl: 'https://academy.matanhen.com', icon: GraduationCap },
   ];
 
+  const ADVISOR_ONLY_EMAILS = ['nivdavid7@gmail.com', 'idanhen@gmail.com'];
+  const isAdvisorOnlyUser = user?.email && ADVISOR_ONLY_EMAILS.includes(user.email.toLowerCase());
+
   if (isAdvisor || isAdmin) {
     menuItems.push({ name: 'דשבורד יועץ', page: 'AdvisorDashboard', icon: Users });
   }
 
-  if (isAdmin) {
+  if (isAdmin && !isAdvisorOnlyUser) {
     menuItems.push({ name: 'ניהול מערכת', page: 'AdminDashboard', icon: UserCog });
   }
 
