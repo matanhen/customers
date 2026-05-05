@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { format, subMonths } from 'date-fns';
@@ -60,7 +59,6 @@ export default function BeforeAfterComparison({ userId }) {
 
   const selectedPlan = monthlyPlans.find(p => p.month === selectedMonth);
 
-  // Calculate averages from reflection
   const calculateReflectionAverage = () => {
     if (!reflection) return { income: 0, fixedExpenses: 0, variableExpenses: 0 };
 
@@ -109,7 +107,6 @@ export default function BeforeAfterComparison({ userId }) {
   const planSavings = selectedPlan?.savings || 0;
   const planCashFlow = planIncome - planTotalExpenses - planSavings;
 
-  // Calculate differences
   const incomeDiff = planIncome - reflectionData.income;
   const expensesDiff = planTotalExpenses - reflectionTotalExpenses;
   const cashFlowDiff = (planIncome - planTotalExpenses) - reflectionCashFlow;
@@ -163,7 +160,6 @@ export default function BeforeAfterComparison({ userId }) {
 
   return (
     <div className="space-y-6">
-      {/* Month Selector */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -184,7 +180,6 @@ export default function BeforeAfterComparison({ userId }) {
         </CardContent>
       </Card>
 
-      {/* Comparison Chart */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -212,9 +207,7 @@ export default function BeforeAfterComparison({ userId }) {
         </CardContent>
       </Card>
 
-      {/* Comparison Details */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Before - Reflection */}
         <Card className="border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-red-700">לפני - שיקוף פיננסי (ממוצע)</CardTitle>
@@ -241,7 +234,6 @@ export default function BeforeAfterComparison({ userId }) {
           </CardContent>
         </Card>
 
-        {/* After - Planning */}
         <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-blue-700">אחרי - תכנון חודשי</CardTitle>
@@ -269,7 +261,6 @@ export default function BeforeAfterComparison({ userId }) {
         </Card>
       </div>
 
-      {/* Differences Summary */}
       <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
