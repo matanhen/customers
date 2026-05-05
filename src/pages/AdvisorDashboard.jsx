@@ -148,23 +148,29 @@ export default function AdvisorDashboard() {
   );
 
   const handleViewClient = async (client) => {
-    // Fetch directly from API to get the most up-to-date user ID
-    // (avoids stale cache or duplicate entity issues)
+    // Try to get the real User ID via backend function (advisors can't filter User entity directly)
     let clientId = client.id;
+    let clientEmail = client.email;
     try {
-      const users = await base44.entities.User.filter({ email: client.email });
-      // Pick the user with the most recent last_login_date, as that's the active one
-      if (users.length > 0) {
-        const sorted = users.sort((a, b) => new Date(b.last_login_date || 0) - new Date(a.last_login_date || 0));
+      const res = await base44.functions.invoke('getClientData', {
+        clientUserId: client.id,
+        clientEmail: client.email,
+        entity: 'User'
+      });
+      const users = res?.data;
+      if (Array.isArray(users) && users.length > 0) {
+        // Pick the user with the most recent last_login_date
+        const sorted = users.sort((a, b) => new Date(b.last_login_date || b.updated_date || 0) - new Date(a.last_login_date || a.updated_date || 0));
         clientId = sorted[0].id;
+        clientEmail = sorted[0].email || client.email;
       }
     } catch (e) {
-      console.log('Could not fetch user by email, using existing id', e);
+      console.log('Could not fetch user via backend, using existing id', e);
     }
     sessionStorage.setItem('viewingClient', JSON.stringify({
       id: clientId,
       full_name: client.full_name || client.email,
-      email: client.email,
+      email: clientEmail,
     }));
     window.location.href = createPageUrl('Home');
   };

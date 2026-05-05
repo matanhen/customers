@@ -26,7 +26,19 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        const { clientUserId, clientEmail, entityName } = await req.json();
+        const body = await req.json();
+        const { clientUserId, clientEmail } = body;
+        // Support both 'entityName' and 'entity' parameter names
+        const entityName = body.entityName || body.entity;
+
+        // Special case: return User records by email (for resolving real user ID)
+        if (entityName === 'User') {
+            if (!clientEmail) {
+                return Response.json({ error: 'Missing clientEmail for User lookup' }, { status: 400 });
+            }
+            const users = await base44.asServiceRole.entities.User.filter({ email: clientEmail });
+            return Response.json(users);
+        }
 
         if (!entityName) {
             return Response.json({ error: 'Missing entityName parameter' }, { status: 400 });
