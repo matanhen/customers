@@ -339,10 +339,20 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleViewClient = (client) => {
-    // Find real User entity by email (in case client is from allowedUsersNotInSystem)
-    const realUser = allUsers.find(u => u.email === client.email);
-    const clientId = realUser?.id || client.id;
+  const handleViewClient = async (client) => {
+    // Fetch directly from API to get the most up-to-date user ID
+    // (avoids stale cache or duplicate entity issues)
+    let clientId = client.id;
+    try {
+      const users = await base44.entities.User.filter({ email: client.email });
+      // Pick the user with the most recent last_login_date, as that's the active one
+      if (users.length > 0) {
+        const sorted = users.sort((a, b) => new Date(b.last_login_date || 0) - new Date(a.last_login_date || 0));
+        clientId = sorted[0].id;
+      }
+    } catch (e) {
+      console.log('Could not fetch user by email, using existing id', e);
+    }
     sessionStorage.setItem('viewingClient', JSON.stringify({
       id: clientId,
       full_name: client.full_name || client.email,
