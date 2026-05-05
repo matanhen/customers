@@ -148,7 +148,14 @@ export default function AdvisorDashboard() {
   );
 
   const handleViewClient = (client) => {
-    sessionStorage.setItem('viewingClient', JSON.stringify(client));
+    // Find the real User entity by email (in case client came from allowedUsersNotInSystem with wrong id)
+    const realUser = allUsers.find(u => u.email === client.email);
+    const clientId = realUser?.id || client.id;
+    sessionStorage.setItem('viewingClient', JSON.stringify({
+      id: clientId,
+      full_name: client.full_name || client.email,
+      email: client.email,
+    }));
     window.location.href = createPageUrl('Home');
   };
 

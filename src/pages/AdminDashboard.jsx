@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPageUrl } from '../utils';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, UserCog, Link2, Search, Check, X, 
-  Shield, User, Briefcase, Unlink, Pencil, Webhook, Copy
+  Shield, User, Briefcase, Unlink, Pencil, Webhook, Copy, Eye
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -124,7 +125,8 @@ export default function AdminDashboard() {
               full_name: allowedUser.full_name,
               user_type: allowedUser.user_type,
               advisor_id: 0,
-              phone: 0
+              phone: 0,
+              last_login_date: new Date().toISOString()
             });
           } catch (e) {
             console.log('Failed to create user', e);
@@ -335,6 +337,18 @@ export default function AdminDashboard() {
       setSelectedClient(null);
       setSelectedAdvisor('');
     }
+  };
+
+  const handleViewClient = (client) => {
+    // Find real User entity by email (in case client is from allowedUsersNotInSystem)
+    const realUser = allUsers.find(u => u.email === client.email);
+    const clientId = realUser?.id || client.id;
+    sessionStorage.setItem('viewingClient', JSON.stringify({
+      id: clientId,
+      full_name: client.full_name || client.email,
+      email: client.email,
+    }));
+    window.location.href = createPageUrl('Home');
   };
 
   const handleRemoveAdvisor = async (client) => {
@@ -671,6 +685,17 @@ export default function AdminDashboard() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        {u.user_type === 'client' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewClient(u)}
+                            className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl"
+                          >
+                            <Eye className="w-4 h-4 ml-1" />
+                            צפה
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
