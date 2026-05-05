@@ -401,15 +401,21 @@ export default function Layout({ children, currentPageName }) {
 
           {/* Client View Banner */}
           {viewingClient && (
-            <div className="px-4 lg:px-8 py-2 bg-[#c8a863] flex items-center justify-between">
-              <span className="text-[#105330] font-semibold text-sm">
-                צופה בלקוח: {viewingClient.full_name}
-              </span>
+            <div className="px-4 lg:px-8 py-2.5 bg-[#c8a863] flex items-center justify-between border-t border-[#b8943d]">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#105330] animate-pulse" />
+                <span className="text-[#105330] font-bold text-sm">
+                  👁️ צופה בלקוח: {viewingClient.full_name}
+                </span>
+                {viewingClient.email && (
+                  <span className="text-[#105330]/70 text-xs hidden sm:inline">({viewingClient.email})</span>
+                )}
+              </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={exitClientView}
-                className="text-[#105330] hover:bg-[#105330]/10 rounded-lg text-sm"
+                className="text-[#105330] hover:bg-[#105330]/10 rounded-lg text-sm font-semibold"
               >
                 <ChevronRight className="w-4 h-4 ml-1" />
                 חזרה לדשבורד
@@ -478,7 +484,7 @@ export default function Layout({ children, currentPageName }) {
       </header>
 
       {/* Main Content */}
-      <main className={`pt-20 ${viewingClient ? 'pt-28' : 'pt-20'} min-h-screen`}>
+      <main className={`${viewingClient ? 'pt-28' : 'pt-20'} min-h-screen`}>
         <div className="p-4 lg:p-8 max-w-7xl mx-auto">
           {children}
         </div>
