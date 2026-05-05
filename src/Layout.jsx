@@ -23,6 +23,16 @@ export default function Layout({ children, currentPageName }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Always load viewingClient from sessionStorage
+    const clientData = sessionStorage.getItem('viewingClient');
+    if (clientData) {
+      try {
+        setViewingClient(JSON.parse(clientData));
+      } catch (e) {
+        sessionStorage.removeItem('viewingClient');
+      }
+    }
+
     // Check cache first
     const cachedUser = sessionStorage.getItem('currentUser');
     if (cachedUser) {
@@ -41,14 +51,6 @@ export default function Layout({ children, currentPageName }) {
     }
 
     loadUser();
-    const clientData = sessionStorage.getItem('viewingClient');
-    if (clientData) {
-      try {
-        setViewingClient(JSON.parse(clientData));
-      } catch (e) {
-        sessionStorage.removeItem('viewingClient');
-      }
-    }
   }, []);
 
   const loadUser = async () => {
