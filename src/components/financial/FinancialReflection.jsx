@@ -74,6 +74,8 @@ export default function FinancialReflection({ userId }) {
   const [fixedExpenses, setFixedExpenses] = useState({});
   const [variableExpenses, setVariableExpenses] = useState({});
   const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
+  const [creditCardTotal, setCreditCardTotal] = useState(0);
+  const [creditCardDisplay, setCreditCardDisplay] = useState('');
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -125,6 +127,9 @@ export default function FinancialReflection({ userId }) {
       setIncomes(reflection.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 });
       setFixedExpenses(reflection.fixed_expenses || {});
       setVariableExpenses(reflection.variable_expenses || {});
+      const cc = reflection.credit_card_total || 0;
+      setCreditCardTotal(cc);
+      setCreditCardDisplay(cc > 0 ? cc.toLocaleString() : '');
     }
     setDataLoaded(true);
   }, [reflection]);
@@ -136,6 +141,7 @@ export default function FinancialReflection({ userId }) {
         incomes,
         fixed_expenses: fixedExpenses,
         variable_expenses: variableExpenses,
+        credit_card_total: creditCardTotal,
       };
 
       // Advisor or admin viewing another user - use backend function
@@ -460,6 +466,37 @@ export default function FinancialReflection({ userId }) {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* Credit Card Total - info only, not included in calculations */}
+      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
+        <CardContent className="p-5">
+          <div className="flex items-center gap-4">
+            <div className="p-2 rounded-xl bg-orange-500/10 shrink-0">
+              <Receipt className="w-5 h-5 text-orange-600" />
+            </div>
+            <Label className="text-slate-700 font-semibold text-base whitespace-nowrap">סך הכל חיוב אשראי נוכחי</Label>
+            <div className="flex-1 max-w-xs">
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={creditCardDisplay}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9]/g, '');
+                  const num = parseInt(raw, 10) || 0;
+                  setCreditCardTotal(num);
+                  setCreditCardDisplay(num > 0 ? num.toLocaleString() : raw === '' ? '' : '0');
+                  triggerAutoSave();
+                }}
+                placeholder="₪ הזן סכום"
+                className="border-orange-200 focus-visible:ring-orange-400 text-left"
+                disabled={isViewingOther && !isAdvisorOrAdmin}
+                dir="ltr"
+              />
+            </div>
+            <p className="text-xs text-slate-400 hidden md:block">* מספר לצורך בהירות בלבד, לא נכלל בחישובים</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Averages Bar Chart - bottom */}
       {(incomeAverage > 0 || totalExpenseAverage > 0) && (

@@ -1,0 +1,90 @@
+{
+  "name": "FinancialReflection",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05de\u05e9\u05ea\u05de\u05e9"
+    },
+    "incomes": {
+      "type": "object",
+      "description": "\u05d4\u05db\u05e0\u05e1\u05d5\u05ea 6 \u05d7\u05d5\u05d3\u05e9\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05e0\u05d9\u05dd",
+      "properties": {
+        "month1": {
+          "type": "number",
+          "default": 0
+        },
+        "month2": {
+          "type": "number",
+          "default": 0
+        },
+        "month3": {
+          "type": "number",
+          "default": 0
+        },
+        "month4": {
+          "type": "number",
+          "default": 0
+        },
+        "month5": {
+          "type": "number",
+          "default": 0
+        },
+        "month6": {
+          "type": "number",
+          "default": 0
+        }
+      }
+    },
+    "fixed_expenses": {
+      "type": "object",
+      "description": "\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05e7\u05d1\u05d5\u05e2\u05d5\u05ea - 3 \u05d7\u05d5\u05d3\u05e9\u05d9\u05dd",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "month1": {
+            "type": "number",
+            "default": 0
+          },
+          "month2": {
+            "type": "number",
+            "default": 0
+          },
+          "month3": {
+            "type": "number",
+            "default": 0
+          }
+        }
+      }
+    },
+    "variable_expenses": {
+      "type": "object",
+      "description": "\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05de\u05e9\u05ea\u05e0\u05d5\u05ea - 3 \u05d7\u05d5\u05d3\u05e9\u05d9\u05dd",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "month1": {
+            "type": "number",
+            "default": 0
+          },
+          "month2": {
+            "type": "number",
+            "default": 0
+          },
+          "month3": {
+            "type": "number",
+            "default": 0
+          }
+        }
+      }
+    },
+    "credit_card_total": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05e1\u05da \u05d4\u05db\u05dc \u05d7\u05d9\u05d5\u05d1 \u05d0\u05e9\u05e8\u05d0\u05d9 \u05e0\u05d5\u05db\u05d7\u05d9 - \u05dc\u05e6\u05d5\u05e8\u05da \u05d1\u05d4\u05d9\u05e8\u05d5\u05ea \u05d1\u05dc\u05d1\u05d3, \u05dc\u05d0 \u05e0\u05db\u05dc\u05dc \u05d1\u05d7\u05d9\u05e9\u05d5\u05d1\u05d9\u05dd"
+    }
+  },
+  "required": [
+    "user_id"
+  ]
+}
