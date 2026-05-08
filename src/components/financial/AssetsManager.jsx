@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins } from 'lucide-react';
+import { ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,8 @@ export default function AssetsManager({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [openSections, setOpenSections] = useState({});
   const [assets, setAssets] = useState({});
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const autoSaveTimer = React.useRef(null);
   const queryClient = useQueryClient();
 
   const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
@@ -79,6 +81,7 @@ export default function AssetsManager({ userId }) {
     } else {
       setAssets({});
     }
+    setDataLoaded(true);
   }, [plan]);
 
   const saveMutation = useMutation({
@@ -115,6 +118,14 @@ export default function AssetsManager({ userId }) {
     },
   });
 
+  const triggerAutoSave = () => {
+    if (!dataLoaded) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveMutation.mutate();
+    }, 1500);
+  };
+
   const toggleSection = (key) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
@@ -130,6 +141,7 @@ export default function AssetsManager({ userId }) {
         }
       }
     }));
+    triggerAutoSave();
   };
 
   const calculateCategoryTotal = (catKey) => {
@@ -255,17 +267,7 @@ export default function AssetsManager({ userId }) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330] shadow-xl px-10 py-6 text-lg font-bold rounded-xl"
-        >
-          <Save className="w-5 h-5 ml-2" />
-          {saveMutation.isPending ? 'שומר...' : 'שמור נכסים'}
-        </Button>
-      </div>
+
     </div>
   );
 }

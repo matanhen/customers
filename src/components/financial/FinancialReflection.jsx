@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  TrendingUp, TrendingDown, Save, ChevronDown, ChevronUp,
-  DollarSign, Receipt, FileText, Check
+  TrendingUp, TrendingDown, ChevronDown, ChevronUp,
+  DollarSign, Receipt, FileText
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -75,7 +75,9 @@ export default function FinancialReflection({ userId }) {
   const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const queryClient = useQueryClient();
+  const autoSaveTimer = React.useRef(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -123,6 +125,7 @@ export default function FinancialReflection({ userId }) {
       setFixedExpenses(reflection.fixed_expenses || {});
       setVariableExpenses(reflection.variable_expenses || {});
     }
+    setDataLoaded(true);
   }, [reflection]);
 
   const saveMutation = useMutation({
@@ -154,6 +157,14 @@ export default function FinancialReflection({ userId }) {
       queryClient.invalidateQueries({ queryKey: ['financialReflection', userId, currentUser?.id] });
     },
   });
+
+  const triggerAutoSave = () => {
+    if (!dataLoaded) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveMutation.mutate();
+    }, 1500);
+  };
 
   const toggleSection = (section) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -207,6 +218,7 @@ export default function FinancialReflection({ userId }) {
         },
       }));
     }
+    triggerAutoSave();
   };
 
 
@@ -232,27 +244,15 @@ export default function FinancialReflection({ userId }) {
     <div className="space-y-6">
       {/* Action Buttons */}
       {(!isViewingOther || isAdvisorOrAdmin) && (
-        <div className="flex justify-between items-center">
-          <Button 
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 px-8"
+        <div className="flex justify-end items-center">
+          <Button
+            onClick={() => setShowPDFImportDialog(true)}
+            variant="outline"
+            className="border-red-400 text-red-600 hover:bg-red-50"
           >
-            <Save className="w-4 h-4 ml-2" />
-            {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
+            <FileText className="w-4 h-4 ml-2" />
+            ייבוא מ-PDF
           </Button>
-          
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowPDFImportDialog(true)}
-              variant="outline"
-              className="border-red-400 text-red-600 hover:bg-red-50"
-            >
-              <FileText className="w-4 h-4 ml-2" />
-              ייבוא מ-PDF
-            </Button>
-
-          </div>
         </div>
       )}
       
@@ -385,7 +385,7 @@ export default function FinancialReflection({ userId }) {
                     <Input
                       type="number"
                       value={incomes[`month${month}`] || ''}
-                      onChange={(e) => setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => { setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 }); triggerAutoSave(); }}
                       placeholder="סכום"
                       className="border-slate-200"
                       disabled={isViewingOther && !isAdvisorOrAdmin}

@@ -6,7 +6,7 @@ import { he } from 'date-fns/locale';
 import { 
   ChevronLeft, ChevronRight, Wallet, 
   PiggyBank, Target, AlertCircle, CheckCircle,
-  TrendingUp, Shield, Sparkles, Save
+  TrendingUp, Shield, Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,8 @@ import FinancialGoals from './FinancialGoals';
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentUser, setCurrentUser] = useState(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const autoSaveTimer = React.useRef(null);
   const [planData, setPlanData] = useState({
     expected_income: 0,
     savings: 0,
@@ -72,6 +74,7 @@ export default function MonthlyPlanning({ userId }) {
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);
 
   useEffect(() => {
+    setDataLoaded(false);
     if (currentPlan) {
       setPlanData({
         expected_income: currentPlan.expected_income || 0,
@@ -84,7 +87,6 @@ export default function MonthlyPlanning({ userId }) {
         emergency_fund_allocation: currentPlan.emergency_fund_allocation || 0,
       });
     } else {
-      // Try to get previous month data for fixed expenses
       const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
       const prevPlan = monthlyPlans.find(p => p.month === prevMonth);
       setPlanData({
@@ -99,6 +101,7 @@ export default function MonthlyPlanning({ userId }) {
         emergency_fund_allocation: 0,
       });
     }
+    setTimeout(() => setDataLoaded(true), 100);
   }, [currentPlan, monthlyPlans, currentMonth, currentDate]);
 
   const saveMutation = useMutation({
@@ -127,8 +130,18 @@ export default function MonthlyPlanning({ userId }) {
     },
   });
 
-  const handleSave = () => {
-    saveMutation.mutate(planData);
+  const triggerAutoSave = (newData) => {
+    if (!dataLoaded) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveMutation.mutate(newData);
+    }, 1500);
+  };
+
+  const updatePlanData = (updates) => {
+    const newData = { ...planData, ...updates };
+    setPlanData(newData);
+    triggerAutoSave(newData);
   };
 
   const totalExpenses = planData.fixed_expenses + planData.variable_expenses + planData.savings;
@@ -189,19 +202,7 @@ export default function MonthlyPlanning({ userId }) {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
-      <Card className="border-2 border-[#105330] bg-gradient-to-r from-[#105330]/5 to-[#c8a863]/5">
-        <CardContent className="p-4">
-          <Button 
-            onClick={handleSave}
-            disabled={saveMutation.isPending}
-            className="w-full bg-[#105330] hover:bg-[#0d4027] text-white font-semibold py-6 text-lg"
-          >
-            <Save className="w-5 h-5 ml-2" />
-            {saveMutation.isPending ? 'שומר...' : 'שמור נתונים'}
-          </Button>
-        </CardContent>
-      </Card>
+
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Income */}
@@ -217,7 +218,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.expected_income || ''}
-                onChange={(e) => setPlanData({ ...planData, expected_income: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ expected_income: parseFloat(e.target.value) || 0 })}
                 placeholder="הזן הכנסה צפויה"
                 className="text-lg font-medium"
               />
@@ -277,7 +278,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.savings || ''}
-                onChange={(e) => setPlanData({ ...planData, savings: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ savings: parseFloat(e.target.value) || 0 })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -294,7 +295,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.fixed_expenses || ''}
-                onChange={(e) => setPlanData({ ...planData, fixed_expenses: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ fixed_expenses: parseFloat(e.target.value) || 0 })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -311,7 +312,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.variable_expenses || ''}
-                onChange={(e) => setPlanData({ ...planData, variable_expenses: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ variable_expenses: parseFloat(e.target.value) || 0 })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -344,7 +345,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.investments_allocation || ''}
-                onChange={(e) => setPlanData({ ...planData, investments_allocation: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ investments_allocation: parseFloat(e.target.value) || 0 })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -361,7 +362,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.dreams_savings || ''}
-                onChange={(e) => setPlanData({ ...planData, dreams_savings: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ dreams_savings: parseFloat(e.target.value) || 0 })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -378,7 +379,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.emergency_fund_allocation || ''}
-                onChange={(e) => setPlanData({ ...planData, emergency_fund_allocation: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ emergency_fund_allocation: parseFloat(e.target.value) || 0 })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -414,7 +415,7 @@ export default function MonthlyPlanning({ userId }) {
               <Input
                 type="number"
                 value={planData.emergency_fund_current || ''}
-                onChange={(e) => setPlanData({ ...planData, emergency_fund_current: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updatePlanData({ emergency_fund_current: parseFloat(e.target.value) || 0 })}
                 placeholder="סכום נוכחי"
               />
             </div>
