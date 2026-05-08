@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2 } from 'lucide-react';
+import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2, Landmark } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
@@ -8,6 +8,7 @@ import BeforeAfterComparison from '../components/financial/BeforeAfterComparison
 import ExpenseTracking from '../components/financial/ExpenseTracking';
 import DebtManager from '../components/financial/DebtManager';
 import AssetsManager from '../components/financial/AssetsManager';
+import PensionManager from '../components/investments/PensionManager';
 
 const SECTIONS = [
   {
@@ -154,7 +155,7 @@ export default function FinancialManagement() {
           <h1 className="text-2xl font-bold text-[#105330]">שיקוף פיננסי</h1>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-lg bg-[#105330]/10 p-1.5 rounded-xl">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-[#105330]/10 p-1.5 rounded-xl">
             <TabsTrigger
               value="reflection"
               className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
@@ -176,6 +177,13 @@ export default function FinancialManagement() {
               <Building2 className="w-4 h-4 ml-2" />
               נכסים
             </TabsTrigger>
+            <TabsTrigger
+              value="pension"
+              className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
+            >
+              <Landmark className="w-4 h-4 ml-2" />
+              פנסיוני
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="reflection" className="mt-0">
             <FinancialReflection userId={effectiveUserId} />
@@ -185,6 +193,9 @@ export default function FinancialManagement() {
           </TabsContent>
           <TabsContent value="assets" className="mt-0">
             <AssetsManager userId={effectiveUserId} />
+          </TabsContent>
+          <TabsContent value="pension" className="mt-0">
+            <PensionManager userId={effectiveUserId} />
           </TabsContent>
         </Tabs>
       </div>
