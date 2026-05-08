@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight } from 'lucide-react';
+import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
@@ -141,7 +141,7 @@ export default function FinancialManagement() {
     );
   }
 
-  // Reflection section: 2 sub-tabs
+  // Reflection section: 3 sub-tabs
   if (activeSection === 'reflection') {
     return (
       <div className="max-w-6xl mx-auto" dir="rtl">
@@ -153,7 +153,7 @@ export default function FinancialManagement() {
           <h1 className="text-2xl font-bold text-[#105330]">שיקוף פיננסי</h1>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 w-full max-w-sm bg-[#105330]/10 p-1.5 rounded-xl">
+          <TabsList className="grid grid-cols-3 w-full max-w-lg bg-[#105330]/10 p-1.5 rounded-xl">
             <TabsTrigger
               value="reflection"
               className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
@@ -166,7 +166,14 @@ export default function FinancialManagement() {
               className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
             >
               <CreditCard className="w-4 h-4 ml-2" />
-              חובות
+              התחייבויות
+            </TabsTrigger>
+            <TabsTrigger
+              value="assets"
+              className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
+            >
+              <Building2 className="w-4 h-4 ml-2" />
+              נכסים
             </TabsTrigger>
           </TabsList>
           <TabsContent value="reflection" className="mt-0">
@@ -174,6 +181,12 @@ export default function FinancialManagement() {
           </TabsContent>
           <TabsContent value="debts" className="mt-0">
             <DebtManager userId={effectiveUserId} />
+          </TabsContent>
+          <TabsContent value="assets" className="mt-0">
+            <div className="text-center py-20 text-[#105330]/50">
+              <Building2 className="w-12 h-12 mx-auto mb-4 opacity-40" />
+              <p className="text-lg font-medium">מודול הנכסים יתווסף בקרוב</p>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
