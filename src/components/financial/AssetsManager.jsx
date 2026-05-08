@@ -12,7 +12,7 @@ const ASSET_CATEGORIES = {
   cash: {
     title: 'מזומנים',
     icon: Wallet,
-    items: ['עובר ושב 1', 'עובר ושב 2', 'קרן כספית'],
+    items: ['עובר ושב 1', 'עובר ושב 2', 'קרן כספית', 'פיקדון בבנק'],
     fields: ['value']
   },
   real_estate: {
