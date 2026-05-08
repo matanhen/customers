@@ -114,7 +114,7 @@ export default function Home() {
     const variableTotal = Object.values(t.variable_expenses || {}).reduce((s, v) => s + (v || 0), 0);
     const customTotal = (t.custom_expenses || []).reduce((s, e) => s + (e.amount || 0), 0);
     return {
-      month: t.month?.slice(5) || '',
+      month: formatMonthLabel(t.month).split(' ')[0] || '',
       fullMonth: t.month,
       הכנסות: t.actual_income || 0,
       הוצאות: fixedTotal + variableTotal + customTotal,
