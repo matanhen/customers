@@ -161,7 +161,7 @@ export default function FinancialManagement() {
               className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
             >
               <LineChart className="w-4 h-4 ml-2" />
-              שיקוף
+              תזרים
             </TabsTrigger>
             <TabsTrigger
               value="debts"
