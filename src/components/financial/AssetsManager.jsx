@@ -8,19 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
-// Same asset categories as in AssetsLiabilitiesTable (FinancialFreedom)
 const ASSET_CATEGORIES = {
   cash: {
     title: 'מזומנים',
     icon: Wallet,
-    items: ['עובר ושב 1', 'עובר ושב 2', 'קרן ביטחון', 'חיסכון חלומות'],
+    items: ['עובר ושב 1', 'עובר ושב 2'],
     fields: ['value']
   },
   real_estate: {
     title: 'נדל״ן',
     icon: Building2,
     items: ['דירה למגורים', 'דירה להשקעה בארץ א׳', 'דירה להשקעה בארץ ב׳', 'נדל״ן בחו״ל'],
-    fields: ['value', 'annual_appreciation', 'rental_income'],
+    fields: ['value', 'rental_income'],
     noRentalFor: ['דירה למגורים']
   },
   vehicles: {
@@ -33,13 +32,13 @@ const ASSET_CATEGORIES = {
     title: 'שוק ההון',
     icon: TrendingUp,
     items: ['תיק השקעות עצמאי', 'קופת גמל להשקעה', 'חיסכון לילדים', 'קרן Reit'],
-    fields: ['value', 'monthly_deposit', 'annual_return', 'management_fee']
+    fields: ['value', 'monthly_deposit', 'management_fee']
   },
   alternative: {
     title: 'השקעות אלטרנטיביות',
     icon: Coins,
     items: ['קריפטו', 'הלוואות חברתיות / השקעה בחוב'],
-    fields: ['value', 'annual_return', 'management_fee']
+    fields: ['value', 'management_fee']
   }
 };
 
