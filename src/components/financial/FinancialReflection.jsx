@@ -5,7 +5,7 @@ import {
   TrendingUp, TrendingDown, ChevronDown, ChevronUp,
   DollarSign, Receipt, FileText
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -262,104 +262,6 @@ export default function FinancialReflection({ userId }) {
         </div>
       )}
 
-      {/* Cash Flow Chart */}
-      {(incomeAverage > 0 || totalExpenseAverage > 0) && (() => {
-        const chartData = [1, 2, 3, 4, 5, 6].map((m) => {
-          const income = incomes[`month${m}`] || 0;
-          const expenseKey = `month${m}`;
-          // Expenses are only tracked for months 1-3
-          if (m <= 3) {
-            const fixed = FIXED_EXPENSES.reduce((sum, cat) => sum + (fixedExpenses[cat]?.[expenseKey] || 0), 0);
-            const variable = VARIABLE_EXPENSES.reduce((sum, cat) => sum + (variableExpenses[cat]?.[expenseKey] || 0), 0);
-            const total = fixed + variable;
-            return { name: `חודש ${m}`, הכנסה: income, הוצאות: total, תזרים: income - total };
-          }
-          return { name: `חודש ${m}`, הכנסה: income };
-        });
-        return (
-          <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-slate-800">
-                <div className="p-2 rounded-xl bg-indigo-500/10">
-                  <TrendingUp className="w-5 h-5 text-indigo-600" />
-                </div>
-                הכנסות מול הוצאות - 6 חודשים
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis tickFormatter={(v) => `₪${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <Tooltip
-                    formatter={(value, name) => [`₪${value.toLocaleString()}`, name]}
-                    contentStyle={{ direction: 'rtl', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '13px' }} />
-                  <ReferenceLine y={0} stroke="#94a3b8" />
-                  <Bar dataKey="הכנסה" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="הוצאות" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="תזרים" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <p className="text-xs text-slate-400 text-center mt-2">* הוצאות ותזרים מוצגים עבור חודשים 1-3 בלבד</p>
-            </CardContent>
-          </Card>
-        );
-      })()}
-
-      {/* Summary Cards - Only 3 cards now */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card className="border-0 shadow-xl shadow-emerald-100/50 bg-gradient-to-br from-emerald-50 to-teal-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-emerald-500/10">
-                <DollarSign className="w-8 h-8 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm text-emerald-600 font-medium">ממוצע הכנסות</p>
-                <p className="text-2xl font-bold text-emerald-700">₪{incomeAverage.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-xl shadow-rose-100/50 bg-gradient-to-br from-rose-50 to-pink-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-rose-500/10">
-                <Receipt className="w-8 h-8 text-rose-600" />
-              </div>
-              <div>
-                <p className="text-sm text-rose-600 font-medium">ממוצע הוצאות</p>
-                <p className="text-2xl font-bold text-rose-700">₪{totalExpenseAverage.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={`border-0 shadow-xl ${cashFlowAverage >= 0 ? 'shadow-indigo-100/50 bg-gradient-to-br from-indigo-50 to-purple-50' : 'shadow-red-100/50 bg-gradient-to-br from-red-50 to-orange-50'}`}>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-2xl ${cashFlowAverage >= 0 ? 'bg-indigo-500/10' : 'bg-red-500/10'}`}>
-                {cashFlowAverage >= 0 ? (
-                  <TrendingUp className="w-8 h-8 text-indigo-600" />
-                ) : (
-                  <TrendingDown className="w-8 h-8 text-red-600" />
-                )}
-              </div>
-              <div>
-                <p className={`text-sm font-medium ${cashFlowAverage >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>תזרים ממוצע</p>
-                <p className={`text-2xl font-bold ${cashFlowAverage >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
-                  ₪{cashFlowAverage.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Income Section */}
       <Collapsible open={openSections.income} onOpenChange={() => toggleSection('income')}>
         <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
@@ -506,6 +408,59 @@ export default function FinancialReflection({ userId }) {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* Summary Cards - bottom */}
+      {(incomeAverage > 0 || totalExpenseAverage > 0) && (
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card className="border-0 shadow-xl shadow-emerald-100/50 bg-gradient-to-br from-emerald-50 to-teal-50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-emerald-500/10">
+                  <DollarSign className="w-8 h-8 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-emerald-600 font-medium">ממוצע הכנסות</p>
+                  <p className="text-2xl font-bold text-emerald-700">₪{incomeAverage.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-xl shadow-rose-100/50 bg-gradient-to-br from-rose-50 to-pink-50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-rose-500/10">
+                  <Receipt className="w-8 h-8 text-rose-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-rose-600 font-medium">ממוצע הוצאות</p>
+                  <p className="text-2xl font-bold text-rose-700">₪{totalExpenseAverage.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`border-0 shadow-xl ${cashFlowAverage >= 0 ? 'shadow-indigo-100/50 bg-gradient-to-br from-indigo-50 to-purple-50' : 'shadow-red-100/50 bg-gradient-to-br from-red-50 to-orange-50'}`}>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-2xl ${cashFlowAverage >= 0 ? 'bg-indigo-500/10' : 'bg-red-500/10'}`}>
+                  {cashFlowAverage >= 0 ? (
+                    <TrendingUp className="w-8 h-8 text-indigo-600" />
+                  ) : (
+                    <TrendingDown className="w-8 h-8 text-red-600" />
+                  )}
+                </div>
+                <div>
+                  <p className={`text-sm font-medium ${cashFlowAverage >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>תזרים ממוצע</p>
+                  <p className={`text-2xl font-bold ${cashFlowAverage >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                    ₪{cashFlowAverage.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <PDFReflectionImport
         open={showPDFImportDialog}
