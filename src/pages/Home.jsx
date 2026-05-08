@@ -195,16 +195,12 @@ export default function Home() {
           <div className="relative rounded-3xl overflow-hidden cursor-pointer group">
             <div className="absolute inset-0 bg-gradient-to-r from-[#c8a863] via-[#d4b87a] to-[#c8a863] group-hover:brightness-105 transition-all duration-300" />
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIgZmlsbD0icmdiYSgwLDAsMCwwLjA1KSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg==')] opacity-30" />
-            <div className="relative px-8 py-7 flex items-center justify-between">
-              <div className="flex items-center gap-5">
-                <div className="text-5xl group-hover:scale-110 transition-transform duration-300">🚀</div>
-                <div>
-                  <p className="text-[#105330]/70 text-sm font-bold uppercase tracking-wider mb-1">המדריך המלא</p>
-                  <h2 className="text-2xl lg:text-3xl font-black text-[#105330]">סיסטמים</h2>
-                  <p className="text-[#105330]/70 text-sm mt-1">2 סיסטמים • כל הצעדים לחופש כלכלי</p>
-                </div>
+            <div className="relative px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl group-hover:scale-110 transition-transform duration-300">🚀</div>
+                <h2 className="text-lg font-black text-[#105330]">תגלה מה הצעד הבא שלך</h2>
               </div>
-              <div className="text-4xl text-[#105330]/40 group-hover:translate-x-1 transition-transform duration-300">←</div>
+              <div className="text-2xl text-[#105330]/40 group-hover:translate-x-1 transition-transform duration-300">←</div>
             </div>
           </div>
         </Link>
