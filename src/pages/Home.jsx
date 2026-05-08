@@ -287,18 +287,18 @@ export default function Home() {
               <CardTitle className="text-[#105330] text-base font-bold">נכסים לעומת התחייבויות</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 rounded-2xl bg-emerald-50">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="text-center p-3 sm:p-4 rounded-2xl bg-emerald-50">
                   <p className="text-xs text-gray-500 mb-1">סה"כ נכסים</p>
-                  <p className="text-xl font-black text-emerald-700">₪{(totalAssets + totalPension).toLocaleString()}</p>
+                  <p className="text-sm sm:text-xl font-black text-emerald-700 break-all leading-tight">₪{(totalAssets + totalPension).toLocaleString()}</p>
                 </div>
-                <div className="text-center p-4 rounded-2xl bg-red-50">
+                <div className="text-center p-3 sm:p-4 rounded-2xl bg-red-50">
                   <p className="text-xs text-gray-500 mb-1">סה"כ חובות</p>
-                  <p className="text-xl font-black text-red-600">₪{totalDebts.toLocaleString()}</p>
+                  <p className="text-sm sm:text-xl font-black text-red-600 break-all leading-tight">₪{totalDebts.toLocaleString()}</p>
                 </div>
-                <div className={`text-center p-4 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'}`}>
+                <div className={`text-center p-3 sm:p-4 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'}`}>
                   <p className="text-xs text-gray-500 mb-1">שווי נקי</p>
-                  <p className={`text-xl font-black ${netWorth >= 0 ? 'text-purple-700' : 'text-orange-600'}`}>
+                  <p className={`text-sm sm:text-xl font-black break-all leading-tight ${netWorth >= 0 ? 'text-purple-700' : 'text-orange-600'}`}>
                     ₪{netWorth.toLocaleString()}
                   </p>
                 </div>
