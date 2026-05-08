@@ -7,6 +7,7 @@ import FinancialReflection from '../components/financial/FinancialReflection';
 import BeforeAfterComparison from '../components/financial/BeforeAfterComparison';
 import ExpenseTracking from '../components/financial/ExpenseTracking';
 import DebtManager from '../components/financial/DebtManager';
+import AssetsManager from '../components/financial/AssetsManager';
 
 const SECTIONS = [
   {
@@ -183,10 +184,7 @@ export default function FinancialManagement() {
             <DebtManager userId={effectiveUserId} />
           </TabsContent>
           <TabsContent value="assets" className="mt-0">
-            <div className="text-center py-20 text-[#105330]/50">
-              <Building2 className="w-12 h-12 mx-auto mb-4 opacity-40" />
-              <p className="text-lg font-medium">מודול הנכסים יתווסף בקרוב</p>
-            </div>
+            <AssetsManager userId={effectiveUserId} />
           </TabsContent>
         </Tabs>
       </div>
