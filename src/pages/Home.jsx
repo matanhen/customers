@@ -59,6 +59,12 @@ export default function Home() {
     enabled: !!effectiveUserId,
   });
 
+  const { data: reflectionPlan } = useQuery({
+    queryKey: ['reflectionPlan', effectiveUserId],
+    queryFn: () => base44.entities.FinancialPlan.filter({ user_id: effectiveUserId, plan_type: 'reflection_assets' }),
+    enabled: !!effectiveUserId,
+  });
+
   useEffect(() => {
     if (monthlyPlans && effectiveUserId && !viewingClientId) {
       const currentMonth = new Date().toISOString().slice(0, 7);
@@ -89,12 +95,18 @@ export default function Home() {
     { name: 'חלומות', value: latestPlan.dreams_savings || 0 },
   ].filter(e => e.value > 0) : [];
 
-  // Assets vs liabilities - including pension as assets
-  const totalInvestments = (investments || []).reduce((sum, inv) => sum + ((inv.quantity || 0) * (inv.current_price || 0)), 0);
-  const totalPension = (pensionData || []).reduce((sum, p) => sum + (p.current_amount || 0), 0);
-  const totalAssets = totalInvestments + totalPension;
+  // Assets vs liabilities - from reflection plan
+  const reflectionAssets = reflectionPlan?.[0]?.assets || {};
+  const totalAssets = Object.values(reflectionAssets).reduce((sum, cat) => {
+    return sum + Object.values(cat).reduce((s, item) => s + (item.value || 0), 0);
+  }, 0);
+
+  const reflectionLiabilities = reflectionPlan?.[0]?.liabilities || {};
+  const reflectionTotalLiabilities = Object.values(reflectionLiabilities).reduce((sum, cat) => {
+    return sum + Object.values(cat).reduce((s, item) => s + (item.total_debt || 0), 0);
+  }, 0);
   const totalDebts = (debts || []).reduce((sum, d) => sum + (d.remaining_amount || 0), 0);
-  const netWorth = totalAssets - totalDebts;
+  const netWorth = totalAssets - reflectionTotalLiabilities;
 
   const hasData = sortedPlans.length > 0;
 
@@ -267,18 +279,14 @@ export default function Home() {
             <CardContent>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="text-center p-5 rounded-2xl bg-emerald-50">
-                  <p className="text-xs text-gray-500 mb-1">תיק השקעות</p>
-                  <p className="text-2xl font-black text-emerald-700">₪{totalInvestments.toLocaleString()}</p>
-                </div>
-                <div className="text-center p-5 rounded-2xl bg-teal-50">
-                  <p className="text-xs text-gray-500 mb-1">פנסיה והשתלמות</p>
-                  <p className="text-2xl font-black text-teal-700">₪{totalPension.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mb-1">סה"כ נכסים</p>
+                  <p className="text-2xl font-black text-emerald-700">₪{totalAssets.toLocaleString()}</p>
                 </div>
                 <div className="text-center p-5 rounded-2xl bg-red-50">
                   <p className="text-xs text-gray-500 mb-1">סה"כ חובות</p>
-                  <p className="text-2xl font-black text-red-600">₪{totalDebts.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-red-600">₪{reflectionTotalLiabilities.toLocaleString()}</p>
                 </div>
-                <div className={`text-center p-5 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'}`}>
+                <div className={`text-center p-5 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'} lg:col-span-2`}>
                   <p className="text-xs text-gray-500 mb-1">שווי נקי</p>
                   <p className={`text-2xl font-black ${netWorth >= 0 ? 'text-purple-700' : 'text-orange-600'}`}>
                     ₪{netWorth.toLocaleString()}
