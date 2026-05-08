@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Target, Save, Home, Coins, User } from 'lucide-react';
+import { Target, Home, Coins, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,8 @@ export default function GoalSettingsPanel({ userId }) {
   const pensionAmount = selectedPension?.current_amount || 0;
   const kerenAmount = selectedKeren?.current_amount || 0;
 
+  const autoSaveTimer = useRef(null);
+
   useEffect(() => {
     if (goalSettings) {
       setSettings({
@@ -70,6 +72,18 @@ export default function GoalSettingsPanel({ userId }) {
       });
     }
   }, [goalSettings]);
+
+  const triggerAutoSave = (newSettings) => {
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveMutation.mutate(newSettings);
+    }, 1000);
+  };
+
+  const updateSettings = (newSettings) => {
+    setSettings(newSettings);
+    if (goalSettings !== undefined) triggerAutoSave(newSettings);
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
@@ -112,7 +126,7 @@ export default function GoalSettingsPanel({ userId }) {
               <User className="w-4 h-4" />
               בחר מגדר
             </Label>
-            <Select value={settings.gender} onValueChange={(value) => setSettings({ ...settings, gender: value })}>
+            <Select value={settings.gender} onValueChange={(value) => updateSettings({ ...settings, gender: value })}>
               <SelectTrigger className="rounded-xl py-6 bg-white border-[#105330]/30 hover:border-[#105330] transition-colors">
                 <SelectValue />
               </SelectTrigger>
@@ -129,7 +143,7 @@ export default function GoalSettingsPanel({ userId }) {
             <div className="flex gap-3">
               <Button
                 type="button"
-                onClick={() => setSettings({ ...settings, goal_type: 'home' })}
+                onClick={() => updateSettings({ ...settings, goal_type: 'home' })}
                 className={`flex-1 rounded-xl py-7 text-base transition-all duration-300 ${
                   settings.goal_type === 'home' 
                     ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg scale-105' 
@@ -141,7 +155,7 @@ export default function GoalSettingsPanel({ userId }) {
               </Button>
               <Button
                 type="button"
-                onClick={() => setSettings({ ...settings, goal_type: 'financial_freedom' })}
+                onClick={() => updateSettings({ ...settings, goal_type: 'financial_freedom' })}
                 className={`flex-1 rounded-xl py-7 text-base transition-all duration-300 ${
                   settings.goal_type === 'financial_freedom' 
                     ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg scale-105' 
@@ -173,7 +187,7 @@ export default function GoalSettingsPanel({ userId }) {
             <Input
               type="number"
               value={settings.target_age || ''}
-              onChange={(e) => setSettings({ ...settings, target_age: parseInt(e.target.value) || 0 })}
+              onChange={(e) => updateSettings({ ...settings, target_age: parseInt(e.target.value) || 0 })}
               className="border-[#105330]/30 rounded-xl py-3 bg-white text-center font-bold text-base focus:ring-2 focus:ring-[#105330]/30 transition-all"
             />
           </div>
@@ -185,7 +199,7 @@ export default function GoalSettingsPanel({ userId }) {
               <Input
                 type="number"
                 value={settings.target_amount || ''}
-                onChange={(e) => setSettings({ ...settings, target_amount: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updateSettings({ ...settings, target_amount: parseFloat(e.target.value) || 0 })}
                 className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg"
               />
             </div>
@@ -195,7 +209,7 @@ export default function GoalSettingsPanel({ userId }) {
               <Input
                 type="number"
                 value={settings.passive_income_target || ''}
-                onChange={(e) => setSettings({ ...settings, passive_income_target: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updateSettings({ ...settings, passive_income_target: parseFloat(e.target.value) || 0 })}
                 className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg"
               />
             </div>
@@ -227,17 +241,7 @@ export default function GoalSettingsPanel({ userId }) {
           </p>
         </div>
 
-        <div className="flex justify-end">
-          <Button 
-            type="button"
-            onClick={() => saveMutation.mutate(settings)}
-            disabled={saveMutation.isPending}
-            className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330] shadow-xl hover:shadow-2xl px-10 py-6 text-lg font-bold rounded-xl transition-all duration-300 hover:scale-105"
-          >
-            <Save className="w-5 h-5 ml-2" />
-            {saveMutation.isPending ? 'שומר...' : 'שמור מטרה'}
-          </Button>
-        </div>
+
       </CardContent>
     </Card>
   );

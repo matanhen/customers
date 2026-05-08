@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, User, Users, Calendar, TrendingUp } from 'lucide-react';
+import { User, Users, Calendar, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -136,10 +136,19 @@ export default function PensionManager({ userId }) {
   const PensionForm = ({ gender, fundType }) => {
     const [formData, setFormData] = useState(getFundData(gender, fundType));
     const [selectedYears, setSelectedYears] = useState('10');
+    const autoSaveTimer = useRef(null);
 
     useEffect(() => {
       setFormData(getFundData(gender, fundType));
     }, [pensionData, gender, fundType]);
+
+    const updateFormData = (newData) => {
+      setFormData(newData);
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => {
+        saveMutation.mutate({ gender, fundType, data: newData });
+      }, 1000);
+    };
 
     const projectedAmount = calculateProjectedAmount(formData);
     const yearsToRetirement = (formData.retirement_age || 67) - (formData.current_age || 30);
@@ -161,7 +170,7 @@ export default function PensionManager({ userId }) {
             <Input
               type="number"
               value={formData.current_age || ''}
-              onChange={(e) => setFormData({ ...formData, current_age: parseInt(e.target.value) || 0 })}
+              onChange={(e) => updateFormData({ ...formData, current_age: parseInt(e.target.value) || 0 })}
               className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
             />
           </div>
@@ -172,7 +181,7 @@ export default function PensionManager({ userId }) {
                 <Input
                   type="number"
                   value={formData.retirement_age || ''}
-                  onChange={(e) => setFormData({ ...formData, retirement_age: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => updateFormData({ ...formData, retirement_age: parseInt(e.target.value) || 0 })}
                   className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
                 />
               </div>
@@ -192,7 +201,7 @@ export default function PensionManager({ userId }) {
             <Input
               type="number"
               value={formData.stop_deposits_age || ''}
-              onChange={(e) => setFormData({ ...formData, stop_deposits_age: parseInt(e.target.value) || 0 })}
+              onChange={(e) => updateFormData({ ...formData, stop_deposits_age: parseInt(e.target.value) || 0 })}
               className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
             />
           </div>
@@ -201,7 +210,7 @@ export default function PensionManager({ userId }) {
             <Input
               type="number"
               value={formData.current_amount || ''}
-              onChange={(e) => setFormData({ ...formData, current_amount: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => updateFormData({ ...formData, current_amount: parseFloat(e.target.value) || 0 })}
               className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
             />
           </div>
@@ -210,7 +219,7 @@ export default function PensionManager({ userId }) {
             <Input
               type="number"
               value={formData.monthly_deposit || ''}
-              onChange={(e) => setFormData({ ...formData, monthly_deposit: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => updateFormData({ ...formData, monthly_deposit: parseFloat(e.target.value) || 0 })}
               className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
             />
           </div>
@@ -221,7 +230,7 @@ export default function PensionManager({ userId }) {
                 type="number"
                 step="0.01"
                 value={formData.management_fee_deposit || ''}
-                onChange={(e) => setFormData({ ...formData, management_fee_deposit: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => updateFormData({ ...formData, management_fee_deposit: parseFloat(e.target.value) || 0 })}
                 className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
               />
             </div>
@@ -232,7 +241,7 @@ export default function PensionManager({ userId }) {
               type="number"
               step="0.01"
               value={formData.management_fee_savings || ''}
-              onChange={(e) => setFormData({ ...formData, management_fee_savings: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => updateFormData({ ...formData, management_fee_savings: parseFloat(e.target.value) || 0 })}
               className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
             />
           </div>
@@ -242,7 +251,7 @@ export default function PensionManager({ userId }) {
               type="number"
               step="0.1"
               value={formData.annual_return || ''}
-              onChange={(e) => setFormData({ ...formData, annual_return: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => updateFormData({ ...formData, annual_return: parseFloat(e.target.value) || 0 })}
               className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
             />
           </div>
@@ -330,16 +339,7 @@ export default function PensionManager({ userId }) {
           </Card>
         )}
 
-        <div className="flex justify-end">
-          <Button 
-            onClick={() => saveMutation.mutate({ gender, fundType, data: formData })}
-            disabled={saveMutation.isPending}
-            className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330] shadow-xl px-8 py-6 rounded-xl text-lg font-bold"
-          >
-            <Save className="w-5 h-5 ml-2" />
-            {saveMutation.isPending ? 'שומר...' : 'שמור'}
-          </Button>
-        </div>
+
       </div>
     );
   };

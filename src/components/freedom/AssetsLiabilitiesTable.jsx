@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins, CreditCard, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins, CreditCard, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -155,6 +155,15 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
     },
   });
 
+  const autoSaveTimer = useRef(null);
+
+  const triggerAutoSave = () => {
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveMutation.mutate();
+    }, 1000);
+  };
+
   const toggleSection = (section) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
@@ -173,6 +182,7 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
         }
       }
     }));
+    triggerAutoSave();
   };
 
   const updateLiability = (category, item, field, value) => {
@@ -189,6 +199,7 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
         }
       }
     }));
+    triggerAutoSave();
   };
 
   const calculateCategoryTotal = (category, type) => {
@@ -238,7 +249,7 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
             <div className="grid md:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, keren_withdrawal_option: 'at_target' })}
+                onClick={() => { setFormData({ ...formData, keren_withdrawal_option: 'at_target' }); triggerAutoSave(); }}
                 className={`p-4 rounded-xl border-2 text-right transition-all duration-300 ${
                   formData.keren_withdrawal_option === 'at_target'
                     ? 'border-[#c8a863] bg-[#c8a863]/10 shadow-lg'
@@ -268,7 +279,7 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
 
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, keren_withdrawal_option: 'every_6_years' })}
+                onClick={() => { setFormData({ ...formData, keren_withdrawal_option: 'every_6_years' }); triggerAutoSave(); }}
                 className={`p-4 rounded-xl border-2 text-right transition-all duration-300 ${
                   formData.keren_withdrawal_option === 'every_6_years'
                     ? 'border-[#c8a863] bg-[#c8a863]/10 shadow-lg'
@@ -504,19 +515,6 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
           </div>
         </CardContent>
       </Card>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button 
-          type="button"
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] hover:from-[#0d4027] hover:to-[#105330] shadow-xl px-10 py-6 text-lg font-bold rounded-xl"
-        >
-          <Save className="w-5 h-5 ml-2" />
-          {saveMutation.isPending ? 'שומר...' : 'שמור תכנון'}
-        </Button>
-      </div>
 
       {/* Cash Flow Section */}
       <CashFlowSection userId={userId} planType={planType} />
