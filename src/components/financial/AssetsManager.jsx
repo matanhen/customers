@@ -67,9 +67,9 @@ export default function AssetsManager({ userId }) {
           entityName: 'FinancialPlan'
         });
         const plans = response.data?.data || [];
-        return plans.find(p => p.plan_type === 'current');
+        return plans.find(p => p.plan_type === 'reflection_assets');
       }
-      const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: 'current' });
+      const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: 'reflection_assets' });
       return results[0];
     },
     enabled: !!userId && !!currentUser,
@@ -88,16 +88,8 @@ export default function AssetsManager({ userId }) {
     mutationFn: async () => {
       const data = {
         user_id: userId,
-        plan_type: 'current',
+        plan_type: 'reflection_assets',
         assets,
-        // preserve existing fields
-        monthly_salary: plan?.monthly_salary || 0,
-        rent_expense: plan?.rent_expense || 0,
-        fixed_expenses: plan?.fixed_expenses || 0,
-        variable_expenses: plan?.variable_expenses || 0,
-        liabilities: plan?.liabilities || {},
-        keren_withdrawal_option: plan?.keren_withdrawal_option || 'none',
-        liquidate_keren_hishtalmut: plan?.liquidate_keren_hishtalmut || false,
       };
       if (isViewingOther && isAdvisorOrAdmin) {
         await base44.functions.invoke('saveClientData', {
