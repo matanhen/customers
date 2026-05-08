@@ -101,12 +101,8 @@ export default function Home() {
     return sum + Object.values(cat).reduce((s, item) => s + (item.value || 0), 0);
   }, 0);
 
-  const reflectionLiabilities = reflectionPlan?.[0]?.liabilities || {};
-  const reflectionTotalLiabilities = Object.values(reflectionLiabilities).reduce((sum, cat) => {
-    return sum + Object.values(cat).reduce((s, item) => s + (item.total_debt || 0), 0);
-  }, 0);
   const totalDebts = (debts || []).reduce((sum, d) => sum + (d.remaining_amount || 0), 0);
-  const netWorth = totalAssets - reflectionTotalLiabilities;
+  const netWorth = totalAssets - totalDebts;
 
   const hasData = sortedPlans.length > 0;
 
@@ -284,7 +280,7 @@ export default function Home() {
                 </div>
                 <div className="text-center p-5 rounded-2xl bg-red-50">
                   <p className="text-xs text-gray-500 mb-1">סה"כ חובות</p>
-                  <p className="text-2xl font-black text-red-600">₪{reflectionTotalLiabilities.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-red-600">₪{totalDebts.toLocaleString()}</p>
                 </div>
                 <div className={`text-center p-5 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'} lg:col-span-2`}>
                   <p className="text-xs text-gray-500 mb-1">שווי נקי</p>
