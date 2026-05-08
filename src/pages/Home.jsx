@@ -4,13 +4,27 @@ import { useQuery } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AIChatAssistant from '../components/chat/AIChatAssistant';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell
 } from 'recharts';
 
-const COLORS = ['#105330', '#1a7a4a', '#c8a863', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+const EXPENSE_COLORS = ['#ef4444', '#f97316'];
+const ASSET_COLORS = ['#105330', '#1a7a4a', '#c8a863', '#3b82f6', '#8b5cf6', '#14b8a6'];
+
+function prevMonthKey() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.toISOString().slice(0, 7);
+}
+
+function formatMonthLabel(monthKey) {
+  const [year, month] = monthKey.split('-');
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  return `${months[parseInt(month) - 1]} ${year}`;
+}
 
 const ASSET_CATEGORY_LABELS = {
   cash: 'מזומנים',
@@ -24,6 +38,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [showAIChat, setShowAIChat] = useState(false);
   const [viewingClientId, setViewingClientId] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(prevMonthKey());
 
   useEffect(() => {
     loadUser();
@@ -81,18 +96,18 @@ export default function Home() {
     }
   }, [monthlyPlans, effectiveUserId, viewingClientId]);
 
-  // Previous month key (default for bar chart)
-  const prevMonth = (() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 1);
-    return d.toISOString().slice(0, 7);
-  })();
-
   // Bar chart: income vs expenses from ExpenseTracking (actual), last 6 months sorted
   const sortedTrackings = (expenseTrackings || [])
     .filter(t => t.month)
     .sort((a, b) => a.month.localeCompare(b.month))
     .slice(-6);
+
+  const availableMonths = sortedTrackings.map(t => t.month);
+
+  // Default to prevMonth if exists in data, else last available
+  const effectiveSelectedMonth = availableMonths.includes(selectedMonth)
+    ? selectedMonth
+    : (availableMonths[availableMonths.length - 1] || selectedMonth);
 
   const incomeVsExpensesData = sortedTrackings.map(t => {
     const fixedTotal = Object.values(t.fixed_expenses || {}).reduce((s, v) => s + (v || 0), 0);
@@ -100,13 +115,14 @@ export default function Home() {
     const customTotal = (t.custom_expenses || []).reduce((s, e) => s + (e.amount || 0), 0);
     return {
       month: t.month?.slice(5) || '',
+      fullMonth: t.month,
       הכנסות: t.actual_income || 0,
       הוצאות: fixedTotal + variableTotal + customTotal,
     };
   });
 
-  // Expense breakdown: from prev month ExpenseTracking
-  const prevTracking = (expenseTrackings || []).find(t => t.month === prevMonth)
+  // Expense breakdown: from selected month
+  const prevTracking = (expenseTrackings || []).find(t => t.month === effectiveSelectedMonth)
     || sortedTrackings[sortedTrackings.length - 1];
 
   const expenseBreakdown = (() => {
@@ -207,7 +223,21 @@ export default function Home() {
           {/* Income vs Expenses Bar Chart */}
           <Card className="border-0 shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[#105330] text-base font-bold">הכנסות לעומת הוצאות (בפועל)</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-[#105330] text-base font-bold">הכנסות לעומת הוצאות (בפועל)</CardTitle>
+                {availableMonths.length > 0 && (
+                  <Select value={effectiveSelectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-36 h-8 text-xs border-[#105330]/30">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableMonths.map(m => (
+                        <SelectItem key={m} value={m}>{formatMonthLabel(m)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {incomeVsExpensesData.length > 0 ? (
@@ -239,7 +269,7 @@ export default function Home() {
                   <PieChart>
                     <Pie data={expenseBreakdown} cx="50%" cy="45%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
                       {expenseBreakdown.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        <Cell key={i} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
@@ -287,7 +317,7 @@ export default function Home() {
                   <PieChart>
                     <Pie data={assetBreakdown} cx="50%" cy="45%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
                       {assetBreakdown.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        <Cell key={i} fill={ASSET_COLORS[i % ASSET_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
