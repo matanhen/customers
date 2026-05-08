@@ -234,45 +234,6 @@ export default function BeforeAfterComparison({ userId }) {
         </Card>
       </div>
 
-      {/* Comparison Chart - bottom */}
-      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-slate-800">
-            <div className="p-2 rounded-xl bg-indigo-500/10">
-              <BarChart3 className="w-5 h-5 text-indigo-600" />
-            </div>
-            השוואה: לפני VS אחרי
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={[
-                { name: 'הכנסות', לפני: reflectionData.income, אחרי: planIncome },
-                { name: 'הוצאות', לפני: reflectionTotalExpenses, אחרי: planTotalExpenses },
-                { name: 'תזרים', לפני: reflectionCashFlow, אחרי: planIncome - planTotalExpenses },
-              ]}
-              margin={{ top: 10, right: 20, left: 20, bottom: 10 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b' }} />
-              <YAxis tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <Tooltip
-                formatter={(value, name) => [`₪${value.toLocaleString()}`, name === 'לפני' ? '📊 לפני (שיקוף)' : '✅ אחרי (תכנון)']}
-                contentStyle={{ direction: 'rtl', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-              />
-              <Legend
-                formatter={(value) => value === 'לפני' ? '📊 לפני (שיקוף)' : '✅ אחרי (תכנון)'}
-                wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }}
-              />
-              <ReferenceLine y={0} stroke="#94a3b8" />
-              <Bar dataKey="לפני" fill="#f43f5e" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="אחרי" fill="#6366f1" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
       <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -317,6 +278,45 @@ export default function BeforeAfterComparison({ userId }) {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Comparison Chart - bottom, after gaps */}
+      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3 text-slate-800">
+            <div className="p-2 rounded-xl bg-indigo-500/10">
+              <BarChart3 className="w-5 h-5 text-indigo-600" />
+            </div>
+            השוואה: לפני VS אחרי
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={[
+                { name: 'הכנסות', לפני: reflectionData.income, אחרי: planIncome },
+                { name: 'הוצאות', לפני: reflectionTotalExpenses, אחרי: planTotalExpenses },
+                { name: 'תזרים', לפני: reflectionCashFlow, אחרי: planIncome - planTotalExpenses },
+              ]}
+              margin={{ top: 10, right: 20, left: 20, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b' }} />
+              <YAxis tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#64748b' }} />
+              <Tooltip
+                formatter={(value, name) => [`₪${value.toLocaleString()}`, name === 'לפני' ? '📊 לפני (שיקוף)' : '✅ אחרי (תכנון)']}
+                contentStyle={{ direction: 'rtl', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+              />
+              <Legend
+                formatter={(value) => value === 'לפני' ? '📊 לפני (שיקוף)' : '✅ אחרי (תכנון)'}
+                wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }}
+              />
+              <ReferenceLine y={0} stroke="#94a3b8" />
+              <Bar dataKey="לפני" fill="#f43f5e" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="אחרי" fill="#6366f1" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
     </div>
