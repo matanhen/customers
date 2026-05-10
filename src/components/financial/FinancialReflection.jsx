@@ -70,9 +70,14 @@ const VARIABLE_EXPENSES = [
 ];
 
 export default function FinancialReflection({ userId }) {
+  // Store numeric values for saving
   const [incomes, setIncomes] = useState({ month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 });
   const [fixedExpenses, setFixedExpenses] = useState({});
   const [variableExpenses, setVariableExpenses] = useState({});
+  // Store display strings for inputs (to avoid || '' causing cursor jumps)
+  const [incomeDisplays, setIncomeDisplays] = useState({});
+  const [fixedDisplays, setFixedDisplays] = useState({});
+  const [variableDisplays, setVariableDisplays] = useState({});
   const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
   const [creditCardTotal, setCreditCardTotal] = useState(0);
   const [creditCardDisplay, setCreditCardDisplay] = useState('');
@@ -81,6 +86,12 @@ export default function FinancialReflection({ userId }) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const queryClient = useQueryClient();
   const autoSaveTimer = React.useRef(null);
+  // Refs to always hold latest values for the debounced save (avoids stale closure)
+  const incomesRef = React.useRef(incomes);
+  const fixedRef = React.useRef(fixedExpenses);
+  const variableRef = React.useRef(variableExpenses);
+  const creditCardRef = React.useRef(creditCardTotal);
+  const reflectionRef = React.useRef(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -125,24 +136,53 @@ export default function FinancialReflection({ userId }) {
 
   useEffect(() => {
     if (reflection) {
-      setIncomes(reflection.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 });
-      setFixedExpenses(reflection.fixed_expenses || {});
-      setVariableExpenses(reflection.variable_expenses || {});
+      reflectionRef.current = reflection;
+      const inc = reflection.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
+      const fixed = reflection.fixed_expenses || {};
+      const variable = reflection.variable_expenses || {};
+      incomesRef.current = inc;
+      fixedRef.current = fixed;
+      variableRef.current = variable;
+      setIncomes(inc);
+      setFixedExpenses(fixed);
+      setVariableExpenses(variable);
+
+      // Init display strings from loaded data
+      const incDisp = {};
+      Object.keys(inc).forEach(k => { incDisp[k] = inc[k] > 0 ? String(inc[k]) : ''; });
+      setIncomeDisplays(incDisp);
+
+      const fixDisp = {};
+      Object.keys(fixed).forEach(cat => {
+        fixDisp[cat] = {};
+        ['month1','month2','month3'].forEach(m => { fixDisp[cat][m] = fixed[cat]?.[m] > 0 ? String(fixed[cat][m]) : ''; });
+      });
+      setFixedDisplays(fixDisp);
+
+      const varDisp = {};
+      Object.keys(variable).forEach(cat => {
+        varDisp[cat] = {};
+        ['month1','month2','month3'].forEach(m => { varDisp[cat][m] = variable[cat]?.[m] > 0 ? String(variable[cat][m]) : ''; });
+      });
+      setVariableDisplays(varDisp);
+
       const cc = reflection.credit_card_total || 0;
+      creditCardRef.current = cc;
       setCreditCardTotal(cc);
-      setCreditCardDisplay(cc > 0 ? cc.toLocaleString() : '');
+      setCreditCardDisplay(cc > 0 ? String(cc) : '');
     }
     setDataLoaded(true);
   }, [reflection]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Use refs to get the LATEST values, not stale closure values
       const data = {
         user_id: userId,
-        incomes,
-        fixed_expenses: fixedExpenses,
-        variable_expenses: variableExpenses,
-        credit_card_total: creditCardTotal,
+        incomes: incomesRef.current,
+        fixed_expenses: fixedRef.current,
+        variable_expenses: variableRef.current,
+        credit_card_total: creditCardRef.current,
       };
 
       // Advisor or admin viewing another user - use backend function
@@ -151,18 +191,15 @@ export default function FinancialReflection({ userId }) {
           entityName: 'FinancialReflection',
           clientUserId: userId,
           data,
-          recordId: reflection?.id || null,
+          recordId: reflectionRef.current?.id || null,
         });
         return response.data;
       }
 
-      if (reflection) {
-        return base44.entities.FinancialReflection.update(reflection.id, data);
+      if (reflectionRef.current?.id) {
+        return base44.entities.FinancialReflection.update(reflectionRef.current.id, data);
       }
       return base44.entities.FinancialReflection.create(data);
-    },
-    onSuccess: () => {
-      // Do NOT invalidate - it would cause a refetch that resets the form while the user is typing
     },
   });
 
@@ -208,23 +245,39 @@ export default function FinancialReflection({ userId }) {
   const totalExpenseAverage = fixedAverage + variableAverage;
   const cashFlowAverage = incomeAverage - totalExpenseAverage;
 
-  const updateExpense = (category, month, value, type) => {
+  const handleIncomeChange = (monthKey, rawValue) => {
+    setIncomeDisplays(prev => ({ ...prev, [monthKey]: rawValue }));
+    const num = parseFloat(rawValue) || 0;
+    setIncomes(prev => {
+      const next = { ...prev, [monthKey]: num };
+      incomesRef.current = next;
+      return next;
+    });
+    triggerAutoSave();
+  };
+
+  const updateExpense = (category, month, rawValue, type) => {
+    const num = parseFloat(rawValue) || 0;
     if (type === 'fixed') {
-      setFixedExpenses(prev => ({
+      setFixedDisplays(prev => ({
         ...prev,
-        [category]: {
-          ...(prev[category] || {}),
-          [month]: parseFloat(value) || 0,
-        },
+        [category]: { ...(prev[category] || {}), [month]: rawValue },
       }));
+      setFixedExpenses(prev => {
+        const next = { ...prev, [category]: { ...(prev[category] || {}), [month]: num } };
+        fixedRef.current = next;
+        return next;
+      });
     } else {
-      setVariableExpenses(prev => ({
+      setVariableDisplays(prev => ({
         ...prev,
-        [category]: {
-          ...(prev[category] || {}),
-          [month]: parseFloat(value) || 0,
-        },
+        [category]: { ...(prev[category] || {}), [month]: rawValue },
       }));
+      setVariableExpenses(prev => {
+        const next = { ...prev, [category]: { ...(prev[category] || {}), [month]: num } };
+        variableRef.current = next;
+        return next;
+      });
     }
     triggerAutoSave();
   };
@@ -344,13 +397,13 @@ export default function FinancialReflection({ userId }) {
                   <div key={month} className="space-y-2">
                     <Label className="text-slate-500 text-sm">חודש {month}</Label>
                     <Input
-                      type="number"
-                      value={incomes[`month${month}`] || ''}
-                      onChange={(e) => { setIncomes({ ...incomes, [`month${month}`]: parseFloat(e.target.value) || 0 }); triggerAutoSave(); }}
-                      placeholder="סכום"
-                      className="border-slate-200"
-                      disabled={isViewingOther && !isAdvisorOrAdmin}
-                      />
+                     type="number"
+                     value={incomeDisplays[`month${month}`] ?? ''}
+                     onChange={(e) => handleIncomeChange(`month${month}`, e.target.value)}
+                     placeholder="סכום"
+                     className="border-slate-200"
+                     disabled={isViewingOther && !isAdvisorOrAdmin}
+                     />
                       </div>
                       ))}
                       </div>
@@ -392,7 +445,7 @@ export default function FinancialReflection({ userId }) {
                         <Input
                           key={month}
                           type="number"
-                          value={fixedExpenses[category]?.[`month${month}`] || ''}
+                          value={fixedDisplays[category]?.[`month${month}`] ?? ''}
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'fixed')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
@@ -444,7 +497,7 @@ export default function FinancialReflection({ userId }) {
                         <Input
                           key={month}
                           type="number"
-                          value={variableExpenses[category]?.[`month${month}`] || ''}
+                          value={variableDisplays[category]?.[`month${month}`] ?? ''}
                           onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'variable')}
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
@@ -484,8 +537,9 @@ export default function FinancialReflection({ userId }) {
                 onChange={(e) => {
                   const raw = e.target.value.replace(/[^0-9]/g, '');
                   const num = parseInt(raw, 10) || 0;
+                  creditCardRef.current = num;
                   setCreditCardTotal(num);
-                  setCreditCardDisplay(num > 0 ? num.toLocaleString() : raw === '' ? '' : '0');
+                  setCreditCardDisplay(raw);
                   triggerAutoSave();
                 }}
                 placeholder="₪ הזן סכום"
