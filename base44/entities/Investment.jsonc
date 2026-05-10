@@ -1,0 +1,30 @@
+{
+  "name": "Investment",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05de\u05e9\u05ea\u05de\u05e9"
+    },
+    "name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05e0\u05d9\u05d9\u05e8 \u05e2\u05e8\u05da"
+    },
+    "quantity": {
+      "type": "number",
+      "description": "\u05db\u05de\u05d5\u05ea"
+    },
+    "current_price": {
+      "type": "number",
+      "description": "\u05de\u05d7\u05d9\u05e8 \u05e0\u05d5\u05db\u05d7\u05d9"
+    },
+    "target_percentage": {
+      "type": "number",
+      "description": "\u05d0\u05d7\u05d5\u05d6 \u05de\u05d8\u05e8\u05d4 \u05d1\u05ea\u05d9\u05e7"
+    }
+  },
+  "required": [
+    "user_id",
+    "name"
+  ]
+}

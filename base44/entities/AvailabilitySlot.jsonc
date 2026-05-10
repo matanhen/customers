@@ -1,0 +1,43 @@
+{
+  "name": "AvailabilitySlot",
+  "type": "object",
+  "properties": {
+    "advisor_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05d9\u05d5\u05e2\u05e5"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "\u05ea\u05d0\u05e8\u05d9\u05da \u05d4\u05d6\u05de\u05d9\u05e0\u05d5\u05ea"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "\u05e9\u05e2\u05ea \u05d4\u05ea\u05d7\u05dc\u05d4 (HH:MM)"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "\u05e9\u05e2\u05ea \u05e1\u05d9\u05d5\u05dd (HH:MM)"
+    },
+    "location_type": {
+      "type": "string",
+      "enum": [
+        "office",
+        "zoom"
+      ],
+      "description": "\u05e1\u05d5\u05d2 \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4 - \u05de\u05e9\u05e8\u05d3 \u05d0\u05d5 \u05d6\u05d5\u05dd"
+    },
+    "is_booked": {
+      "type": "boolean",
+      "default": false,
+      "description": "\u05d4\u05d0\u05dd \u05d4\u05d6\u05de\u05df \u05ea\u05e4\u05d5\u05e1"
+    }
+  },
+  "required": [
+    "advisor_id",
+    "date",
+    "start_time",
+    "end_time",
+    "location_type"
+  ]
+}

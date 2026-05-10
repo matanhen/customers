@@ -120,6 +120,7 @@ export default function FinancialReflection({ userId }) {
       return results[0];
     },
     enabled: !!userId && !!currentUser,
+    staleTime: Infinity, // Prevent automatic refetches that would overwrite user input
   });
 
   useEffect(() => {
@@ -161,7 +162,7 @@ export default function FinancialReflection({ userId }) {
       return base44.entities.FinancialReflection.create(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financialReflection', userId, currentUser?.id] });
+      // Do NOT invalidate - it would cause a refetch that resets the form while the user is typing
     },
   });
 

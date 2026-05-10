@@ -1,0 +1,72 @@
+{
+  "name": "FinancialPlan",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05de\u05e9\u05ea\u05de\u05e9"
+    },
+    "plan_type": {
+      "type": "string",
+      "enum": [
+        "current",
+        "plan_a",
+        "plan_b",
+        "plan_c"
+      ],
+      "description": "\u05e1\u05d5\u05d2 \u05d4\u05ea\u05db\u05e0\u05d5\u05df"
+    },
+    "monthly_salary": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05de\u05e9\u05db\u05d5\u05e8\u05ea \u05d7\u05d5\u05d3\u05e9\u05d9\u05ea"
+    },
+    "additional_income": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05d4\u05db\u05e0\u05e1\u05d5\u05ea \u05e0\u05d5\u05e1\u05e4\u05d5\u05ea"
+    },
+    "rent_expense": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05e9\u05db\u05d9\u05e8\u05d5\u05ea"
+    },
+    "fixed_expenses": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05e7\u05d1\u05d5\u05e2\u05d5\u05ea"
+    },
+    "variable_expenses": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05de\u05e9\u05ea\u05e0\u05d5\u05ea"
+    },
+    "liquidate_keren_hishtalmut": {
+      "type": "boolean",
+      "default": false,
+      "description": "\u05dc\u05de\u05de\u05e9 \u05e7\u05e8\u05df \u05d4\u05e9\u05ea\u05dc\u05de\u05d5\u05ea \u05d1\u05d2\u05d9\u05dc \u05d4\u05d9\u05e2\u05d3"
+    },
+    "keren_withdrawal_option": {
+      "type": "string",
+      "enum": [
+        "none",
+        "at_target",
+        "every_6_years"
+      ],
+      "default": "none",
+      "description": "\u05d0\u05d5\u05e4\u05e6\u05d9\u05d9\u05ea \u05de\u05e9\u05d9\u05db\u05ea \u05e7\u05e8\u05df \u05d4\u05e9\u05ea\u05dc\u05de\u05d5\u05ea"
+    },
+    "assets": {
+      "type": "object",
+      "description": "\u05e0\u05db\u05e1\u05d9\u05dd"
+    },
+    "liabilities": {
+      "type": "object",
+      "description": "\u05d4\u05ea\u05d7\u05d9\u05d9\u05d1\u05d5\u05d9\u05d5\u05ea"
+    }
+  },
+  "required": [
+    "user_id",
+    "plan_type"
+  ]
+}

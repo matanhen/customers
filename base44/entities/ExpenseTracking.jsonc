@@ -1,0 +1,64 @@
+{
+  "name": "ExpenseTracking",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05de\u05e9\u05ea\u05de\u05e9"
+    },
+    "month": {
+      "type": "string",
+      "description": "\u05d7\u05d5\u05d3\u05e9 \u05d5\u05e9\u05e0\u05d4 (YYYY-MM)"
+    },
+    "actual_income": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05d4\u05db\u05e0\u05e1\u05d4 \u05d1\u05e4\u05d5\u05e2\u05dc"
+    },
+    "fixed_expenses": {
+      "type": "object",
+      "description": "\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05e7\u05d1\u05d5\u05e2\u05d5\u05ea \u05d1\u05e4\u05d5\u05e2\u05dc",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "variable_expenses": {
+      "type": "object",
+      "description": "\u05d9\u05ea\u05e8\u05ea \u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05d1\u05e4\u05d5\u05e2\u05dc",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "custom_expenses": {
+      "type": "array",
+      "description": "\u05d4\u05d5\u05e6\u05d0\u05d5\u05ea \u05de\u05d5\u05ea\u05d0\u05de\u05d5\u05ea \u05d0\u05d9\u05e9\u05d9\u05ea",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "variable"
+            ]
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "freedom_transfer_done": {
+      "type": "boolean",
+      "default": false,
+      "description": "\u05d4\u05d0\u05dd \u05d1\u05d5\u05e6\u05e2\u05d4 \u05d4\u05e2\u05d1\u05e8\u05d4 \u05dc\u05d7\u05e9\u05d1\u05d5\u05df \u05d4\u05d7\u05d5\u05e4\u05e9"
+    }
+  },
+  "required": [
+    "user_id",
+    "month"
+  ]
+}
