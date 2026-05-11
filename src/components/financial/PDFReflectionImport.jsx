@@ -185,6 +185,35 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
     setGroupedView(prev => prev.map((g, i) => i === index ? { ...g, [field]: value } : g));
   };
 
+  // Move a single item from its group to a different category (splits it out)
+  const moveItemToCategory = (groupIndex, itemIndex, newCategory, newType) => {
+    setGroupedView(prev => {
+      const groups = prev.map(g => ({ ...g, items: [...g.items] }));
+      const sourceGroup = groups[groupIndex];
+      const [movedItem] = sourceGroup.items.splice(itemIndex, 1);
+      sourceGroup.total -= movedItem.amount;
+
+      const targetKey = `${newType}::${newCategory}`;
+      const existingIdx = groups.findIndex((g, i) => i !== groupIndex && `${g.type}::${g.category}` === targetKey);
+
+      if (existingIdx >= 0) {
+        groups[existingIdx].items.push(movedItem);
+        groups[existingIdx].total += movedItem.amount;
+      } else {
+        groups.push({
+          category: newCategory,
+          type: newType,
+          total: movedItem.amount,
+          items: [movedItem],
+          confirmed: true,
+          month: sourceGroup.month || globalMonth,
+        });
+      }
+
+      return groups.filter(g => g.items.length > 0).sort((a, b) => b.total - a.total);
+    });
+  };
+
   const applyGlobalMonth = (month) => {
     setGlobalMonth(month);
     setGroupedView(prev => prev.map(g => ({ ...g, month })));
@@ -366,11 +395,35 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
                   {/* Expanded transactions */}
                   {expandedGroups[index] && (
                     <div className="px-4 pb-3 pt-0 border-t border-slate-100">
-                      <div className="space-y-1 mt-2">
+                      <p className="text-xs text-slate-400 mt-2 mb-1">לחץ על קטגוריה כדי להעביר עסקה בודדת:</p>
+                      <div className="space-y-1.5">
                         {group.items.map((item, ii) => (
-                          <div key={ii} className="flex justify-between items-center text-xs text-slate-500 py-0.5">
-                            <span className="truncate max-w-xs">{item.description}</span>
-                            <span className="font-medium text-slate-600 shrink-0 mr-2">₪{item.amount.toLocaleString()}</span>
+                          <div key={ii} className="flex items-center gap-2 text-xs text-slate-500 py-0.5">
+                            <span className="truncate flex-1 text-slate-700">{item.description}</span>
+                            <span className="font-medium text-slate-600 shrink-0">₪{item.amount.toLocaleString()}</span>
+                            {group.items.length > 1 && (
+                              <Select
+                                value=""
+                                onValueChange={(val) => {
+                                  const [newType, ...catParts] = val.split('::');
+                                  moveItemToCategory(index, ii, catParts.join('::'), newType);
+                                }}
+                              >
+                                <SelectTrigger className="h-7 w-32 text-xs border-dashed border-orange-300 text-orange-600 hover:border-orange-500">
+                                  <SelectValue placeholder="העבר ל..." />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[220px]">
+                                  <SelectItem value="_fixed_header" disabled className="font-bold text-blue-700 text-xs">— קבועות —</SelectItem>
+                                  {FIXED_EXPENSES.filter(c => c !== group.category).map(cat => (
+                                    <SelectItem key={cat} value={`fixed::${cat}`}>{cat}</SelectItem>
+                                  ))}
+                                  <SelectItem value="_var_header" disabled className="font-bold text-purple-700 text-xs">— משתנות —</SelectItem>
+                                  {VARIABLE_EXPENSES.filter(c => c !== group.category).map(cat => (
+                                    <SelectItem key={cat} value={`variable::${cat}`}>{cat}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                           </div>
                         ))}
                       </div>
