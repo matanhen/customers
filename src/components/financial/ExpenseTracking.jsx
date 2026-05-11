@@ -164,26 +164,16 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: currentTracking.custom_expenses || [],
         freedom_transfer_done: currentTracking.freedom_transfer_done || false
       });
-    } else if (prevTracking !== undefined) {
-      // Only set defaults once we know there's no current tracking (query finished)
+    } else if (!trackingLoading && allTracking !== undefined) {
+      // No current month tracking exists - start fresh with zeros
       lastLoadedMonthRef.current = currentMonth;
-      if (prevTracking) {
-        setTrackingData({
-          actual_income: 0,
-          fixed_expenses: prevTracking.fixed_expenses || {},
-          variable_expenses: {},
-          custom_expenses: prevTracking.custom_expenses?.filter(e => e.type === 'fixed') || [],
-          freedom_transfer_done: false
-        });
-      } else {
-        setTrackingData({
-          actual_income: 0,
-          fixed_expenses: {},
-          variable_expenses: {},
-          custom_expenses: [],
-          freedom_transfer_done: false
-        });
-      }
+      setTrackingData({
+        actual_income: 0,
+        fixed_expenses: {},
+        variable_expenses: {},
+        custom_expenses: [],
+        freedom_transfer_done: false
+      });
     }
   }, [currentTracking, prevTracking, currentMonth]);
 
