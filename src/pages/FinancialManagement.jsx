@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2, Landmark } from 'lucide-react';
+import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2, Landmark, BookOpen } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
@@ -9,6 +9,7 @@ import ExpenseTracking from '../components/financial/ExpenseTracking';
 import DebtManager from '../components/financial/DebtManager';
 import AssetsManager from '../components/financial/AssetsManager';
 import PensionManager from '../components/investments/PensionManager';
+import WorkbookPage from '../components/workbook/WorkbookPage';
 
 const SECTIONS = [
   {
@@ -32,11 +33,19 @@ const SECTIONS = [
     description: 'השוואה בין מצב קודם למצב הנוכחי',
     color: 'from-[#7a4a10] to-[#b06a1a]',
   },
+  {
+    key: 'workbook',
+    label: 'חוברת עבודה',
+    icon: BookOpen,
+    description: 'מלא את חוברת העבודה האישית שלך',
+    color: 'from-[#4a1070] to-[#7a2abf]',
+  },
 ];
 
 export default function FinancialManagement() {
   const [user, setUser] = useState(null);
   const [viewingClientId, setViewingClientId] = useState(null);
+  const [viewerEmail, setViewerEmail] = useState(null);
   const [activeSection, setActiveSection] = useState(null);
   const [activeTab, setActiveTab] = useState('planning');
 
@@ -53,6 +62,7 @@ export default function FinancialManagement() {
     try {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
+      setViewerEmail(currentUser.email);
     } catch (e) {}
   };
 
@@ -214,6 +224,22 @@ export default function FinancialManagement() {
           <h1 className="text-2xl font-bold text-[#105330]">לפני / אחרי</h1>
         </div>
         <BeforeAfterComparison userId={effectiveUserId} />
+      </div>
+    );
+  }
+
+  // Workbook section
+  if (activeSection === 'workbook') {
+    return (
+      <div className="max-w-6xl mx-auto" dir="rtl">
+        <div className="mb-6 flex items-center gap-3">
+          <button onClick={handleBack} className="text-[#105330]/60 hover:text-[#105330] flex items-center gap-1 text-sm font-medium">
+            <ArrowRight className="w-4 h-4" />
+            חזרה
+          </button>
+          <h1 className="text-2xl font-bold text-[#105330]">חוברת עבודה</h1>
+        </div>
+        <WorkbookPage userId={effectiveUserId} viewerEmail={viewerEmail} />
       </div>
     );
   }
