@@ -19,21 +19,22 @@ const VARIABLE_EXPENSES = [
   'בגדים ונעליים','תרומות','התפתחות אישית','חופשה / טיול','בעלי חיים','מתנות ואירועים',
 ];
 
-const CLASSIFICATION_PROMPT = `אתה מומחה לניתוח פיננסי. קרא את קובץ ה-PDF המצורף שהוא פירוט עסקאות של כרטיס אשראי או חשבון בנק ישראלי.
+const CLASSIFICATION_PROMPT = `אתה מומחה לניתוח פיננסי. המסמך המצורף הוא **תמונה של פירוט עסקאות** כרטיס אשראי ישראלי (מסטרקארד/ויזה/אמריקן אקספרס).
 
-## משימתך: חלץ את כל ההוצאות מהטבלה/הרשימה שבקובץ.
+## משימתך: קרא את התמונה ויזואלית וחלץ כל שורה מהטבלה.
 
-## חשוב מאוד - זיהוי מבנה הקובץ:
-- הקובץ מכיל טבלה עם עמודות כמו: תאריך, בית עסק, סכום חיוב בש"ח
-- כל שורה בטבלה = הוצאה אחת
-- הסכום נמצא בעמודת "סכום חיוב בש"ח" - קרא אותו בדיוק
-- שם ספק נמצא בעמודת "בית עסק"
-- אם יש שתי טבלאות (חיובים בישראל + חיובים בחו"ל) - חלץ מ**שתיהן**
+## מבנה הטבלה בתמונה:
+הטבלה מכילה את העמודות הבאות (מימין לשמאל כי זה עברית):
+- **תאריך** (לדוגמה: 13/04/26)
+- **בית עסק** (שם הספק, לדוגמה: סונול, יוחננוף, WEBIZ)
+- **סכום חיוב בש"ח** (מספר כמו 895.00 או 1,156.40)
+- **תשלומים** (לרוב ריק)
+- **סכום ההנחה בש"ח** (לרוב ריק)
 
 ## חוקים קריטיים:
-- כלול את כל השורות בטבלה - כל שורה היא הוצאה
-- אל תכלול הכנסות ואל תכלול סכומי סיכום (כמו "סה"כ")
-- אל תכלול העברות בין חשבונות
+- חלץ **כל שורה** בטבלה — כל שורה = הוצאה אחת
+- הסכום הוא המספר בעמודת "סכום חיוב בש"ח" (לא הסכום הכולל בראש הדף)
+- אל תכלול שורת כותרת, שורת סיכום ("סה"כ"), או שורות ריקות
 - סכום תמיד חיובי
 
 ## קטגוריות הוצאות קבועות (fixed) - שייך כאן אם ההוצאה חוזרת כל חודש:
@@ -109,39 +110,8 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      // First extract raw text/data from PDF (handles image-based PDFs too)
-      const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: 'object',
-          properties: {
-            rows: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  date: { type: 'string' },
-                  business: { type: 'string' },
-                  amount: { type: 'number' }
-                }
-              }
-            }
-          }
-        }
-      });
-
-      // Build text from extracted rows to inject into prompt
-      let extractedText = '';
-      if (extracted?.status === 'success' && extracted?.output) {
-        const rows = extracted.output?.rows || (Array.isArray(extracted.output) ? extracted.output : []);
-        if (rows.length > 0) {
-          extractedText = '\n\n## נתונים שחולצו מהקובץ:\n' +
-            rows.map(r => `תאריך: ${r.date || ''} | בית עסק: ${r.business || ''} | סכום: ${r.amount || ''}`).join('\n');
-        }
-      }
-
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: CLASSIFICATION_PROMPT + extractedText,
+        prompt: CLASSIFICATION_PROMPT,
         file_urls: [file_url],
         model: 'claude_sonnet_4_6',
         response_json_schema: {
