@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -85,13 +85,13 @@ export default function FinancialReflection({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const queryClient = useQueryClient();
-  const autoSaveTimer = React.useRef(null);
+  const autoSaveTimer = useRef(null);
   // Refs to always hold latest values for the debounced save (avoids stale closure)
-  const incomesRef = React.useRef(incomes);
-  const fixedRef = React.useRef(fixedExpenses);
-  const variableRef = React.useRef(variableExpenses);
-  const creditCardRef = React.useRef(creditCardTotal);
-  const reflectionRef = React.useRef(null);
+  const incomesRef = useRef(incomes);
+  const fixedRef = useRef(fixedExpenses);
+  const variableRef = useRef(variableExpenses);
+  const creditCardRef = useRef(creditCardTotal);
+  const reflectionRef = useRef(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -135,44 +135,47 @@ export default function FinancialReflection({ userId }) {
   });
 
   useEffect(() => {
-    if (reflection) {
-      reflectionRef.current = reflection;
-      const inc = reflection.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
-      const fixed = reflection.fixed_expenses || {};
-      const variable = reflection.variable_expenses || {};
-      incomesRef.current = inc;
-      fixedRef.current = fixed;
-      variableRef.current = variable;
-      setIncomes(inc);
-      setFixedExpenses(fixed);
-      setVariableExpenses(variable);
+    if (!reflectionLoading) {
+      if (reflection) {
+        reflectionRef.current = reflection;
+        const inc = reflection.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
+        const fixed = reflection.fixed_expenses || {};
+        const variable = reflection.variable_expenses || {};
+        incomesRef.current = inc;
+        fixedRef.current = fixed;
+        variableRef.current = variable;
+        setIncomes(inc);
+        setFixedExpenses(fixed);
+        setVariableExpenses(variable);
 
-      // Init display strings from loaded data
-      const incDisp = {};
-      Object.keys(inc).forEach(k => { incDisp[k] = inc[k] > 0 ? String(inc[k]) : ''; });
-      setIncomeDisplays(incDisp);
+        // Init display strings from loaded data
+        const incDisp = {};
+        Object.keys(inc).forEach(k => { incDisp[k] = inc[k] > 0 ? String(inc[k]) : ''; });
+        setIncomeDisplays(incDisp);
 
-      const fixDisp = {};
-      Object.keys(fixed).forEach(cat => {
-        fixDisp[cat] = {};
-        ['month1','month2','month3'].forEach(m => { fixDisp[cat][m] = fixed[cat]?.[m] > 0 ? String(fixed[cat][m]) : ''; });
-      });
-      setFixedDisplays(fixDisp);
+        const fixDisp = {};
+        Object.keys(fixed).forEach(cat => {
+          fixDisp[cat] = {};
+          ['month1','month2','month3'].forEach(m => { fixDisp[cat][m] = fixed[cat]?.[m] > 0 ? String(fixed[cat][m]) : ''; });
+        });
+        setFixedDisplays(fixDisp);
 
-      const varDisp = {};
-      Object.keys(variable).forEach(cat => {
-        varDisp[cat] = {};
-        ['month1','month2','month3'].forEach(m => { varDisp[cat][m] = variable[cat]?.[m] > 0 ? String(variable[cat][m]) : ''; });
-      });
-      setVariableDisplays(varDisp);
+        const varDisp = {};
+        Object.keys(variable).forEach(cat => {
+          varDisp[cat] = {};
+          ['month1','month2','month3'].forEach(m => { varDisp[cat][m] = variable[cat]?.[m] > 0 ? String(variable[cat][m]) : ''; });
+        });
+        setVariableDisplays(varDisp);
 
-      const cc = reflection.credit_card_total || 0;
-      creditCardRef.current = cc;
-      setCreditCardTotal(cc);
-      setCreditCardDisplay(cc > 0 ? String(cc) : '');
+        const cc = reflection.credit_card_total || 0;
+        creditCardRef.current = cc;
+        setCreditCardTotal(cc);
+        setCreditCardDisplay(cc > 0 ? String(cc) : '');
+      }
+      // Mark as loaded regardless - even new users with no data should be able to save
+      setDataLoaded(true);
     }
-    setDataLoaded(true);
-  }, [reflection]);
+  }, [reflection, reflectionLoading]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
