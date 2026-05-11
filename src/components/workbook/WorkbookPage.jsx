@@ -448,6 +448,15 @@ export default function WorkbookPage({ userId, viewerEmail }) {
               עריכת תוכן
             </Button>
           )}
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-white text-[#105330] hover:bg-white/90 font-bold text-xs"
+          >
+            <Save className="w-3 h-3 ml-1" />
+            {saving ? 'שומר...' : savedAt ? `נשמר ✓` : 'שמור תשובות'}
+          </Button>
           <Button size="sm" variant="ghost" onClick={expandAll} className="text-white/80 hover:text-white text-xs">
             פתח הכל
           </Button>
