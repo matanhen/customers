@@ -421,6 +421,25 @@ export default function WorkbookPage({ userId, viewerEmail }) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4" dir="rtl">
+      {/* Sticky Save Bar */}
+      <div className="sticky top-20 z-30 flex items-center justify-between bg-white border border-slate-200 rounded-2xl px-5 py-3 shadow-lg">
+        <div className="flex items-center gap-3">
+          {savedAt && (
+            <span className="text-xs text-slate-400">
+              נשמר ב-{savedAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-[#105330] hover:bg-[#0d4027] text-white font-bold px-6"
+        >
+          <Save className="w-4 h-4 ml-2" />
+          {saving ? 'שומר...' : savedAt ? 'שמור שוב ✓' : 'שמור תשובות'}
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white rounded-2xl p-6">
         <div>
@@ -448,15 +467,6 @@ export default function WorkbookPage({ userId, viewerEmail }) {
               עריכת תוכן
             </Button>
           )}
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-white text-[#105330] hover:bg-white/90 font-bold text-xs"
-          >
-            <Save className="w-3 h-3 ml-1" />
-            {saving ? 'שומר...' : savedAt ? `נשמר ✓` : 'שמור תשובות'}
-          </Button>
           <Button size="sm" variant="ghost" onClick={expandAll} className="text-white/80 hover:text-white text-xs">
             פתח הכל
           </Button>
