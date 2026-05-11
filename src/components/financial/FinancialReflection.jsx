@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -11,70 +11,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import PDFReflectionImport from './PDFReflectionImport';
 
 const FIXED_EXPENSES = [
-  'ביטוחי רכב',
-  'טסט',
-  'משכנתא',
-  'ביטוח משכנתא',
-  'שכירות',
-  'מנויים',
-  'ביטוחים (ללא רכב)',
-  'ועד בית',
-  'ארנונה',
-  'החזר הלוואות',
-  'הוראות קבע',
+  'ביטוחי רכב','טסט','משכנתא','ביטוח משכנתא','שכירות',
+  'מנויים','ביטוחים (ללא רכב)','ועד בית','ארנונה','החזר הלוואות','הוראות קבע',
 ];
 
 const VARIABLE_EXPENSES = [
-  'מים',
-  'חשמל',
-  'גז',
-  'תספורת וקוסמטיקה',
-  'חינוך',
-  'חוגים וקייטנות',
-  'בריאות',
-  'תיקוני רכב',
-  'עמלות וריביות בנקים',
-  'טיפולי שיניים',
-  'אופטיקה',
-  'חגים ויהדות',
-  'טלפון נייד',
-  'סופר פארם',
-  'דברים לבית',
-  'ביטוח לאומי',
-  'מזון',
-  'דלק וחניה',
-  'תחבורה ציבורית',
-  'סיגריות',
-  'עוזרת / בייביסיטר',
-  'ביט',
-  'מזומן',
-  'בילויים',
-  'בגדים ונעליים',
-  'תרומות',
-  'התפתחות אישית',
-  'חופשה / טיול',
-  'בעלי חיים',
-  'מתנות ואירועים',
+  'מים','חשמל','גז','תספורת וקוסמטיקה','חינוך','חוגים וקייטנות','בריאות',
+  'תיקוני רכב','עמלות וריביות בנקים','טיפולי שיניים','אופטיקה','חגים ויהדות',
+  'טלפון נייד','סופר פארם','דברים לבית','ביטוח לאומי','מזון','דלק וחניה',
+  'תחבורה ציבורית','סיגריות','עוזרת / בייביסיטר','ביט','מזומן','בילויים',
+  'בגדים ונעליים','תרומות','התפתחות אישית','חופשה / טיול','בעלי חיים','מתנות ואירועים',
 ];
 
 export default function FinancialReflection({ userId }) {
-  // Store numeric values for saving
   const [incomes, setIncomes] = useState({ month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 });
   const [fixedExpenses, setFixedExpenses] = useState({});
   const [variableExpenses, setVariableExpenses] = useState({});
-  // Store display strings for inputs (to avoid || '' causing cursor jumps)
   const [incomeDisplays, setIncomeDisplays] = useState({});
   const [fixedDisplays, setFixedDisplays] = useState({});
   const [variableDisplays, setVariableDisplays] = useState({});
@@ -84,163 +41,132 @@ export default function FinancialReflection({ userId }) {
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  
   const queryClient = useQueryClient();
   const autoSaveTimer = useRef(null);
-  // Refs to always hold latest values for the debounced save (avoids stale closure)
-  const incomesRef = useRef(incomes);
-  const fixedRef = useRef(fixedExpenses);
-  const variableRef = useRef(variableExpenses);
-  const creditCardRef = useRef(creditCardTotal);
-  const reflectionRef = useRef(null);
+  // Keep a ref to the current reflection id so saveMutation can always access latest
+  const reflectionIdRef = useRef(null);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.log('Failed to load user');
-      }
-    };
-    loadUser();
+    base44.auth.me().then(setCurrentUser).catch(() => {});
   }, [userId]);
 
-  const isAdvisorOrAdmin = 
-    currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
+  const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
-
-  // Get client email from sessionStorage for fallback lookup
   const viewingClientEmail = (() => {
     try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
   })();
 
   const { data: reflection, isLoading: reflectionLoading } = useQuery({
-    queryKey: ['financialReflection', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+    queryKey: ['financialReflection', userId, currentUser?.id],
     queryFn: async () => {
-      // If advisor/admin viewing another user's data - use backend function
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
           clientEmail: viewingClientEmail,
           entityName: 'FinancialReflection'
         });
-        return response.data.data[0];
+        return response.data.data[0] || null;
       }
-      // Own data
       const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
-      return results[0];
+      return results[0] || null;
     },
     enabled: !!userId && !!currentUser,
-    staleTime: Infinity, // Prevent automatic refetches that would overwrite user input
+    staleTime: Infinity,
   });
 
+  // Load data from DB into state once
   useEffect(() => {
-    if (!reflectionLoading) {
-      if (reflection) {
-        reflectionRef.current = reflection;
-        const inc = reflection.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
-        const fixed = reflection.fixed_expenses || {};
-        const variable = reflection.variable_expenses || {};
-        incomesRef.current = inc;
-        fixedRef.current = fixed;
-        variableRef.current = variable;
-        setIncomes(inc);
-        setFixedExpenses(fixed);
-        setVariableExpenses(variable);
+    if (reflectionLoading) return;
+    
+    const inc = reflection?.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
+    const fixed = reflection?.fixed_expenses || {};
+    const variable = reflection?.variable_expenses || {};
+    const cc = reflection?.credit_card_total || 0;
 
-        // Init display strings from loaded data
-        const incDisp = {};
-        Object.keys(inc).forEach(k => { incDisp[k] = inc[k] > 0 ? String(inc[k]) : ''; });
-        setIncomeDisplays(incDisp);
+    reflectionIdRef.current = reflection?.id || null;
 
-        const fixDisp = {};
-        Object.keys(fixed).forEach(cat => {
-          fixDisp[cat] = {};
-          ['month1','month2','month3'].forEach(m => { fixDisp[cat][m] = fixed[cat]?.[m] > 0 ? String(fixed[cat][m]) : ''; });
-        });
-        setFixedDisplays(fixDisp);
+    setIncomes(inc);
+    setFixedExpenses(fixed);
+    setVariableExpenses(variable);
+    setCreditCardTotal(cc);
+    setCreditCardDisplay(cc > 0 ? String(cc) : '');
 
-        const varDisp = {};
-        Object.keys(variable).forEach(cat => {
-          varDisp[cat] = {};
-          ['month1','month2','month3'].forEach(m => { varDisp[cat][m] = variable[cat]?.[m] > 0 ? String(variable[cat][m]) : ''; });
-        });
-        setVariableDisplays(varDisp);
+    // Init display strings
+    const incDisp = {};
+    Object.keys(inc).forEach(k => { incDisp[k] = inc[k] > 0 ? String(inc[k]) : ''; });
+    setIncomeDisplays(incDisp);
 
-        const cc = reflection.credit_card_total || 0;
-        creditCardRef.current = cc;
-        setCreditCardTotal(cc);
-        setCreditCardDisplay(cc > 0 ? String(cc) : '');
-      }
-      // Mark as loaded regardless - even new users with no data should be able to save
-      setDataLoaded(true);
-    }
+    const fixDisp = {};
+    Object.keys(fixed).forEach(cat => {
+      fixDisp[cat] = {};
+      ['month1','month2','month3'].forEach(m => { fixDisp[cat][m] = fixed[cat]?.[m] > 0 ? String(fixed[cat][m]) : ''; });
+    });
+    setFixedDisplays(fixDisp);
+
+    const varDisp = {};
+    Object.keys(variable).forEach(cat => {
+      varDisp[cat] = {};
+      ['month1','month2','month3'].forEach(m => { varDisp[cat][m] = variable[cat]?.[m] > 0 ? String(variable[cat][m]) : ''; });
+    });
+    setVariableDisplays(varDisp);
+
+    setDataLoaded(true);
   }, [reflection, reflectionLoading]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      // Use refs to get the LATEST values, not stale closure values
-      const data = {
-        user_id: userId,
-        incomes: incomesRef.current,
-        fixed_expenses: fixedRef.current,
-        variable_expenses: variableRef.current,
-        credit_card_total: creditCardRef.current,
-      };
+    mutationFn: async (data) => {
+      const payload = { user_id: userId, ...data };
 
-      // Advisor or admin viewing another user - use backend function
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('saveClientData', {
           entityName: 'FinancialReflection',
           clientUserId: userId,
-          data,
-          recordId: reflectionRef.current?.id || null,
+          data: payload,
+          recordId: reflectionIdRef.current || null,
         });
+        // Update the ref with the new id if this was a create
+        if (response.data?.id) reflectionIdRef.current = response.data.id;
         return response.data;
       }
 
-      if (reflectionRef.current?.id) {
-        return base44.entities.FinancialReflection.update(reflectionRef.current.id, data);
+      if (reflectionIdRef.current) {
+        return base44.entities.FinancialReflection.update(reflectionIdRef.current, payload);
       }
-      return base44.entities.FinancialReflection.create(data);
+      const created = await base44.entities.FinancialReflection.create(payload);
+      reflectionIdRef.current = created.id;
+      return created;
     },
   });
 
-  const triggerAutoSave = () => {
+  // Single auto-save trigger — always uses latest state via closure over the actual state vars
+  const triggerAutoSave = useCallback((latestData) => {
     if (!dataLoaded) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      saveMutation.mutate();
-    }, 1500);
-  };
+      saveMutation.mutate(latestData);
+    }, 1000);
+  }, [dataLoaded, saveMutation]);
 
   const toggleSection = (section) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Calculate average from all 6 months (treat missing/0 as 0)
   const calculateIncomeAverage = () => {
     const months = ['month1', 'month2', 'month3', 'month4', 'month5', 'month6'];
     const total = months.reduce((sum, m) => sum + (incomes[m] || 0), 0);
     return Math.round(total / 6);
   };
 
-  // Calculate expense average from all 3 months (treat missing/0 as 0)
   const calculateExpenseAverage = (category, type) => {
     const expenses = type === 'fixed' ? fixedExpenses : variableExpenses;
     const categoryData = expenses[category] || {};
-    const months = ['month1', 'month2', 'month3'];
-    const total = months.reduce((sum, m) => sum + (categoryData[m] || 0), 0);
+    const total = ['month1','month2','month3'].reduce((sum, m) => sum + (categoryData[m] || 0), 0);
     return Math.round(total / 3);
   };
 
-  const getTotalFixedAverage = () => {
-    return FIXED_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'fixed'), 0);
-  };
-
-  const getTotalVariableAverage = () => {
-    return VARIABLE_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'variable'), 0);
-  };
+  const getTotalFixedAverage = () => FIXED_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'fixed'), 0);
+  const getTotalVariableAverage = () => VARIABLE_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'variable'), 0);
 
   const incomeAverage = calculateIncomeAverage();
   const fixedAverage = getTotalFixedAverage();
@@ -249,43 +175,42 @@ export default function FinancialReflection({ userId }) {
   const cashFlowAverage = incomeAverage - totalExpenseAverage;
 
   const handleIncomeChange = (monthKey, rawValue) => {
-    setIncomeDisplays(prev => ({ ...prev, [monthKey]: rawValue }));
     const num = parseFloat(rawValue) || 0;
-    setIncomes(prev => {
-      const next = { ...prev, [monthKey]: num };
-      incomesRef.current = next;
-      return next;
+    const nextIncomes = { ...incomes, [monthKey]: num };
+    setIncomeDisplays(prev => ({ ...prev, [monthKey]: rawValue }));
+    setIncomes(nextIncomes);
+    triggerAutoSave({
+      incomes: nextIncomes,
+      fixed_expenses: fixedExpenses,
+      variable_expenses: variableExpenses,
+      credit_card_total: creditCardTotal,
     });
-    triggerAutoSave();
   };
 
   const updateExpense = (category, month, rawValue, type) => {
     const num = parseFloat(rawValue) || 0;
     if (type === 'fixed') {
-      setFixedDisplays(prev => ({
-        ...prev,
-        [category]: { ...(prev[category] || {}), [month]: rawValue },
-      }));
-      setFixedExpenses(prev => {
-        const next = { ...prev, [category]: { ...(prev[category] || {}), [month]: num } };
-        fixedRef.current = next;
-        return next;
+      const nextFixed = { ...fixedExpenses, [category]: { ...(fixedExpenses[category] || {}), [month]: num } };
+      setFixedDisplays(prev => ({ ...prev, [category]: { ...(prev[category] || {}), [month]: rawValue } }));
+      setFixedExpenses(nextFixed);
+      triggerAutoSave({
+        incomes,
+        fixed_expenses: nextFixed,
+        variable_expenses: variableExpenses,
+        credit_card_total: creditCardTotal,
       });
     } else {
-      setVariableDisplays(prev => ({
-        ...prev,
-        [category]: { ...(prev[category] || {}), [month]: rawValue },
-      }));
-      setVariableExpenses(prev => {
-        const next = { ...prev, [category]: { ...(prev[category] || {}), [month]: num } };
-        variableRef.current = next;
-        return next;
+      const nextVariable = { ...variableExpenses, [category]: { ...(variableExpenses[category] || {}), [month]: num } };
+      setVariableDisplays(prev => ({ ...prev, [category]: { ...(prev[category] || {}), [month]: rawValue } }));
+      setVariableExpenses(nextVariable);
+      triggerAutoSave({
+        incomes,
+        fixed_expenses: fixedExpenses,
+        variable_expenses: nextVariable,
+        credit_card_total: creditCardTotal,
       });
     }
-    triggerAutoSave();
   };
-
-
 
   if (reflectionLoading) {
     return (
@@ -306,7 +231,6 @@ export default function FinancialReflection({ userId }) {
 
   return (
     <div className="space-y-6">
-      {/* Action Buttons */}
       {(!isViewingOther || isAdvisorOrAdmin) && (
         <div className="flex justify-end items-center">
           <Button
@@ -326,7 +250,7 @@ export default function FinancialReflection({ userId }) {
         </div>
       )}
 
-      {/* Summary Cards - top */}
+      {/* Summary Cards */}
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="border-0 shadow-xl shadow-emerald-100/50 bg-gradient-to-br from-emerald-50 to-teal-50">
           <CardContent className="p-6">
@@ -360,11 +284,7 @@ export default function FinancialReflection({ userId }) {
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className={`p-3 rounded-2xl ${cashFlowAverage >= 0 ? 'bg-indigo-500/10' : 'bg-red-500/10'}`}>
-                {cashFlowAverage >= 0 ? (
-                  <TrendingUp className="w-8 h-8 text-indigo-600" />
-                ) : (
-                  <TrendingDown className="w-8 h-8 text-red-600" />
-                )}
+                {cashFlowAverage >= 0 ? <TrendingUp className="w-8 h-8 text-indigo-600" /> : <TrendingDown className="w-8 h-8 text-red-600" />}
               </div>
               <div>
                 <p className={`text-sm font-medium ${cashFlowAverage >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>תזרים ממוצע</p>
@@ -400,20 +320,18 @@ export default function FinancialReflection({ userId }) {
                   <div key={month} className="space-y-2">
                     <Label className="text-slate-500 text-sm">חודש {month}</Label>
                     <Input
-                     type="number"
-                     value={incomeDisplays[`month${month}`] ?? ''}
-                     onChange={(e) => handleIncomeChange(`month${month}`, e.target.value)}
-                     placeholder="סכום"
-                     className="border-slate-200"
-                     disabled={isViewingOther && !isAdvisorOrAdmin}
-                     />
-                      </div>
-                      ))}
-                      </div>
+                      type="number"
+                      value={incomeDisplays[`month${month}`] ?? ''}
+                      onChange={(e) => handleIncomeChange(`month${month}`, e.target.value)}
+                      placeholder="סכום"
+                      className="border-slate-200"
+                      disabled={isViewingOther && !isAdvisorOrAdmin}
+                    />
+                  </div>
+                ))}
+              </div>
               <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200/50">
-                <p className="font-semibold text-emerald-700">
-                  ממוצע הכנסות: ₪{incomeAverage.toLocaleString()}
-                </p>
+                <p className="font-semibold text-emerald-700">ממוצע הכנסות: ₪{incomeAverage.toLocaleString()}</p>
               </div>
             </CardContent>
           </CollapsibleContent>
@@ -453,19 +371,15 @@ export default function FinancialReflection({ userId }) {
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
                           disabled={isViewingOther && !isAdvisorOrAdmin}
-                          />
-                          ))}
-                          <p className="text-sm font-semibold text-blue-600">
-                          ממוצע: ₪{avg.toLocaleString()}
-                      </p>
+                        />
+                      ))}
+                      <p className="text-sm font-semibold text-blue-600">ממוצע: ₪{avg.toLocaleString()}</p>
                     </div>
                   );
                 })}
               </div>
               <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/50">
-                <p className="font-semibold text-blue-700">
-                  סה״כ ממוצע הוצאות קבועות: ₪{fixedAverage.toLocaleString()}
-                </p>
+                <p className="font-semibold text-blue-700">סה״כ ממוצע הוצאות קבועות: ₪{fixedAverage.toLocaleString()}</p>
               </div>
             </CardContent>
           </CollapsibleContent>
@@ -505,26 +419,22 @@ export default function FinancialReflection({ userId }) {
                           placeholder={`חודש ${month}`}
                           className="border-slate-200"
                           disabled={isViewingOther && !isAdvisorOrAdmin}
-                          />
-                          ))}
-                          <p className="text-sm font-semibold text-purple-600">
-                          ממוצע: ₪{avg.toLocaleString()}
-                      </p>
+                        />
+                      ))}
+                      <p className="text-sm font-semibold text-purple-600">ממוצע: ₪{avg.toLocaleString()}</p>
                     </div>
                   );
                 })}
               </div>
               <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200/50">
-                <p className="font-semibold text-purple-700">
-                  סה״כ ממוצע יתרת הוצאות: ₪{variableAverage.toLocaleString()}
-                </p>
+                <p className="font-semibold text-purple-700">סה״כ ממוצע יתרת הוצאות: ₪{variableAverage.toLocaleString()}</p>
               </div>
             </CardContent>
           </CollapsibleContent>
         </Card>
       </Collapsible>
 
-      {/* Credit Card Total - info only, not included in calculations */}
+      {/* Credit Card Total */}
       <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
         <CardContent className="p-5">
           <div className="flex items-center gap-4">
@@ -540,10 +450,14 @@ export default function FinancialReflection({ userId }) {
                 onChange={(e) => {
                   const raw = e.target.value.replace(/[^0-9]/g, '');
                   const num = parseInt(raw, 10) || 0;
-                  creditCardRef.current = num;
                   setCreditCardTotal(num);
                   setCreditCardDisplay(raw);
-                  triggerAutoSave();
+                  triggerAutoSave({
+                    incomes,
+                    fixed_expenses: fixedExpenses,
+                    variable_expenses: variableExpenses,
+                    credit_card_total: num,
+                  });
                 }}
                 placeholder="₪ הזן סכום"
                 className="border-orange-200 focus-visible:ring-orange-400 text-left"
@@ -556,7 +470,7 @@ export default function FinancialReflection({ userId }) {
         </CardContent>
       </Card>
 
-      {/* Averages Bar Chart - bottom */}
+      {/* Averages Bar Chart */}
       {(incomeAverage > 0 || totalExpenseAverage > 0) && (
         <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm">
           <CardHeader>
@@ -569,26 +483,26 @@ export default function FinancialReflection({ userId }) {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={[
-              { name: 'ממוצע הכנסות', ערך: incomeAverage },
-              { name: 'ממוצע הוצאות', ערך: totalExpenseAverage },
-              { name: 'ממוצע תזרים', ערך: cashFlowAverage },
-            ]} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b' }} />
-              <YAxis tickFormatter={(v) => `₪${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <Tooltip formatter={(value) => [`₪${value.toLocaleString()}`, 'סכום']} contentStyle={{ direction: 'rtl', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-              <ReferenceLine y={0} stroke="#94a3b8" />
-              <Bar dataKey="ערך" radius={[6, 6, 0, 0]}>
-                {[
-                  { fill: '#10b981' },
-                  { fill: '#f43f5e' },
-                  { fill: cashFlowAverage >= 0 ? '#6366f1' : '#ef4444' },
-                ].map((entry, index) => (
-                  <Cell key={index} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
+              <BarChart data={[
+                { name: 'ממוצע הכנסות', ערך: incomeAverage },
+                { name: 'ממוצע הוצאות', ערך: totalExpenseAverage },
+                { name: 'ממוצע תזרים', ערך: cashFlowAverage },
+              ]} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b' }} />
+                <YAxis tickFormatter={(v) => `₪${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#64748b' }} />
+                <Tooltip formatter={(value) => [`₪${value.toLocaleString()}`, 'סכום']} contentStyle={{ direction: 'rtl', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                <ReferenceLine y={0} stroke="#94a3b8" />
+                <Bar dataKey="ערך" radius={[6, 6, 0, 0]}>
+                  {[
+                    { fill: '#10b981' },
+                    { fill: '#f43f5e' },
+                    { fill: cashFlowAverage >= 0 ? '#6366f1' : '#ef4444' },
+                  ].map((entry, index) => (
+                    <Cell key={index} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -598,16 +512,25 @@ export default function FinancialReflection({ userId }) {
         open={showPDFImportDialog}
         onOpenChange={setShowPDFImportDialog}
         onApply={(items) => {
+          let nextFixed = { ...fixedExpenses };
+          let nextVariable = { ...variableExpenses };
           items.forEach(item => {
-            const currentValue = item.type === 'fixed'
-              ? (fixedExpenses[item.category]?.[item.month] || 0)
-              : (variableExpenses[item.category]?.[item.month] || 0);
-            updateExpense(item.category, item.month, currentValue + item.amount, item.type);
+            if (item.type === 'fixed') {
+              nextFixed = { ...nextFixed, [item.category]: { ...(nextFixed[item.category] || {}), [item.month]: (nextFixed[item.category]?.[item.month] || 0) + item.amount } };
+            } else {
+              nextVariable = { ...nextVariable, [item.category]: { ...(nextVariable[item.category] || {}), [item.month]: (nextVariable[item.category]?.[item.month] || 0) + item.amount } };
+            }
+          });
+          setFixedExpenses(nextFixed);
+          setVariableExpenses(nextVariable);
+          saveMutation.mutate({
+            incomes,
+            fixed_expenses: nextFixed,
+            variable_expenses: nextVariable,
+            credit_card_total: creditCardTotal,
           });
         }}
       />
-
-
     </div>
   );
 }
