@@ -110,10 +110,34 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
+      // Step 1: Extract raw text/data from PDF
+      const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: {
+          type: 'object',
+          properties: {
+            transactions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  description: { type: 'string' },
+                  amount: { type: 'number' }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const rawTransactions = extracted?.output?.transactions || extracted?.output || [];
+      const transactionsText = Array.isArray(rawTransactions)
+        ? rawTransactions.map(t => `- ${t.description || t.name || JSON.stringify(t)}: ${t.amount || ''}`).join('\n')
+        : JSON.stringify(rawTransactions);
+
+      // Step 2: Classify with LLM
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: CLASSIFICATION_PROMPT,
-        file_urls: [file_url],
-        model: 'claude_sonnet_4_6',
+        prompt: CLASSIFICATION_PROMPT + `\n\n## רשימת העסקאות שחולצו מהקובץ:\n${transactionsText}\n\nסווג כל עסקה מהרשימה לעיל.`,
         response_json_schema: {
           type: 'object',
           properties: {
