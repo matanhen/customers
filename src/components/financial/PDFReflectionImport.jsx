@@ -109,8 +109,39 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
+      // First extract raw text/data from PDF (handles image-based PDFs too)
+      const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: {
+          type: 'object',
+          properties: {
+            rows: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  date: { type: 'string' },
+                  business: { type: 'string' },
+                  amount: { type: 'number' }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Build text from extracted rows to inject into prompt
+      let extractedText = '';
+      if (extracted?.status === 'success' && extracted?.output) {
+        const rows = extracted.output?.rows || (Array.isArray(extracted.output) ? extracted.output : []);
+        if (rows.length > 0) {
+          extractedText = '\n\n## נתונים שחולצו מהקובץ:\n' +
+            rows.map(r => `תאריך: ${r.date || ''} | בית עסק: ${r.business || ''} | סכום: ${r.amount || ''}`).join('\n');
+        }
+      }
+
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: CLASSIFICATION_PROMPT,
+        prompt: CLASSIFICATION_PROMPT + extractedText,
         file_urls: [file_url],
         model: 'claude_sonnet_4_6',
         response_json_schema: {
