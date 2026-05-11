@@ -19,7 +19,7 @@ export default function Landing() {
       const allowedUsers = await base44.entities.AllowedUser.filter({ email: email.trim().toLowerCase() });
 
       if (allowedUsers.length === 0) {
-        setError('הכניסה ללקוחות בלבד. האימייל שהזנת אינו רשום במערכת.');
+        setError('הכניסה למשתמשים רשומים בלבד. האימייל שהזנת אינו רשום במערכת.');
         setLoading(false);
         return;
       }
