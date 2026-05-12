@@ -75,7 +75,11 @@ export default function MonthlyPlanning({ userId }) {
 
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);
 
+  const prevMonthRef = React.useRef(null);
   useEffect(() => {
+    // Only reload when month changes or on first load — don't overwrite active edits
+    if (prevMonthRef.current === currentMonth && dataLoaded) return;
+    prevMonthRef.current = currentMonth;
     setDataLoaded(false);
     if (currentPlan) {
       setPlanData({
@@ -121,15 +125,7 @@ export default function MonthlyPlanning({ userId }) {
           data: { ...data, user_id: userId, month: currentMonth },
           recordId: currentPlanIdRef.current || null,
         });
-        // If this was a create, update the cache with the new id
-        if (response.data?.id && !currentPlanIdRef.current) {
-          currentPlanIdRef.current = response.data.id;
-          queryClient.setQueryData(
-            ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
-            (old = []) => [...old, { ...data, id: response.data.id, user_id: userId, month: currentMonth }]
-          );
-        }
-        return response.data;
+        return { ...response.data, month: currentMonth };
       }
       if (currentPlanIdRef.current) {
         return base44.entities.MonthlyPlan.update(currentPlanIdRef.current, data);
@@ -139,13 +135,20 @@ export default function MonthlyPlanning({ userId }) {
           user_id: userId,
           month: currentMonth,
         });
-        // Update cache so future saves use update not create
-        currentPlanIdRef.current = created.id;
+        return created;
+      }
+    },
+    onSuccess: (result) => {
+      if (result?.id) {
+        currentPlanIdRef.current = result.id;
         queryClient.setQueryData(
           ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
-          (old = []) => [...old, created]
+          (old = []) => {
+            const exists = old.find(p => p.id === result.id);
+            if (exists) return old.map(p => p.id === result.id ? { ...p, ...result } : p);
+            return [...old, result];
+          }
         );
-        return created;
       }
     },
   });

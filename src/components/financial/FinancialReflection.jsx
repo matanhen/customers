@@ -76,10 +76,11 @@ export default function FinancialReflection({ userId }) {
     refetchOnWindowFocus: false,
   });
 
-  // Load data from DB into state once
+  // Load data from DB into state only once (on first load, not after cache updates from saves)
   useEffect(() => {
     if (reflectionLoading) return;
-    
+    if (dataLoaded) return; // Don't overwrite user edits after initial load
+
     const inc = reflection?.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
     const fixed = reflection?.fixed_expenses || {};
     const variable = reflection?.variable_expenses || {};
@@ -126,8 +127,6 @@ export default function FinancialReflection({ userId }) {
           data: payload,
           recordId: reflectionIdRef.current || null,
         });
-        // Update the ref with the new id if this was a create
-        if (response.data?.id) reflectionIdRef.current = response.data.id;
         return response.data;
       }
 
@@ -135,8 +134,16 @@ export default function FinancialReflection({ userId }) {
         return base44.entities.FinancialReflection.update(reflectionIdRef.current, payload);
       }
       const created = await base44.entities.FinancialReflection.create(payload);
-      reflectionIdRef.current = created.id;
       return created;
+    },
+    onSuccess: (result) => {
+      if (result?.id) {
+        reflectionIdRef.current = result.id;
+        queryClient.setQueryData(
+          ['financialReflection', userId, currentUser?.id],
+          result
+        );
+      }
     },
   });
 

@@ -146,6 +146,15 @@ export default function PortfolioManager({ userId }) {
       settingsIdRef.current = created.id;
       return created;
     },
+    onSuccess: (result) => {
+      if (result?.id) {
+        settingsIdRef.current = result.id;
+        queryClient.setQueryData(
+          ['portfolioSettings', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+          result
+        );
+      }
+    },
   });
 
   const triggerSettingsAutoSave = (newSettings) => {

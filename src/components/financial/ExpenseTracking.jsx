@@ -204,14 +204,7 @@ export default function ExpenseTracking({ userId }) {
           data: { ...data, user_id: userId, month: currentMonth },
           recordId: currentTrackingIdRef.current || null,
         });
-        if (response.data?.id && !currentTrackingIdRef.current) {
-          currentTrackingIdRef.current = response.data.id;
-          queryClient.setQueryData(
-            ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
-            (old = []) => [...old, { ...data, id: response.data.id, user_id: userId, month: currentMonth }]
-          );
-        }
-        return response.data;
+        return { ...response.data, month: currentMonth };
       }
       if (currentTrackingIdRef.current) {
         return base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, data);
@@ -221,12 +214,20 @@ export default function ExpenseTracking({ userId }) {
           user_id: userId,
           month: currentMonth,
         });
-        currentTrackingIdRef.current = created.id;
+        return created;
+      }
+    },
+    onSuccess: (result) => {
+      if (result?.id) {
+        currentTrackingIdRef.current = result.id;
         queryClient.setQueryData(
           ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
-          (old = []) => [...old, created]
+          (old = []) => {
+            const exists = old.find(t => t.id === result.id);
+            if (exists) return old.map(t => t.id === result.id ? { ...t, ...result } : t);
+            return [...old, result];
+          }
         );
-        return created;
       }
     },
   });

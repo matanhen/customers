@@ -77,6 +77,7 @@ export default function AssetsManager({ userId }) {
   });
 
   useEffect(() => {
+    if (dataLoaded) return; // Don't overwrite user edits after initial load
     if (plan) {
       setAssets(plan.assets || {});
     } else {
@@ -99,13 +100,13 @@ export default function AssetsManager({ userId }) {
         assets: latestAssets,
       };
       if (isViewingOther && isAdvisorOrAdmin) {
-        await base44.functions.invoke('saveClientData', {
+        const response = await base44.functions.invoke('saveClientData', {
           entityName: 'FinancialPlan',
           clientUserId: userId,
           data,
           recordId: planIdRef.current || null
         });
-        return;
+        return response.data;
       }
       if (planIdRef.current) {
         return base44.entities.FinancialPlan.update(planIdRef.current, data);
@@ -113,6 +114,15 @@ export default function AssetsManager({ userId }) {
       const created = await base44.entities.FinancialPlan.create(data);
       planIdRef.current = created.id;
       return created;
+    },
+    onSuccess: (result) => {
+      if (result?.id) {
+        planIdRef.current = result.id;
+        queryClient.setQueryData(
+          ['financialPlan_assets', userId, currentUser?.id],
+          result
+        );
+      }
     },
   });
 
