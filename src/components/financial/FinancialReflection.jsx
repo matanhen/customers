@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   TrendingUp, TrendingDown, ChevronDown, ChevronUp,
-  DollarSign, Receipt, FileText
+  DollarSign, Receipt, FileText, Save, Check
 } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,6 +41,7 @@ export default function FinancialReflection({ userId }) {
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   
   const queryClient = useQueryClient();
   const autoSaveTimer = useRef(null);
@@ -233,7 +234,7 @@ export default function FinancialReflection({ userId }) {
   return (
     <div className="space-y-6">
       {(!isViewingOther || isAdvisorOrAdmin) && (
-        <div className="flex justify-end items-center">
+        <div className="flex justify-end items-center gap-3">
           <Button
             onClick={() => setShowPDFImportDialog(true)}
             variant="outline"
@@ -241,6 +242,26 @@ export default function FinancialReflection({ userId }) {
           >
             <FileText className="w-4 h-4 ml-2" />
             ייבוא מ-PDF
+          </Button>
+          <Button
+            onClick={() => {
+              saveMutation.mutate({
+                incomes,
+                fixed_expenses: fixedExpenses,
+                variable_expenses: variableExpenses,
+                credit_card_total: creditCardTotal,
+              }, {
+                onSuccess: () => {
+                  setSaveSuccess(true);
+                  setTimeout(() => setSaveSuccess(false), 2000);
+                }
+              });
+            }}
+            disabled={saveMutation.isPending}
+            className="bg-[#105330] hover:bg-[#0d4027] text-white"
+          >
+            {saveSuccess ? <Check className="w-4 h-4 ml-2" /> : <Save className="w-4 h-4 ml-2" />}
+            {saveMutation.isPending ? 'שומר...' : saveSuccess ? 'נשמר!' : 'שמור נתונים'}
           </Button>
         </div>
       )}
