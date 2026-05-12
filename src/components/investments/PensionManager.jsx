@@ -37,6 +37,8 @@ export default function PensionManager({ userId }) {
       return base44.entities.PensionData.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const getFundData = (gender, fundType) => {
@@ -63,15 +65,25 @@ export default function PensionManager({ userId }) {
           data: fullData,
           recordId: existing?.id || null,
         });
-        return response.data;
+        return { ...response.data, gender, fund_type: fundType };
       }
       if (existing) {
         return base44.entities.PensionData.update(existing.id, data);
       }
       return base44.entities.PensionData.create(fullData);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pensionData', userId, currentUser?.id] });
+    onSuccess: (result) => {
+      // Update cache without re-fetching (avoids overwriting in-progress edits)
+      if (result?.id) {
+        queryClient.setQueryData(
+          ['pensionData', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+          (old = []) => {
+            const exists = old.find(p => p.id === result.id);
+            if (exists) return old.map(p => p.id === result.id ? { ...p, ...result } : p);
+            return [...old, result];
+          }
+        );
+      }
     },
   });
 

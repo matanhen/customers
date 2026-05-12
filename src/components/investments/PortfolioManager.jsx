@@ -40,6 +40,9 @@ export default function PortfolioManager({ userId }) {
     uninvested_cash: 0,
     monthly_deposit: 0,
   });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const autoSaveTimer = React.useRef(null);
+  const settingsIdRef = React.useRef(null);
 
   const queryClient = useQueryClient();
 
@@ -78,15 +81,19 @@ export default function PortfolioManager({ userId }) {
       return results[0];
     },
     enabled: !!userId && !!currentUser,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
     if (settings) {
+      settingsIdRef.current = settings.id;
       setPortfolioSettings({
         uninvested_cash: settings.uninvested_cash || 0,
         monthly_deposit: settings.monthly_deposit || 0,
       });
     }
+    setSettingsLoaded(true);
   }, [settings]);
 
   const createInvestmentMutation = useMutation({
@@ -129,18 +136,25 @@ export default function PortfolioManager({ userId }) {
   const saveSettingsMutation = useMutation({
     mutationFn: async (data) => {
       if (isViewingOther && isAdvisorOrAdmin) {
-        const response = await base44.functions.invoke('saveClientData', { entityName: 'PortfolioSettings', clientUserId: userId, data: { ...data, user_id: userId }, recordId: settings?.id || null });
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'PortfolioSettings', clientUserId: userId, data: { ...data, user_id: userId }, recordId: settingsIdRef.current || null });
         return response.data;
       }
-      if (settings) {
-        return base44.entities.PortfolioSettings.update(settings.id, data);
+      if (settingsIdRef.current) {
+        return base44.entities.PortfolioSettings.update(settingsIdRef.current, data);
       }
-      return base44.entities.PortfolioSettings.create({ ...data, user_id: userId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['portfolioSettings', userId, currentUser?.id] });
+      const created = await base44.entities.PortfolioSettings.create({ ...data, user_id: userId });
+      settingsIdRef.current = created.id;
+      return created;
     },
   });
+
+  const triggerSettingsAutoSave = (newSettings) => {
+    if (!settingsLoaded) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveSettingsMutation.mutate(newSettings);
+    }, 1000);
+  };
 
   const totalValue = investments.reduce((sum, inv) => sum + (inv.quantity || 0) * (inv.current_price || 0), 0);
   const totalWithCash = totalValue + portfolioSettings.uninvested_cash;
@@ -243,8 +257,11 @@ export default function PortfolioManager({ userId }) {
                 <Input
                   type="number"
                   value={portfolioSettings.uninvested_cash || ''}
-                  onChange={(e) => setPortfolioSettings({ ...portfolioSettings, uninvested_cash: parseFloat(e.target.value) || 0 })}
-                  onBlur={() => saveSettingsMutation.mutate(portfolioSettings)}
+                  onChange={(e) => {
+                    const next = { ...portfolioSettings, uninvested_cash: parseFloat(e.target.value) || 0 };
+                    setPortfolioSettings(next);
+                    triggerSettingsAutoSave(next);
+                  }}
                   className="mt-1 text-lg font-bold border-emerald-200 bg-white/50"
                 />
               </div>
@@ -263,8 +280,11 @@ export default function PortfolioManager({ userId }) {
                 <Input
                   type="number"
                   value={portfolioSettings.monthly_deposit || ''}
-                  onChange={(e) => setPortfolioSettings({ ...portfolioSettings, monthly_deposit: parseFloat(e.target.value) || 0 })}
-                  onBlur={() => saveSettingsMutation.mutate(portfolioSettings)}
+                  onChange={(e) => {
+                    const next = { ...portfolioSettings, monthly_deposit: parseFloat(e.target.value) || 0 };
+                    setPortfolioSettings(next);
+                    triggerSettingsAutoSave(next);
+                  }}
                   className="mt-1 text-lg font-bold border-purple-200 bg-white/50"
                 />
               </div>

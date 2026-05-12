@@ -69,6 +69,8 @@ export default function MonthlyPlanning({ userId }) {
       return base44.entities.MonthlyPlan.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);
@@ -104,6 +106,12 @@ export default function MonthlyPlanning({ userId }) {
     setTimeout(() => setDataLoaded(true), 100);
   }, [currentPlan, monthlyPlans, currentMonth, currentDate]);
 
+  // Keep a ref to the current plan id so save always uses the latest value
+  const currentPlanIdRef = React.useRef(null);
+  useEffect(() => {
+    currentPlanIdRef.current = currentPlan?.id || null;
+  }, [currentPlan]);
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       if (isViewingOther && isAdvisorOrAdmin) {
@@ -111,22 +119,34 @@ export default function MonthlyPlanning({ userId }) {
           entityName: 'MonthlyPlan',
           clientUserId: userId,
           data: { ...data, user_id: userId, month: currentMonth },
-          recordId: currentPlan?.id || null,
+          recordId: currentPlanIdRef.current || null,
         });
+        // If this was a create, update the cache with the new id
+        if (response.data?.id && !currentPlanIdRef.current) {
+          currentPlanIdRef.current = response.data.id;
+          queryClient.setQueryData(
+            ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+            (old = []) => [...old, { ...data, id: response.data.id, user_id: userId, month: currentMonth }]
+          );
+        }
         return response.data;
       }
-      if (currentPlan) {
-        return base44.entities.MonthlyPlan.update(currentPlan.id, data);
+      if (currentPlanIdRef.current) {
+        return base44.entities.MonthlyPlan.update(currentPlanIdRef.current, data);
       } else {
-        return base44.entities.MonthlyPlan.create({
+        const created = await base44.entities.MonthlyPlan.create({
           ...data,
           user_id: userId,
           month: currentMonth,
         });
+        // Update cache so future saves use update not create
+        currentPlanIdRef.current = created.id;
+        queryClient.setQueryData(
+          ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+          (old = []) => [...old, created]
+        );
+        return created;
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['monthlyPlans', userId, currentUser?.id] });
     },
   });
 

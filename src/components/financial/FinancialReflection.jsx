@@ -73,6 +73,7 @@ export default function FinancialReflection({ userId }) {
     },
     enabled: !!userId && !!currentUser,
     staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   // Load data from DB into state once

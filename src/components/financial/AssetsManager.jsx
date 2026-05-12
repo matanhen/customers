@@ -72,6 +72,8 @@ export default function AssetsManager({ userId }) {
       return results[0];
     },
     enabled: !!userId && !!currentUser,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -83,37 +85,42 @@ export default function AssetsManager({ userId }) {
     setDataLoaded(true);
   }, [plan]);
 
+  // Keep a ref to current plan id so mutations always have latest value
+  const planIdRef = React.useRef(null);
+  useEffect(() => {
+    planIdRef.current = plan?.id || null;
+  }, [plan]);
+
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (latestAssets) => {
       const data = {
         user_id: userId,
         plan_type: 'reflection_assets',
-        assets,
+        assets: latestAssets,
       };
       if (isViewingOther && isAdvisorOrAdmin) {
         await base44.functions.invoke('saveClientData', {
           entityName: 'FinancialPlan',
           clientUserId: userId,
           data,
-          recordId: plan?.id || null
+          recordId: planIdRef.current || null
         });
         return;
       }
-      if (plan) {
-        return base44.entities.FinancialPlan.update(plan.id, data);
+      if (planIdRef.current) {
+        return base44.entities.FinancialPlan.update(planIdRef.current, data);
       }
-      return base44.entities.FinancialPlan.create(data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financialPlan_assets', userId, currentUser?.id] });
+      const created = await base44.entities.FinancialPlan.create(data);
+      planIdRef.current = created.id;
+      return created;
     },
   });
 
-  const triggerAutoSave = () => {
+  const triggerAutoSave = (latestAssets) => {
     if (!dataLoaded) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      saveMutation.mutate();
+      saveMutation.mutate(latestAssets);
     }, 1500);
   };
 
@@ -122,17 +129,20 @@ export default function AssetsManager({ userId }) {
   };
 
   const updateAsset = (category, item, field, value) => {
-    setAssets(prev => ({
-      ...prev,
-      [category]: {
-        ...(prev[category] || {}),
-        [item]: {
-          ...(prev[category]?.[item] || {}),
-          [field]: parseFloat(value) || 0
+    setAssets(prev => {
+      const next = {
+        ...prev,
+        [category]: {
+          ...(prev[category] || {}),
+          [item]: {
+            ...(prev[category]?.[item] || {}),
+            [field]: parseFloat(value) || 0
+          }
         }
-      }
-    }));
-    triggerAutoSave();
+      };
+      triggerAutoSave(next);
+      return next;
+    });
   };
 
   const calculateCategoryTotal = (catKey) => {

@@ -124,6 +124,8 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.ExpenseTracking.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
@@ -149,7 +151,8 @@ export default function ExpenseTracking({ userId }) {
   const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
   const prevTracking = allTracking.find(t => t.month === prevMonth);
 
-  const lastLoadedMonthRef = useRef(null);
+  const lastLoadedMonthRef = React.useRef(null);
+  const dataLoadedRef = React.useRef(false);
 
   useEffect(() => {
     // Only reload from DB when the month changes or data first arrives – don't overwrite user edits
@@ -157,6 +160,7 @@ export default function ExpenseTracking({ userId }) {
 
     if (currentTracking) {
       lastLoadedMonthRef.current = currentMonth;
+      dataLoadedRef.current = false;
       setTrackingData({
         actual_income: currentTracking.actual_income || 0,
         fixed_expenses: currentTracking.fixed_expenses || {},
@@ -164,9 +168,11 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: currentTracking.custom_expenses || [],
         freedom_transfer_done: currentTracking.freedom_transfer_done || false
       });
+      setTimeout(() => { dataLoadedRef.current = true; }, 200);
     } else if (!trackingLoading && allTracking !== undefined) {
       // No current month tracking exists - start fresh with zeros
       lastLoadedMonthRef.current = currentMonth;
+      dataLoadedRef.current = false;
       setTrackingData({
         actual_income: 0,
         fixed_expenses: {},
@@ -174,6 +180,7 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: [],
         freedom_transfer_done: false
       });
+      setTimeout(() => { dataLoadedRef.current = true; }, 200);
     }
   }, [currentTracking, prevTracking, currentMonth]);
 
@@ -182,6 +189,12 @@ export default function ExpenseTracking({ userId }) {
     lastLoadedMonthRef.current = null;
   }, [currentMonth]);
 
+  // Keep a ref to current tracking id to avoid stale closures
+  const currentTrackingIdRef = React.useRef(null);
+  useEffect(() => {
+    currentTrackingIdRef.current = currentTracking?.id || null;
+  }, [currentTracking]);
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       if (isViewingOther && isAdvisorOrAdmin) {
@@ -189,35 +202,38 @@ export default function ExpenseTracking({ userId }) {
           entityName: 'ExpenseTracking',
           clientUserId: userId,
           data: { ...data, user_id: userId, month: currentMonth },
-          recordId: currentTracking?.id || null,
+          recordId: currentTrackingIdRef.current || null,
         });
+        if (response.data?.id && !currentTrackingIdRef.current) {
+          currentTrackingIdRef.current = response.data.id;
+          queryClient.setQueryData(
+            ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+            (old = []) => [...old, { ...data, id: response.data.id, user_id: userId, month: currentMonth }]
+          );
+        }
         return response.data;
       }
-      if (currentTracking) {
-        return base44.entities.ExpenseTracking.update(currentTracking.id, data);
+      if (currentTrackingIdRef.current) {
+        return base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, data);
       } else {
-        return base44.entities.ExpenseTracking.create({
+        const created = await base44.entities.ExpenseTracking.create({
           ...data,
           user_id: userId,
           month: currentMonth,
         });
+        currentTrackingIdRef.current = created.id;
+        queryClient.setQueryData(
+          ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+          (old = []) => [...old, created]
+        );
+        return created;
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenseTracking', userId, currentUser?.id] });
     },
   });
 
     // Auto-save when trackingData changes
     useEffect(() => {
-      // Don't save empty/default data on first render
-      const hasData = trackingData.actual_income > 0 ||
-        Object.values(trackingData.fixed_expenses).some(v => v > 0) ||
-        Object.values(trackingData.variable_expenses).some(v => v > 0) ||
-        trackingData.custom_expenses.length > 0 ||
-        trackingData.freedom_transfer_done;
-
-      if (!hasData) return;
+      if (!dataLoadedRef.current) return;
 
       const timeoutId = setTimeout(() => {
         saveMutation.mutate(trackingData);
