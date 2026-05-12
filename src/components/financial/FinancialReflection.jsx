@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -127,6 +128,7 @@ export default function FinancialReflection({ userId }) {
           data: payload,
           recordId: reflectionIdRef.current || null,
         });
+        if (response.data?.id) reflectionIdRef.current = response.data.id;
         return response.data;
       }
 
@@ -134,16 +136,8 @@ export default function FinancialReflection({ userId }) {
         return base44.entities.FinancialReflection.update(reflectionIdRef.current, payload);
       }
       const created = await base44.entities.FinancialReflection.create(payload);
+      reflectionIdRef.current = created.id;
       return created;
-    },
-    onSuccess: (result) => {
-      if (result?.id) {
-        reflectionIdRef.current = result.id;
-        queryClient.setQueryData(
-          ['financialReflection', userId, currentUser?.id],
-          result
-        );
-      }
     },
   });
 

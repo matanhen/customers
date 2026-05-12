@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins } from 'lucide-react';
@@ -106,6 +107,7 @@ export default function AssetsManager({ userId }) {
           data,
           recordId: planIdRef.current || null
         });
+        if (response.data?.id) planIdRef.current = response.data.id;
         return response.data;
       }
       if (planIdRef.current) {
@@ -114,15 +116,6 @@ export default function AssetsManager({ userId }) {
       const created = await base44.entities.FinancialPlan.create(data);
       planIdRef.current = created.id;
       return created;
-    },
-    onSuccess: (result) => {
-      if (result?.id) {
-        planIdRef.current = result.id;
-        queryClient.setQueryData(
-          ['financialPlan_assets', userId, currentUser?.id],
-          result
-        );
-      }
     },
   });
 

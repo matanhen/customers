@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, subMonths } from 'date-fns';
@@ -125,7 +126,8 @@ export default function MonthlyPlanning({ userId }) {
           data: { ...data, user_id: userId, month: currentMonth },
           recordId: currentPlanIdRef.current || null,
         });
-        return { ...response.data, month: currentMonth };
+        if (response.data?.id) currentPlanIdRef.current = response.data.id;
+        return response.data;
       }
       if (currentPlanIdRef.current) {
         return base44.entities.MonthlyPlan.update(currentPlanIdRef.current, data);
@@ -135,20 +137,8 @@ export default function MonthlyPlanning({ userId }) {
           user_id: userId,
           month: currentMonth,
         });
+        currentPlanIdRef.current = created.id;
         return created;
-      }
-    },
-    onSuccess: (result) => {
-      if (result?.id) {
-        currentPlanIdRef.current = result.id;
-        queryClient.setQueryData(
-          ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
-          (old = []) => {
-            const exists = old.find(p => p.id === result.id);
-            if (exists) return old.map(p => p.id === result.id ? { ...p, ...result } : p);
-            return [...old, result];
-          }
-        );
       }
     },
   });

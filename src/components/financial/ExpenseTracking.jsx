@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subMonths } from 'date-fns';
@@ -204,7 +205,8 @@ export default function ExpenseTracking({ userId }) {
           data: { ...data, user_id: userId, month: currentMonth },
           recordId: currentTrackingIdRef.current || null,
         });
-        return { ...response.data, month: currentMonth };
+        if (response.data?.id) currentTrackingIdRef.current = response.data.id;
+        return response.data;
       }
       if (currentTrackingIdRef.current) {
         return base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, data);
@@ -214,20 +216,8 @@ export default function ExpenseTracking({ userId }) {
           user_id: userId,
           month: currentMonth,
         });
+        currentTrackingIdRef.current = created.id;
         return created;
-      }
-    },
-    onSuccess: (result) => {
-      if (result?.id) {
-        currentTrackingIdRef.current = result.id;
-        queryClient.setQueryData(
-          ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
-          (old = []) => {
-            const exists = old.find(t => t.id === result.id);
-            if (exists) return old.map(t => t.id === result.id ? { ...t, ...result } : t);
-            return [...old, result];
-          }
-        );
       }
     },
   });
