@@ -43,10 +43,16 @@ export default function FinancialReflection({ userId }) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Reset dataLoaded when userId changes so fresh data loads
+  // Reset dataLoaded when userId changes (e.g. advisor switching clients)
+  const prevUserIdRef = useRef(userId);
   useEffect(() => {
-    setDataLoaded(false);
+    if (prevUserIdRef.current !== userId) {
+      prevUserIdRef.current = userId;
+      setDataLoaded(false);
+    }
   }, [userId]);
+
+
   
   const queryClient = useQueryClient();
   const autoSaveTimer = useRef(null);
@@ -64,9 +70,12 @@ export default function FinancialReflection({ userId }) {
   })();
 
   const { data: reflection, isLoading: reflectionLoading } = useQuery({
-    queryKey: ['financialReflection', userId, currentUser?.id],
+    queryKey: ['financialReflection', userId],
     queryFn: async () => {
-      if (isViewingOther && isAdvisorOrAdmin) {
+      const me = await base44.auth.me();
+      const isMeAdvisorOrAdmin = me?.user_type === 'advisor' || me?.user_type === 'admin';
+      const isMeViewingOther = !!me && me.id !== userId;
+      if (isMeViewingOther && isMeAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
           clientUserId: userId,
           clientEmail: viewingClientEmail,
@@ -77,15 +86,15 @@ export default function FinancialReflection({ userId }) {
       const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
       return results[0] || null;
     },
-    enabled: !!userId && !!currentUser,
+    enabled: !!userId,
     staleTime: 0,
     refetchOnWindowFocus: false,
   });
 
-  // Load data from DB into state only once (on first load, not after cache updates from saves)
+  // Load data from DB into state on initial load and when userId changes
   useEffect(() => {
     if (reflectionLoading) return;
-    if (dataLoaded) return; // Don't overwrite user edits after initial load
+    if (dataLoaded) return;
 
     const inc = reflection?.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
     const fixed = reflection?.fixed_expenses || {};
@@ -147,11 +156,7 @@ export default function FinancialReflection({ userId }) {
     onSuccess: (savedRecord) => {
       if (savedRecord?.id) {
         reflectionIdRef.current = savedRecord.id;
-        // Update the query cache so next page visit loads fresh data
-        queryClient.setQueryData(
-          ['financialReflection', userId, currentUser?.id],
-          savedRecord
-        );
+        queryClient.setQueryData(['financialReflection', userId], savedRecord);
       }
     },
   });

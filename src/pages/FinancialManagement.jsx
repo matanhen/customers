@@ -135,10 +135,10 @@ export default function FinancialManagement() {
               מעקב חודשי
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="planning" className="mt-0">
+          <TabsContent value="planning" className="mt-0" forceMount hidden={activeTab !== 'planning'}>
             <MonthlyPlanning userId={effectiveUserId} />
           </TabsContent>
-          <TabsContent value="tracking" className="mt-0">
+          <TabsContent value="tracking" className="mt-0" forceMount hidden={activeTab !== 'tracking'}>
             <ExpenseTracking userId={effectiveUserId} />
           </TabsContent>
         </Tabs>
@@ -188,16 +188,16 @@ export default function FinancialManagement() {
               פנסיוני
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="reflection" className="mt-0">
+          <TabsContent value="reflection" className="mt-0" forceMount hidden={activeTab !== 'reflection'}>
             <FinancialReflection userId={effectiveUserId} />
           </TabsContent>
-          <TabsContent value="debts" className="mt-0">
+          <TabsContent value="debts" className="mt-0" forceMount hidden={activeTab !== 'debts'}>
             <DebtManager userId={effectiveUserId} />
           </TabsContent>
-          <TabsContent value="assets" className="mt-0">
+          <TabsContent value="assets" className="mt-0" forceMount hidden={activeTab !== 'assets'}>
             <AssetsManager userId={effectiveUserId} />
           </TabsContent>
-          <TabsContent value="pension" className="mt-0">
+          <TabsContent value="pension" className="mt-0" forceMount hidden={activeTab !== 'pension'}>
             <PensionManager userId={effectiveUserId} />
           </TabsContent>
         </Tabs>
