@@ -56,7 +56,7 @@ export default function MonthlyPlanning({ userId }) {
   }, [userId]);
 
   const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
-    queryKey: ['monthlyPlans', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
+    queryKey: ['monthlyPlans', userId, currentUser?.id, String(isViewingOther), String(isAdvisorOrAdmin)],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
@@ -139,6 +139,9 @@ export default function MonthlyPlanning({ userId }) {
         currentPlanIdRef.current = created.id;
         return created;
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyPlans', userId] });
     },
   });
 
