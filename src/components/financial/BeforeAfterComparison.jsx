@@ -63,29 +63,23 @@ export default function BeforeAfterComparison({ userId }) {
     if (!reflection) return { income: 0, fixedExpenses: 0, variableExpenses: 0 };
 
     const incomes = reflection.incomes || {};
-    const incomeValues = Object.values(incomes).map(v => v || 0);
-    const incomeAvg = incomeValues.length > 0 
-      ? Math.round(incomeValues.reduce((a, b) => a + b, 0) / incomeValues.length)
-      : 0;
+    const incomeSum = ['month1','month2','month3','month4','month5','month6'].reduce((s, m) => s + (incomes[m] || 0), 0);
+    const incomeAvg = Math.round(incomeSum / 6);
 
     let fixedTotal = 0;
     let variableTotal = 0;
 
     if (reflection.fixed_expenses) {
       Object.values(reflection.fixed_expenses).forEach(category => {
-        const vals = Object.values(category || {}).map(v => v || 0);
-        if (vals.length > 0) {
-          fixedTotal += vals.reduce((a, b) => a + b, 0) / vals.length;
-        }
+        const sum = ['month1','month2','month3'].reduce((s, m) => s + (category?.[m] || 0), 0);
+        fixedTotal += sum / 3;
       });
     }
 
     if (reflection.variable_expenses) {
       Object.values(reflection.variable_expenses).forEach(category => {
-        const vals = Object.values(category || {}).map(v => v || 0);
-        if (vals.length > 0) {
-          variableTotal += vals.reduce((a, b) => a + b, 0) / vals.length;
-        }
+        const sum = ['month1','month2','month3'].reduce((s, m) => s + (category?.[m] || 0), 0);
+        variableTotal += sum / 3;
       });
     }
 
