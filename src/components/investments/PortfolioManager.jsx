@@ -105,7 +105,7 @@ export default function PortfolioManager({ userId }) {
       return base44.entities.Investment.create({ ...data, user_id: userId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investments', userId, currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ['investments', userId] });
       setShowAddStock(false);
       setNewStock({ name: '', quantity: 0, current_price: 0, target_percentage: 0 });
     },
@@ -113,22 +113,34 @@ export default function PortfolioManager({ userId }) {
 
   const updateInvestmentMutation = useMutation({
     mutationFn: async ({ id, data }) => {
+      const cleanData = {
+        name: data.name,
+        quantity: data.quantity,
+        current_price: data.current_price,
+        target_percentage: data.target_percentage,
+      };
       if (isViewingOther && isAdvisorOrAdmin) {
-        const response = await base44.functions.invoke('saveClientData', { entityName: 'Investment', clientUserId: userId, data: { ...data, user_id: userId }, recordId: id });
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'Investment', clientUserId: userId, data: { ...cleanData, user_id: userId }, recordId: id });
         return response.data;
       }
-      return base44.entities.Investment.update(id, data);
+      return base44.entities.Investment.update(id, cleanData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investments', userId, currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ['investments', userId] });
       setEditingStock(null);
     },
   });
 
   const deleteInvestmentMutation = useMutation({
-    mutationFn: (id) => base44.entities.Investment.delete(id),
+    mutationFn: async (id) => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', { entityName: 'Investment', clientUserId: userId, data: null, recordId: id, action: 'delete' });
+        return response.data;
+      }
+      return base44.entities.Investment.delete(id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investments', userId, currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ['investments', userId] });
       setStockToDelete(null);
     },
   });
