@@ -42,6 +42,11 @@ export default function FinancialReflection({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Reset dataLoaded when userId changes so fresh data loads
+  useEffect(() => {
+    setDataLoaded(false);
+  }, [userId]);
   
   const queryClient = useQueryClient();
   const autoSaveTimer = useRef(null);
@@ -73,7 +78,7 @@ export default function FinancialReflection({ userId }) {
       return results[0] || null;
     },
     enabled: !!userId && !!currentUser,
-    staleTime: Infinity,
+    staleTime: 0,
     refetchOnWindowFocus: false,
   });
 
@@ -138,6 +143,16 @@ export default function FinancialReflection({ userId }) {
       const created = await base44.entities.FinancialReflection.create(payload);
       reflectionIdRef.current = created.id;
       return created;
+    },
+    onSuccess: (savedRecord) => {
+      if (savedRecord?.id) {
+        reflectionIdRef.current = savedRecord.id;
+        // Update the query cache so next page visit loads fresh data
+        queryClient.setQueryData(
+          ['financialReflection', userId, currentUser?.id],
+          savedRecord
+        );
+      }
     },
   });
 
