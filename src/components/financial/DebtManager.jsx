@@ -66,6 +66,8 @@ export default function DebtManager({ userId }) {
     enabled: !!userId && !!currentUser,
   });
 
+  const debtsQueryKey = ['debts', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin];
+
   const createMutation = useMutation({
     mutationFn: async (data) => {
       if (isViewingOther && isAdvisorOrAdmin) {
@@ -78,6 +80,16 @@ export default function DebtManager({ userId }) {
         return response.data;
       }
       return base44.entities.Debt.create({ ...data, user_id: userId });
+    },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: debtsQueryKey });
+      const previous = queryClient.getQueryData(debtsQueryKey);
+      const optimistic = { ...data, user_id: userId, id: `temp-${Date.now()}` };
+      queryClient.setQueryData(debtsQueryKey, (old = []) => [...old, optimistic]);
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(debtsQueryKey, ctx.previous);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts', userId, currentUser?.id] });
@@ -99,6 +111,17 @@ export default function DebtManager({ userId }) {
       }
       return base44.entities.Debt.update(id, data);
     },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: debtsQueryKey });
+      const previous = queryClient.getQueryData(debtsQueryKey);
+      queryClient.setQueryData(debtsQueryKey, (old = []) =>
+        old.map(d => d.id === id ? { ...d, ...data } : d)
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(debtsQueryKey, ctx.previous);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts', userId, currentUser?.id] });
       resetForm();
@@ -108,13 +131,15 @@ export default function DebtManager({ userId }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      if (isViewingOther && isAdvisorOrAdmin) {
-        // For delete, use service role via saveClientData won't work - use direct delete
-        // Advisors/admins can delete client's debts directly since they have elevated access
-        return base44.entities.Debt.delete(id);
-      }
-      return base44.entities.Debt.delete(id);
+    mutationFn: async (id) => base44.entities.Debt.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: debtsQueryKey });
+      const previous = queryClient.getQueryData(debtsQueryKey);
+      queryClient.setQueryData(debtsQueryKey, (old = []) => old.filter(d => d.id !== id));
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(debtsQueryKey, ctx.previous);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts', userId, currentUser?.id] });

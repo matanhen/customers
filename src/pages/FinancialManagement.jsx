@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useQueryClient } from '@tanstack/react-query';
+import PullToRefresh from '../components/PullToRefresh';
 import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2, Landmark } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
@@ -38,9 +40,9 @@ const SECTIONS = [
 export default function FinancialManagement() {
   const [user, setUser] = useState(null);
   const [viewingClientId, setViewingClientId] = useState(null);
-
   const [activeSection, setActiveSection] = useState(null);
   const [activeTab, setActiveTab] = useState('planning');
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     loadUser();
@@ -61,6 +63,10 @@ export default function FinancialManagement() {
 
   const effectiveUserId = viewingClientId || user?.id;
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries();
+  }, [queryClient]);
+
   const handleSelectSection = (key) => {
     setActiveSection(key);
     if (key === 'monthly') setActiveTab('planning');
@@ -74,6 +80,7 @@ export default function FinancialManagement() {
   // Landing: section selection
   if (!activeSection) {
     return (
+      <PullToRefresh onRefresh={handleRefresh}>
       <div className="max-w-6xl mx-auto" dir="rtl">
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-[#105330] mb-2">התנהלות כלכלית</h1>
@@ -104,6 +111,7 @@ export default function FinancialManagement() {
           })}
         </div>
       </div>
+      </PullToRefresh>
     );
   }
 

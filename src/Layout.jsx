@@ -5,7 +5,7 @@ import { createPageUrl } from './utils/index.ts';
 import { base44 } from '@/api/base44Client';
 import { 
         Home, TrendingUp, PiggyBank, Target, Calendar,
-        Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save, GraduationCap, BookOpen, Trash2, AlertTriangle
+        Menu, X, LogOut, Users, UserCog, ChevronRight, ChevronLeft, User, Settings, Save, GraduationCap, BookOpen, Trash2, AlertTriangle
       } from 'lucide-react';
 import FinancialAdvisor from './components/chat/FinancialAdvisor';
 import MobileNav from './components/MobileNav';
@@ -317,8 +317,18 @@ export default function Layout({ children }) {
         <div className="max-w-7xl mx-auto">
           {/* Main Nav Row */}
           <div className="flex items-center justify-between px-4 lg:px-8 py-3">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
+            {/* Logo / Back Button (mobile) */}
+            <div className="flex items-center gap-2">
+              {/* Back button: mobile only, shown when not at root */}
+              {location.pathname !== '/' && location.pathname !== '/Home' && (
+                <button
+                  onClick={goBack}
+                  className="lg:hidden p-2 text-white hover:bg-white/10 rounded-xl"
+                  aria-label="חזרה"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              )}
               <h1 className="text-xl lg:text-2xl font-bold text-white">
                 צעירים מתעשרים
               </h1>

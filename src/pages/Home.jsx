@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
+import PullToRefresh from '../components/PullToRefresh';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,6 +40,7 @@ export default function Home() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [viewingClientId, setViewingClientId] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(prevMonthKey());
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     loadUser();
@@ -158,7 +160,16 @@ export default function Home() {
 
   const hasData = incomeVsExpensesData.length > 0 || totalAssets > 0 || totalDebts > 0;
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['monthlyPlans', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['expenseTrackings', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['debts', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['pensionData', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['reflectionPlan', effectiveUserId] });
+  }, [queryClient, effectiveUserId]);
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="max-w-6xl mx-auto">
       {/* Hero */}
       <div className="relative mb-10 rounded-3xl overflow-hidden">
@@ -334,5 +345,6 @@ export default function Home() {
         />
       )}
     </div>
+    </PullToRefresh>
   );
 }
