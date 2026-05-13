@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
-import { createPageUrl } from './utils';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { createPageUrl } from './utils/index.ts';
 import { base44 } from '@/api/base44Client';
 import { 
         Home, TrendingUp, PiggyBank, Target, Calendar,
