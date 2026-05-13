@@ -683,7 +683,7 @@ ${conversationHistory}
           shadow-2xl border border-gray-200 flex flex-col overflow-hidden
           z-50 sm:z-auto
           "
-          style={{ height: undefined, maxHeight: 'calc(100vh - 200px)' }}
+          style={{ height: '100%', maxHeight: 'calc(100dvh - 0px)' }}
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-[#105330] to-[#1a7a4a] p-4 flex items-center justify-between flex-shrink-0">
@@ -709,7 +709,7 @@ ${conversationHistory}
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 sm:min-h-[380px]" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 sm:min-h-[380px] min-h-0" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                 {msg.role === 'assistant' && (
