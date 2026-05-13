@@ -91,6 +91,10 @@ export default function ClientAppointments({ user, isAdvisor = false }) {
       // Mark slot as booked
       await base44.entities.AvailabilitySlot.update(slot.id, { is_booked: true });
 
+      // Send calendar invites to both advisor and client (non-blocking)
+      base44.functions.invoke('sendAppointmentInvite', { appointmentId: appointment.id })
+        .catch(err => console.error('Failed to send calendar invite:', err));
+
       return appointment;
     },
     onSuccess: () => {
@@ -394,8 +398,14 @@ export default function ClientAppointments({ user, isAdvisor = false }) {
                   )}
                 </div>
               </div>
-              <p className="text-sm text-slate-600">
-                שים לב: ניתן לבטל פגישה עד 24 שעות לפני מועדה. ביטול מתחת ל-24 שעות יחשב כפגישה שהתקיימה.
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2">
+                <span className="text-lg">📅</span>
+                <p className="text-sm text-emerald-800">
+                  לאחר האישור, ישלח זימון ביומן (.ics) לאימייל שלך ולאימייל היועץ — לחיצה עליו תוסיף את הפגישה ישירות ל-Google Calendar / Outlook.
+                </p>
+              </div>
+              <p className="text-xs text-slate-500">
+                ניתן לבטל פגישה עד 24 שעות לפני מועדה. ביטול מתחת ל-24 שעות יחשב כפגישה שהתקיימה.
               </p>
             </div>
           )}
