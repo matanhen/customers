@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile native feel */
+body {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe area support for notch/home indicator */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Touch targets */
+button, a, [role="button"], input, select, textarea {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  min-height: 44px;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 
 /* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { createPageUrl } from './utils/index.ts';
 import { base44 } from '@/api/base44Client';
 import { 
         Home, TrendingUp, PiggyBank, Target, Calendar,
-        Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save, GraduationCap, BookOpen
+        Menu, X, LogOut, Users, UserCog, ChevronRight, User, Settings, Save, GraduationCap, BookOpen, Trash2, AlertTriangle
       } from 'lucide-react';
 import FinancialAdvisor from './components/chat/FinancialAdvisor';
+import MobileNav from './components/MobileNav';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -23,6 +25,17 @@ export default function Layout({ children }) {
   const [saving, setSaving] = useState(false);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteConfirmStep, setDeleteConfirmStep] = useState(0); // 0=hidden, 1=first confirm, 2=second confirm
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  // Dark mode detection
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = (e) => document.documentElement.classList.toggle('dark', e.matches);
+    apply(mq);
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
 
   useEffect(() => {
     // Always load viewingClient from sessionStorage
@@ -165,6 +178,23 @@ export default function Layout({ children }) {
     sessionStorage.removeItem('currentUser');
     sessionStorage.removeItem('lastLoginUpdate');
     base44.auth.logout();
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmStep < 2) {
+      setDeleteConfirmStep(s => s + 1);
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      await base44.entities.User.delete(user.id);
+      sessionStorage.clear();
+      base44.auth.logout();
+    } catch (e) {
+      console.error('Failed to delete account', e);
+      setDeletingAccount(false);
+      setDeleteConfirmStep(0);
+    }
   };
 
   const exitClientView = () => {
@@ -387,6 +417,41 @@ export default function Layout({ children }) {
                         <Save className="w-4 h-4 ml-2" />
                         {saving ? 'שומר...' : 'שמור שינויים'}
                       </Button>
+
+                      <div className="border-t border-red-100 pt-4 mt-2">
+                        {deleteConfirmStep === 0 && (
+                          <button
+                            onClick={() => setDeleteConfirmStep(1)}
+                            className="w-full text-red-500 text-sm flex items-center justify-center gap-2 py-2 hover:text-red-700 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            מחיקת חשבון
+                          </button>
+                        )}
+                        {deleteConfirmStep === 1 && (
+                          <div className="bg-red-50 rounded-xl p-3 text-center space-y-2">
+                            <div className="flex items-center justify-center gap-2 text-red-600 font-semibold text-sm">
+                              <AlertTriangle className="w-4 h-4" />
+                              האם אתה בטוח שרוצה למחוק את החשבון?
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => setDeleteConfirmStep(0)} className="flex-1 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm">ביטול</button>
+                              <button onClick={handleDeleteAccount} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold">כן, המשך</button>
+                            </div>
+                          </div>
+                        )}
+                        {deleteConfirmStep === 2 && (
+                          <div className="bg-red-100 rounded-xl p-3 text-center space-y-2">
+                            <div className="text-red-700 font-bold text-sm">⚠️ פעולה בלתי הפיכה! כל הנתונים יימחקו לצמיתות.</div>
+                            <div className="flex gap-2">
+                              <button onClick={() => setDeleteConfirmStep(0)} className="flex-1 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm">ביטול</button>
+                              <button onClick={handleDeleteAccount} disabled={deletingAccount} className="flex-1 py-2 rounded-lg bg-red-700 text-white text-sm font-bold">
+                                {deletingAccount ? 'מוחק...' : 'מחק לצמיתות'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -496,11 +561,24 @@ export default function Layout({ children }) {
       </header>
 
       {/* Main Content */}
-      <main className={`${viewingClient ? 'pt-28' : 'pt-20'} min-h-screen`}>
+      <main className={`${viewingClient ? 'pt-28' : 'pt-20'} min-h-screen pb-16 lg:pb-0`}>
         <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-          {children || <Outlet />}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.18 }}
+            >
+              {children || <Outlet />}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
+
+      {/* Mobile Bottom Nav */}
+      <MobileNav />
 
       {/* Floating AI Financial Advisor */}
       <FinancialAdvisor />
