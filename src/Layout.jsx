@@ -24,19 +24,19 @@ export default function Layout({ children, currentPageName }) {
 
   useEffect(() => {
     // Always load viewingClient from sessionStorage
-    const clientData = sessionStorage.getItem('viewingClient');
-    if (clientData) {
-      try {
+    try {
+      const clientData = sessionStorage.getItem('viewingClient');
+      if (clientData) {
         setViewingClient(JSON.parse(clientData));
-      } catch (e) {
-        sessionStorage.removeItem('viewingClient');
       }
+    } catch (e) {
+      sessionStorage.removeItem('viewingClient');
     }
 
     // Check cache first
-    const cachedUser = sessionStorage.getItem('currentUser');
-    if (cachedUser) {
-      try {
+    try {
+      const cachedUser = sessionStorage.getItem('currentUser');
+      if (cachedUser) {
         const parsed = JSON.parse(cachedUser);
         // Use cached user if less than 5 minutes old
         if (Date.now() - parsed.timestamp < 5 * 60 * 1000) {
@@ -45,9 +45,9 @@ export default function Layout({ children, currentPageName }) {
           setIsLoading(false);
           return;
         }
-      } catch (e) {
-        sessionStorage.removeItem('currentUser');
       }
+    } catch (e) {
+      sessionStorage.removeItem('currentUser');
     }
 
     loadUser();
@@ -58,41 +58,47 @@ export default function Layout({ children, currentPageName }) {
       let currentUser = await base44.auth.me();
       
       // Update last login date only once per session
-      const lastUpdate = sessionStorage.getItem('lastLoginUpdate');
-      if (!lastUpdate || Date.now() - parseInt(lastUpdate) > 60 * 60 * 1000) {
-        try {
+      try {
+        const lastUpdate = sessionStorage.getItem('lastLoginUpdate');
+        if (!lastUpdate || Date.now() - parseInt(lastUpdate) > 60 * 60 * 1000) {
           await base44.entities.User.update(currentUser.id, { 
             last_login_date: new Date().toISOString() 
           });
           sessionStorage.setItem('lastLoginUpdate', Date.now().toString());
-        } catch (e) {
-          console.log('Failed to update last login date', e);
         }
-      }
+      } catch (e) { /* non-critical */ }
       
-      // Check AllowedUser to always sync user_type
-      const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
-
-      // If user already has a valid user_type and matches AllowedUser, allow access immediately
-      const allowedUserType = allowedUsers[0]?.user_type;
+      // If user already has a valid user_type - use immediately (fast path)
       if (currentUser.user_type && ['client', 'advisor', 'admin'].includes(currentUser.user_type)) {
-        // Sync user_type if AllowedUser has a different value (e.g. role was changed)
-        if (allowedUserType && allowedUserType !== currentUser.user_type) {
-          try {
-            await base44.entities.User.update(currentUser.id, { user_type: allowedUserType });
-            currentUser = await base44.auth.me();
-          } catch (e) {
-            console.log('Failed to sync user_type', e);
-          }
-        }
         setUser(currentUser);
         setEditName(currentUser.full_name || '');
-        sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
+        try {
+          sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
+        } catch (e) { /* storage full */ }
         setIsLoading(false);
+
+        // Background sync: check if AllowedUser changed role
+        try {
+          const allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
+          const allowedUserType = allowedUsers[0]?.user_type;
+          if (allowedUserType && allowedUserType !== currentUser.user_type) {
+            await base44.entities.User.update(currentUser.id, { user_type: allowedUserType });
+            const updated = await base44.auth.me();
+            setUser(updated);
+            try {
+              sessionStorage.setItem('currentUser', JSON.stringify({ user: updated, timestamp: Date.now() }));
+            } catch (e) { /* storage full */ }
+          }
+        } catch (e) { /* non-critical background sync */ }
         return;
       }
       
-      // User not in AllowedUser - not authorized
+      // New user - check AllowedUser
+      let allowedUsers = [];
+      try {
+        allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
+      } catch (e) { /* continue */ }
+
       if (allowedUsers.length === 0) {
         setIsUnauthorized(true);
         setIsLoading(false);
@@ -107,19 +113,18 @@ export default function Layout({ children, currentPageName }) {
           full_name: currentUser.full_name || allowedUser.full_name || ''
         });
         
-        // Update ClientAdvisorAssignment with actual user ID
-        const assignments = await base44.entities.ClientAdvisorAssignment.filter({ 
-          client_email: currentUser.email 
-        });
-        for (const assignment of assignments) {
-          if (!assignment.client_id || assignment.client_id === '') {
-            await base44.entities.ClientAdvisorAssignment.update(assignment.id, {
-              client_id: currentUser.id
+        // Update ClientAdvisorAssignment in background
+        base44.entities.ClientAdvisorAssignment.filter({ client_email: currentUser.email })
+          .then(assignments => {
+            assignments.forEach(assignment => {
+              if (!assignment.client_id || assignment.client_id === '') {
+                base44.entities.ClientAdvisorAssignment.update(assignment.id, {
+                  client_id: currentUser.id
+                }).catch(() => {});
+              }
             });
-          }
-        }
+          }).catch(() => {});
         
-        // Reload user to get updated data
         currentUser = await base44.auth.me();
       } catch (updateError) {
         console.log('Failed to update user type', updateError);
@@ -127,7 +132,9 @@ export default function Layout({ children, currentPageName }) {
       
       setUser(currentUser);
       setEditName(currentUser.full_name || '');
-      sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
+      try {
+        sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
+      } catch (e) { /* storage full */ }
       setIsLoading(false);
     } catch (e) {
       console.log('Error loading user', e);

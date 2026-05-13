@@ -11,6 +11,7 @@ import Systems from './pages/Systems';
 import Landing from './pages/Landing';
 import Workbook from './pages/Workbook';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import ErrorBoundary from '@/lib/ErrorBoundary';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -53,14 +54,16 @@ const AuthenticatedApp = () => {
           key={path}
           path={`/${path}`}
           element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
+            <ErrorBoundary>
+              <LayoutWrapper currentPageName={path}>
+                <Page />
+              </LayoutWrapper>
+            </ErrorBoundary>
           }
         />
       ))}
-      <Route path="/Systems" element={<LayoutWrapper currentPageName="Systems"><Systems /></LayoutWrapper>} />
-      <Route path="/Workbook" element={<LayoutWrapper currentPageName="Workbook"><Workbook /></LayoutWrapper>} />
+      <Route path="/Systems" element={<ErrorBoundary><LayoutWrapper currentPageName="Systems"><Systems /></LayoutWrapper></ErrorBoundary>} />
+      <Route path="/Workbook" element={<ErrorBoundary><LayoutWrapper currentPageName="Workbook"><Workbook /></LayoutWrapper></ErrorBoundary>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
@@ -70,16 +73,20 @@ const AuthenticatedApp = () => {
 function App() {
 
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <NavigationTracker />
-          <AuthenticatedApp />
-        </Router>
-        <Toaster />
-        <VisualEditAgent />
-      </QueryClientProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            <NavigationTracker />
+            <ErrorBoundary>
+              <AuthenticatedApp />
+            </ErrorBoundary>
+          </Router>
+          <Toaster />
+          <VisualEditAgent />
+        </QueryClientProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
