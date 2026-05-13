@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
 import { 
@@ -12,7 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function Layout({ children, currentPageName }) {
+export default function Layout({ children }) {
+  const location = useLocation();
+  const currentPageName = location.pathname.replace('/', '');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [viewingClient, setViewingClient] = useState(null);
@@ -496,7 +498,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Main Content */}
       <main className={`${viewingClient ? 'pt-28' : 'pt-20'} min-h-screen`}>
         <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-          {children}
+          {children || <Outlet />}
         </div>
       </main>
 
@@ -504,4 +506,5 @@ export default function Layout({ children, currentPageName }) {
       <FinancialAdvisor />
     </div>
   );
+
 }

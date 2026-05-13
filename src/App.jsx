@@ -18,9 +18,9 @@ const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 
-const LayoutWrapper = ({ children, currentPageName }) => Layout ?
-  <Layout currentPageName={currentPageName}>{children}</Layout>
-  : <>{children}</>;
+import { Outlet } from 'react-router-dom';
+
+const LayoutShell = () => Layout ? <Layout><Outlet /></Layout> : <Outlet />;
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
@@ -39,7 +39,6 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
       navigateToLogin();
       return null;
     }
@@ -49,21 +48,17 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <ErrorBoundary>
-              <LayoutWrapper currentPageName={path}>
-                <Page />
-              </LayoutWrapper>
-            </ErrorBoundary>
-          }
-        />
-      ))}
-      <Route path="/Systems" element={<ErrorBoundary><LayoutWrapper currentPageName="Systems"><Systems /></LayoutWrapper></ErrorBoundary>} />
-      <Route path="/Workbook" element={<ErrorBoundary><LayoutWrapper currentPageName="Workbook"><Workbook /></LayoutWrapper></ErrorBoundary>} />
+      <Route element={<LayoutShell />}>
+        {Object.entries(Pages).map(([path, Page]) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={<ErrorBoundary><Page /></ErrorBoundary>}
+          />
+        ))}
+        <Route path="/Systems" element={<ErrorBoundary><Systems /></ErrorBoundary>} />
+        <Route path="/Workbook" element={<ErrorBoundary><Workbook /></ErrorBoundary>} />
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
