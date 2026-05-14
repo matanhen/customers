@@ -17,16 +17,18 @@ body {
 }
 
 /* Touch targets */
-button, a, [role="button"], input, select, textarea {
+button, a, [role="button"] {
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
-  min-height: 44px;
 }
 
-input, textarea {
+input, select, textarea {
+  touch-action: manipulation;
   -webkit-user-select: text;
   user-select: text;
+  color: inherit;
+  caret-color: currentColor;
 }
 
 
