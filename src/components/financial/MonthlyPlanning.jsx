@@ -20,6 +20,7 @@ export default function MonthlyPlanning({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const autoSaveTimer = React.useRef(null);
+  const isDirty = React.useRef(false);
   const [planData, setPlanData] = useState({
     expected_income: 0,
     savings: 0,
@@ -79,6 +80,7 @@ export default function MonthlyPlanning({ userId }) {
   useEffect(() => {
     // Only reload when month changes or on first load — don't overwrite active edits
     if (prevMonthRef.current === currentMonth && dataLoaded) return;
+    if (isDirty.current) return;
     prevMonthRef.current = currentMonth;
     setDataLoaded(false);
     if (currentPlan) {
@@ -116,6 +118,8 @@ export default function MonthlyPlanning({ userId }) {
     currentPlanIdRef.current = currentPlan?.id || null;
   }, [currentPlan]);
 
+  const monthlyPlansQueryKey = ['monthlyPlans', userId, currentUser?.id, String(isViewingOther), String(isAdvisorOrAdmin)];
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       if (isViewingOther && isAdvisorOrAdmin) {
@@ -140,15 +144,24 @@ export default function MonthlyPlanning({ userId }) {
         return created;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['monthlyPlans', userId] });
+    onSuccess: (result) => {
+      // Update cache without triggering refetch (avoids resetting active inputs)
+      if (result?.id) {
+        queryClient.setQueryData(monthlyPlansQueryKey, (old = []) => {
+          const exists = old.find(p => p.id === result.id);
+          if (exists) return old.map(p => p.id === result.id ? { ...p, ...result } : p);
+          return [...old, result];
+        });
+      }
     },
   });
 
   const triggerAutoSave = (newData) => {
     if (!dataLoaded) return;
+    isDirty.current = true;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
+      isDirty.current = false;
       saveMutation.mutate(newData);
     }, 1500);
   };
