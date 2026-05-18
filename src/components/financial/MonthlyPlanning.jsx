@@ -18,9 +18,12 @@ import FinancialGoals from './FinancialGoals';
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentUser, setCurrentUser] = useState(null);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const autoSaveTimer = React.useRef(null);
+
   const isDirty = React.useRef(false);
+  const dataInitialized = React.useRef(false);
+  const lastLoadedPlanId = React.useRef(null);
+  const lastLoadedMonth = React.useRef(null);
   const [planData, setPlanData] = useState({
     expected_income: 0,
     savings: 0,
@@ -70,53 +73,88 @@ export default function MonthlyPlanning({ userId }) {
       return base44.entities.MonthlyPlan.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
-    staleTime: Infinity,
+    staleTime: 0,
     refetchOnWindowFocus: false,
   });
 
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);
 
-  const prevMonthRef = React.useRef(null);
   useEffect(() => {
-    // Reload whenever the month changes, OR when data first arrives for the current month
-    const monthChanged = prevMonthRef.current !== currentMonth;
-    const dataJustArrived = currentPlan && !dataLoaded;
-
-    if (!monthChanged && !dataJustArrived) return;
-    // Don't overwrite while the user is actively typing (debounce pending)
-    if (isDirty.current && !monthChanged) return;
-
-    prevMonthRef.current = currentMonth;
-    setDataLoaded(false);
-
-    if (currentPlan) {
-      setPlanData({
-        expected_income: currentPlan.expected_income || 0,
-        savings: currentPlan.savings || 0,
-        fixed_expenses: currentPlan.fixed_expenses || 0,
-        variable_expenses: currentPlan.variable_expenses || 0,
-        investments_allocation: currentPlan.investments_allocation || 0,
-        dreams_savings: currentPlan.dreams_savings || 0,
-        emergency_fund_current: currentPlan.emergency_fund_current || 0,
-        emergency_fund_allocation: currentPlan.emergency_fund_allocation || 0,
-      });
-    } else {
-      const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
-      const prevPlan = monthlyPlans.find(p => p.month === prevMonth);
-      setPlanData({
-        expected_income: 0,
-        savings: 0,
-        fixed_expenses: prevPlan?.fixed_expenses || 0,
-        variable_expenses: 0,
-        investments_allocation: 0,
-        dreams_savings: prevPlan?.dreams_savings || 0,
-        emergency_fund_current: prevPlan ? 
-          (prevPlan.emergency_fund_current || 0) + (prevPlan.emergency_fund_allocation || 0) : 0,
-        emergency_fund_allocation: 0,
-      });
+    if (!monthlyPlans.length && !plansLoading) {
+      // No data at all - reset to empty if month changed
+      if (lastLoadedMonth.current !== currentMonth) {
+        lastLoadedMonth.current = currentMonth;
+        lastLoadedPlanId.current = null;
+        isDirty.current = false;
+        dataInitialized.current = true;
+        const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
+        const prevPlan = monthlyPlans.find(p => p.month === prevMonth);
+        setPlanData({
+          expected_income: 0,
+          savings: 0,
+          fixed_expenses: prevPlan?.fixed_expenses || 0,
+          variable_expenses: 0,
+          investments_allocation: 0,
+          dreams_savings: prevPlan?.dreams_savings || 0,
+          emergency_fund_current: 0,
+          emergency_fund_allocation: 0,
+        });
+      }
+      return;
     }
-    setTimeout(() => setDataLoaded(true), 100);
-  }, [currentPlan, monthlyPlans, currentMonth, currentDate]);
+
+    if (!currentPlan) {
+      // Month changed to a month with no plan
+      if (lastLoadedMonth.current !== currentMonth) {
+        lastLoadedMonth.current = currentMonth;
+        lastLoadedPlanId.current = null;
+        isDirty.current = false;
+        dataInitialized.current = true;
+        const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
+        const prevPlan = monthlyPlans.find(p => p.month === prevMonth);
+        setPlanData({
+          expected_income: 0,
+          savings: 0,
+          fixed_expenses: prevPlan?.fixed_expenses || 0,
+          variable_expenses: 0,
+          investments_allocation: 0,
+          dreams_savings: prevPlan?.dreams_savings || 0,
+          emergency_fund_current: prevPlan ?
+            (prevPlan.emergency_fund_current || 0) + (prevPlan.emergency_fund_allocation || 0) : 0,
+          emergency_fund_allocation: 0,
+        });
+      }
+      return;
+    }
+
+    // We have a currentPlan — load it if:
+    // 1. Never loaded before (first mount / remount)
+    // 2. Month changed
+    // 3. Plan ID changed (new save returned new record)
+    const shouldLoad =
+      !dataInitialized.current ||
+      lastLoadedMonth.current !== currentMonth ||
+      lastLoadedPlanId.current !== currentPlan.id;
+
+    if (!shouldLoad) return;
+    // Don't overwrite while user is actively typing
+    if (isDirty.current && lastLoadedMonth.current === currentMonth) return;
+
+    lastLoadedMonth.current = currentMonth;
+    lastLoadedPlanId.current = currentPlan.id;
+    dataInitialized.current = true;
+
+    setPlanData({
+      expected_income: currentPlan.expected_income || 0,
+      savings: currentPlan.savings || 0,
+      fixed_expenses: currentPlan.fixed_expenses || 0,
+      variable_expenses: currentPlan.variable_expenses || 0,
+      investments_allocation: currentPlan.investments_allocation || 0,
+      dreams_savings: currentPlan.dreams_savings || 0,
+      emergency_fund_current: currentPlan.emergency_fund_current || 0,
+      emergency_fund_allocation: currentPlan.emergency_fund_allocation || 0,
+    });
+  }, [currentPlan, monthlyPlans, currentMonth, currentDate, plansLoading]);
 
   // Keep a ref to the current plan id so save always uses the latest value
   const currentPlanIdRef = React.useRef(null);
@@ -163,14 +201,14 @@ export default function MonthlyPlanning({ userId }) {
   });
 
   const triggerAutoSave = useCallback((newData) => {
-    if (!dataLoaded) return;
+    if (!dataInitialized.current) return;
     isDirty.current = true;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       isDirty.current = false;
       saveMutation.mutate(newData);
     }, 400);
-  }, [dataLoaded, saveMutation]);
+  }, [saveMutation]);
 
   // Save immediately when user leaves the page
   const pendingDataRef = React.useRef(null);
