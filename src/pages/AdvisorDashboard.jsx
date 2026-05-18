@@ -15,9 +15,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import AdvisorNotifications from '../components/notifications/AdvisorNotifications';
 
+const IDAN_EMAIL = 'idanhen@gmail.com';
+const NIV_EMAIL = 'nivdavid7@gmail.com';
+
 export default function AdvisorDashboard() {
   const [user, setUser] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'idan' | 'niv'
+  const [searchAll, setSearchAll] = useState('');
+  const [searchIdan, setSearchIdan] = useState('');
+  const [searchNiv, setSearchNiv] = useState('');
   const [showAddClient, setShowAddClient] = useState(false);
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientName, setNewClientName] = useState('');
@@ -113,39 +119,57 @@ export default function AdvisorDashboard() {
 
   const combinedUsers = [...allUsers, ...allowedUsersNotInSystem];
 
-  // Get clients - admin sees ALL clients, advisor sees only assigned
-  let clientsWithDuplicates = [];
-  if (isAdmin) {
-    // Admin sees ALL users with user_type 'client'
-    clientsWithDuplicates = combinedUsers.filter(u => u.user_type === 'client');
-  } else {
-    // Advisor sees only assigned clients
-    clientsWithDuplicates = assignments
-      .map(assignment => {
-        // Try to find by client_id first, then by email
-        let clientUser = combinedUsers.find(u => u.id === assignment.client_id);
-        if (!clientUser) {
-          clientUser = combinedUsers.find(u => u.email === assignment.client_email);
-        }
-        return clientUser;
-      })
-      .filter(Boolean); // Remove null/undefined entries
-  }
+  // Helper: dedupe by email
+  const dedupeByEmail = (arr) => {
+    const seen = new Set();
+    return arr.filter(c => {
+      if (seen.has(c.email)) return false;
+      seen.add(c.email);
+      return true;
+    });
+  };
 
-  // Remove duplicates by email - keep only first occurrence
-  const seenEmails = new Set();
-  const clients = clientsWithDuplicates.filter(client => {
-    if (seenEmails.has(client.email)) {
-      return false;
-    }
-    seenEmails.add(client.email);
-    return true;
-  });
+  // All clients (deduped)
+  const allClients = dedupeByEmail(combinedUsers.filter(u => u.user_type === 'client'));
 
-  const filteredClients = clients.filter(client =>
-    client.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Find advisor user objects by email
+  const idanAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === IDAN_EMAIL);
+  const nivAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === NIV_EMAIL);
+
+  // Clients assigned to idan
+  const idanAssignments = assignments.filter(a => a.advisor_id === idanAdvisor?.id || a.advisor_email?.toLowerCase() === IDAN_EMAIL);
+  const idanClients = dedupeByEmail(idanAssignments.map(a => {
+    let c = combinedUsers.find(u => u.id === a.client_id);
+    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
+    return c;
+  }).filter(Boolean));
+
+  // Clients assigned to niv
+  const nivAssignments = assignments.filter(a => a.advisor_id === nivAdvisor?.id || a.advisor_email?.toLowerCase() === NIV_EMAIL);
+  const nivClients = dedupeByEmail(nivAssignments.map(a => {
+    let c = combinedUsers.find(u => u.id === a.client_id);
+    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
+    return c;
+  }).filter(Boolean));
+
+  // For non-admin advisors: show only their assigned clients in 'all'
+  const clients = isAdmin
+    ? allClients
+    : dedupeByEmail(assignments.map(a => {
+        let c = combinedUsers.find(u => u.id === a.client_id);
+        if (!c) c = combinedUsers.find(u => u.email === a.client_email);
+        return c;
+      }).filter(Boolean));
+
+  const filterList = (list, query) =>
+    list.filter(c =>
+      c.full_name?.toLowerCase().includes(query.toLowerCase()) ||
+      c.email?.toLowerCase().includes(query.toLowerCase())
+    );
+
+  const filteredAll = filterList(clients, searchAll);
+  const filteredIdan = filterList(idanClients, searchIdan);
+  const filteredNiv = filterList(nivClients, searchNiv);
 
   const handleViewClient = async (client) => {
     // Try to get the real User ID via backend function (advisors can't filter User entity directly)
@@ -218,6 +242,51 @@ export default function AdvisorDashboard() {
     );
   }
 
+  const renderClientList = (list, emptyMsg) => {
+    if (isLoading) return (
+      <div className="space-y-4">
+        {[1,2,3].map(i => (
+          <div key={i} className="flex items-center gap-5 p-6 bg-slate-50 rounded-2xl">
+            <Skeleton className="w-16 h-16 rounded-2xl" />
+            <div className="flex-1 space-y-2"><Skeleton className="h-6 w-48" /><Skeleton className="h-4 w-64" /></div>
+            <Skeleton className="h-12 w-32 rounded-xl" />
+          </div>
+        ))}
+      </div>
+    );
+    if (list.length === 0) return (
+      <div className="text-center py-16">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center mx-auto mb-6">
+          <Users className="w-10 h-10 text-slate-300" />
+        </div>
+        <h3 className="text-xl font-semibold text-slate-800 mb-2">{emptyMsg}</h3>
+      </div>
+    );
+    return (
+      <div className="space-y-4">
+        {list.map(client => (
+          <div key={client.id} className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:justify-between p-4 lg:p-6 bg-gradient-to-r from-slate-50 to-slate-100/30 rounded-2xl hover:from-slate-100 hover:to-slate-100 transition-all border border-slate-200/50 group">
+            <div className="flex items-center gap-3 lg:gap-5 w-full lg:w-auto">
+              <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg lg:text-2xl shadow-xl shadow-indigo-500/30 group-hover:scale-105 transition-transform flex-shrink-0">
+                {client.full_name?.[0] || client.email?.[0] || '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.full_name || 'ללא שם'}</h3>
+                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
+                  <span className="flex items-center gap-1.5 truncate"><Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" /><span className="truncate">{client.email}</span></span>
+                  <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />{client.last_login_date ? format(new Date(client.last_login_date), 'dd/MM/yyyy HH:mm') : 'לא נכנס עדיין'}</span>
+                </div>
+              </div>
+            </div>
+            <Button onClick={() => handleViewClient(client)} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 rounded-xl px-4 py-3 lg:px-6 lg:py-5 w-full lg:w-auto text-sm lg:text-base">
+              <Eye className="w-4 h-4 lg:w-5 lg:h-5 ml-2" />צפה ועריכה
+            </Button>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
@@ -225,135 +294,125 @@ export default function AdvisorDashboard() {
         <p className="text-slate-500 mt-2 text-lg">צפייה ועריכת נתוני לקוחות</p>
       </div>
 
-      {/* Error State */}
       {hasError && (
         <Card className="mb-6 border-red-200 bg-red-50">
           <CardContent className="p-6">
             <div className="flex items-center gap-3 text-red-800">
               <AlertCircle className="w-6 h-6" />
-              <div>
-                <p className="font-semibold">שגיאה בטעינת נתונים</p>
-                <p className="text-sm">אנא נסה לרענן את הדף</p>
-              </div>
+              <div><p className="font-semibold">שגיאה בטעינת נתונים</p><p className="text-sm">אנא נסה לרענן את הדף</p></div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Stats Card */}
-      <Card className="mb-6 border-0 shadow-xl shadow-[#105330]/20 bg-gradient-to-br from-[#105330]/5 to-[#c8a863]/5 overflow-hidden">
-        <div className="h-1.5 bg-gradient-to-r from-[#105330] to-[#c8a863]" />
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30">
-              <Users className="w-8 h-8 text-white" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="border-0 shadow-xl shadow-[#105330]/20 bg-gradient-to-br from-[#105330]/5 to-[#c8a863]/5 overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-[#105330] to-[#c8a863]" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-blue-600 font-medium">סה״כ לקוחות</p>
+                {isLoading ? <Skeleton className="h-9 w-16 mt-1" /> : <p className="text-3xl font-bold text-slate-800">{allClients.length}</p>}
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-blue-600 font-medium">{isAdmin ? 'סה״כ לקוחות במערכת' : 'לקוחות משויכים אליך'}</p>
-              {isLoading ? (
-                <Skeleton className="h-10 w-20 mt-1" />
-              ) : (
-                <p className="text-4xl font-bold text-slate-800">{clients.length}</p>
-              )}
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-xl shadow-emerald-100/50 bg-gradient-to-br from-emerald-50 to-teal-50 overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-emerald-600 font-medium">לקוחות עידן חן</p>
+                {isLoading ? <Skeleton className="h-9 w-16 mt-1" /> : <p className="text-3xl font-bold text-slate-800">{idanClients.length}</p>}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-xl shadow-purple-100/50 bg-gradient-to-br from-purple-50 to-indigo-50 overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-purple-600 font-medium">לקוחות ניב דוד</p>
+                {isLoading ? <Skeleton className="h-9 w-16 mt-1" /> : <p className="text-3xl font-bold text-slate-800">{nivClients.length}</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Add Client Button - advisors and admins */}
+      {/* Add Client Button */}
       <div className="mb-4 flex justify-end">
-        <Button
-          onClick={() => { setShowAddClient(true); setAddError(''); }}
-          className="bg-[#105330] hover:bg-[#0d4027] gap-2"
-        >
-          <UserPlus className="w-4 h-4" />
-          הוסף לקוח חדש
+        <Button onClick={() => { setShowAddClient(true); setAddError(''); }} className="bg-[#105330] hover:bg-[#0d4027] gap-2">
+          <UserPlus className="w-4 h-4" />הוסף לקוח חדש
         </Button>
       </div>
 
-      <Card className="mb-6 border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
-        <CardContent className="p-5">
-          <div className="relative">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <Input
-              placeholder="חיפוש לקוח לפי שם או אימייל..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-12 py-6 text-lg border-slate-200 focus:border-indigo-400 rounded-xl"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[
+          { key: 'all', label: `כל הלקוחות (${allClients.length})` },
+          { key: 'idan', label: `לקוחות - עידן חן (${idanClients.length})` },
+          { key: 'niv', label: `לקוחות - ניב דוד (${nivClients.length})` },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${
+              activeTab === tab.key
+                ? 'bg-[#105330] text-white border-[#105330] shadow-md'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-[#105330]/40 hover:text-[#105330]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
-        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100/50">
-          <CardTitle className="flex items-center gap-3 text-slate-800">
-            <div className="p-2 rounded-xl bg-indigo-100">
-              <Users className="w-5 h-5 text-indigo-600" />
+      {/* Search + List */}
+      {activeTab === 'all' && (
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="relative mb-5">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Input placeholder="חיפוש לפי שם או אימייל..." value={searchAll} onChange={e => setSearchAll(e.target.value)} className="pr-12 py-6 text-lg border-slate-200 focus:border-indigo-400 rounded-xl" />
             </div>
-            רשימת לקוחות ({filteredClients.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-5 p-6 bg-slate-50 rounded-2xl">
-                  <Skeleton className="w-16 h-16 rounded-2xl" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-6 w-48" />
-                    <Skeleton className="h-4 w-64" />
-                  </div>
-                  <Skeleton className="h-12 w-32 rounded-xl" />
-                </div>
-              ))}
+            {renderClientList(filteredAll, 'אין לקוחות במערכת')}
+          </CardContent>
+        </Card>
+      )}
+      {activeTab === 'idan' && (
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="relative mb-5">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Input placeholder="חיפוש לפי שם או אימייל..." value={searchIdan} onChange={e => setSearchIdan(e.target.value)} className="pr-12 py-6 text-lg border-slate-200 focus:border-indigo-400 rounded-xl" />
             </div>
-          ) : filteredClients.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center mx-auto mb-6">
-                <Users className="w-10 h-10 text-slate-300" />
-              </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">אין לקוחות משויכים אליך</h3>
-              <p className="text-slate-500">המנהל ישייך אליך לקוחות בקרוב</p>
+            {renderClientList(filteredIdan, 'אין לקוחות משויכים לעידן חן')}
+          </CardContent>
+        </Card>
+      )}
+      {activeTab === 'niv' && (
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="relative mb-5">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Input placeholder="חיפוש לפי שם או אימייל..." value={searchNiv} onChange={e => setSearchNiv(e.target.value)} className="pr-12 py-6 text-lg border-slate-200 focus:border-indigo-400 rounded-xl" />
             </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredClients.map((client) => (
-                <div 
-                  key={client.id}
-                  className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:justify-between p-4 lg:p-6 bg-gradient-to-r from-slate-50 to-slate-100/30 rounded-2xl hover:from-slate-100 hover:to-slate-100 transition-all border border-slate-200/50 group"
-                >
-                  <div className="flex items-center gap-3 lg:gap-5 w-full lg:w-auto">
-                    <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg lg:text-2xl shadow-xl shadow-indigo-500/30 group-hover:scale-105 transition-transform flex-shrink-0">
-                      {client.full_name?.[0] || client.email?.[0] || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.full_name || 'ללא שם'}</h3>
-                      <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
-                        <span className="flex items-center gap-1.5 truncate">
-                          <Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
-                          <span className="truncate">{client.email}</span>
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
-                          {client.last_login_date ? format(new Date(client.last_login_date), 'dd/MM/yyyy HH:mm') : 'לא נכנס עדיין'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => handleViewClient(client)}
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 rounded-xl px-4 py-3 lg:px-6 lg:py-5 w-full lg:w-auto text-sm lg:text-base"
-                  >
-                    <Eye className="w-4 h-4 lg:w-5 lg:h-5 ml-2" />
-                    צפה ועריכה
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {renderClientList(filteredNiv, 'אין לקוחות משויכים לניב דוד')}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notifications */}
       {!isLoading && !hasError && (

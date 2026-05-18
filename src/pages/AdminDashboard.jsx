@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, UserCog, Link2, Search, Check, X, 
-  Shield, User, Briefcase, Unlink, Pencil, Webhook, Copy, Eye
+  Shield, User, Briefcase, Unlink, Pencil, Eye
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -429,39 +429,6 @@ export default function AdminDashboard() {
           </Button>
         </div>
 
-        {/* Webhook URL Card */}
-        <Card className="border-0 shadow-xl shadow-indigo-100/50 bg-gradient-to-br from-indigo-50 to-purple-50 overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500" />
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
-                <Webhook className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Webhook להוספת לקוחות אוטומטית</h3>
-                <p className="text-sm text-slate-600 mb-3">
-                  שלח בקשת POST לכתובת הבאה עם הנתונים: <code className="bg-slate-200 px-2 py-1 rounded text-xs">{"{ \"name\": \"שם הלקוח\", \"email\": \"email@example.com\" }"}</code>
-                </p>
-                <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-slate-200">
-                  <code className="flex-1 text-sm text-slate-700 break-all">
-                    {window.location.origin}/api/functions/addClientWebhook
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/api/functions/addClientWebhook`);
-                      alert('הכתובת הועתקה ללוח!');
-                    }}
-                    className="text-indigo-600 hover:bg-indigo-50"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Stats Cards */}
