@@ -78,11 +78,17 @@ export default function MonthlyPlanning({ userId }) {
 
   const prevMonthRef = React.useRef(null);
   useEffect(() => {
-    // Only reload when month changes or on first load — don't overwrite active edits
-    if (prevMonthRef.current === currentMonth && dataLoaded) return;
-    if (isDirty.current) return;
+    // Reload whenever the month changes, OR when data first arrives for the current month
+    const monthChanged = prevMonthRef.current !== currentMonth;
+    const dataJustArrived = currentPlan && !dataLoaded;
+
+    if (!monthChanged && !dataJustArrived) return;
+    // Don't overwrite while the user is actively typing (debounce pending)
+    if (isDirty.current && !monthChanged) return;
+
     prevMonthRef.current = currentMonth;
     setDataLoaded(false);
+
     if (currentPlan) {
       setPlanData({
         expected_income: currentPlan.expected_income || 0,
@@ -156,7 +162,7 @@ export default function MonthlyPlanning({ userId }) {
     },
   });
 
-  const triggerAutoSave = (newData) => {
+  const triggerAutoSave = useCallback((newData) => {
     if (!dataLoaded) return;
     isDirty.current = true;
     clearTimeout(autoSaveTimer.current);
@@ -164,7 +170,7 @@ export default function MonthlyPlanning({ userId }) {
       isDirty.current = false;
       saveMutation.mutate(newData);
     }, 400);
-  };
+  }, [dataLoaded, saveMutation]);
 
   // Save immediately when user leaves the page
   const pendingDataRef = React.useRef(null);
