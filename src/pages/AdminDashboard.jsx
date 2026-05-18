@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPageUrl } from '../utils';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -82,9 +82,11 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
 
-  // Sync User entities with AllowedUsers and remove duplicates
+  // Sync User entities with AllowedUsers and remove duplicates — runs only once per session
+  const syncDoneRef = useRef(false);
   useEffect(() => {
-    if (!user || loadingUsers || loadingAllowed) return;
+    if (!user || loadingUsers || loadingAllowed || syncDoneRef.current) return;
+    syncDoneRef.current = true;
 
     const syncUsers = async () => {
       // Remove duplicate users by email (keep the first one)
@@ -99,7 +101,6 @@ export default function AdminDashboard() {
         }
       }
 
-      // Delete duplicates
       for (const dupId of duplicates) {
         try {
           await base44.entities.User.delete(dupId);
@@ -140,7 +141,7 @@ export default function AdminDashboard() {
     };
 
     syncUsers();
-  }, [user, allUsers, allowedUsers, loadingUsers, loadingAllowed]);
+  }, [user, loadingUsers, loadingAllowed]);
 
   const isLoading = loadingUsers || loadingAllowed;
 
