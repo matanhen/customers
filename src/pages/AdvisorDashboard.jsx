@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import AdvisorNotifications from '../components/notifications/AdvisorNotifications';
 
-const IDAN_EMAIL = 'idanhen@gmail.com';
+const IDAN_EMAIL = 'idanhen012@gmail.com';
 const NIV_EMAIL = 'nivdavid7@gmail.com';
 
 export default function AdvisorDashboard() {
