@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, subMonths } from 'date-fns';
@@ -163,14 +163,36 @@ export default function MonthlyPlanning({ userId }) {
     autoSaveTimer.current = setTimeout(() => {
       isDirty.current = false;
       saveMutation.mutate(newData);
-    }, 1500);
+    }, 400);
   };
+
+  // Save immediately when user leaves the page
+  const pendingDataRef = React.useRef(null);
+  const saveImmediately = useCallback(() => {
+    if (pendingDataRef.current && isDirty.current) {
+      clearTimeout(autoSaveTimer.current);
+      isDirty.current = false;
+      saveMutation.mutate(pendingDataRef.current);
+      pendingDataRef.current = null;
+    }
+  }, [saveMutation]);
 
   const updatePlanData = (updates) => {
     const newData = { ...planData, ...updates };
     setPlanData(newData);
+    pendingDataRef.current = newData;
     triggerAutoSave(newData);
   };
+
+  // Save on page unload / navigation away
+  useEffect(() => {
+    const handleBeforeUnload = () => saveImmediately();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveImmediately(); // Save when component unmounts (navigation within app)
+    };
+  }, [saveImmediately]);
 
   const totalExpenses = planData.fixed_expenses + planData.variable_expenses + planData.savings;
   const expensesPercentage = planData.expected_income > 0 

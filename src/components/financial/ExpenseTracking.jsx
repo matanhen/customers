@@ -223,16 +223,34 @@ export default function ExpenseTracking({ userId }) {
     },
   });
 
-    // Auto-save when trackingData changes
-    useEffect(() => {
-      if (!dataLoadedRef.current) return;
+  const autoSaveTimerRef = React.useRef(null);
+  const pendingDataRef = React.useRef(null);
 
-      const timeoutId = setTimeout(() => {
-        saveMutation.mutate(trackingData);
-      }, 1000); // Debounce for 1 second
+  const triggerSave = React.useCallback((data) => {
+    if (!dataLoadedRef.current) return;
+    pendingDataRef.current = data;
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveMutation.mutate(data);
+      pendingDataRef.current = null;
+    }, 400);
+  }, [saveMutation]);
 
-      return () => clearTimeout(timeoutId);
-    }, [trackingData]);
+  // Save immediately on unmount (navigation away)
+  React.useEffect(() => {
+    return () => {
+      if (pendingDataRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        saveMutation.mutate(pendingDataRef.current);
+      }
+    };
+  }, [saveMutation]);
+
+  // Auto-save when trackingData changes
+  useEffect(() => {
+    if (!dataLoadedRef.current) return;
+    triggerSave(trackingData);
+  }, [trackingData]);
 
   const updateFixedExpense = (category, value) => {
     setTrackingData(prev => ({

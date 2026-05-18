@@ -161,14 +161,28 @@ export default function FinancialReflection({ userId }) {
     },
   });
 
+  const pendingDataRef = useRef(null);
+
   // Single auto-save trigger — always uses latest state via closure over the actual state vars
   const triggerAutoSave = useCallback((latestData) => {
     if (!dataLoaded) return;
+    pendingDataRef.current = latestData;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       saveMutation.mutate(latestData);
-    }, 1000);
+      pendingDataRef.current = null;
+    }, 400);
   }, [dataLoaded, saveMutation]);
+
+  // Save immediately on unmount (navigation away)
+  useEffect(() => {
+    return () => {
+      if (pendingDataRef.current) {
+        clearTimeout(autoSaveTimer.current);
+        saveMutation.mutate(pendingDataRef.current);
+      }
+    };
+  }, [saveMutation]);
 
   const toggleSection = (section) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
