@@ -71,6 +71,8 @@ export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [openFixed, setOpenFixed] = useState(false);
   const [openVariable, setOpenVariable] = useState(false);
+  const [showAddCategoryDialog, setShowAddCategoryDialog] = useState(false);
+  const [newCategoryData, setNewCategoryData] = useState({ name: '', expense_type: 'fixed' });
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
@@ -109,6 +111,26 @@ export default function ExpenseTracking({ userId }) {
     };
     loadUser();
   }, [userId]);
+
+  const { data: customCategories = [], refetch: refetchCategories } = useQuery({
+    queryKey: ['customExpenseCategories', userId],
+    queryFn: () => base44.entities.CustomExpenseCategory.filter({ user_id: userId }),
+    enabled: !!userId,
+  });
+
+  const addCategoryMutation = useMutation({
+    mutationFn: (data) => base44.entities.CustomExpenseCategory.create({ ...data, user_id: userId }),
+    onSuccess: () => {
+      refetchCategories();
+      setNewCategoryData({ name: '', expense_type: 'fixed' });
+      setShowAddCategoryDialog(false);
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id) => base44.entities.CustomExpenseCategory.delete(id),
+    onSuccess: () => refetchCategories(),
+  });
 
   const { data: allTracking = [], isLoading: trackingLoading } = useQuery({
     queryKey: ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
@@ -357,7 +379,7 @@ export default function ExpenseTracking({ userId }) {
 
 
 
-  // Calculations
+  // Calculations — includes both standard and custom categories
   const totalFixedActual = Object.values(trackingData.fixed_expenses).reduce((sum, v) => sum + (v || 0), 0) +
     trackingData.custom_expenses.filter(e => e.type === 'fixed').reduce((sum, e) => sum + (e.amount || 0), 0);
   
@@ -463,7 +485,15 @@ export default function ExpenseTracking({ userId }) {
       </Card>
 
       {/* Action Buttons */}
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-3 flex-wrap">
+        <Button
+          onClick={() => setShowAddCategoryDialog(true)}
+          variant="outline"
+          className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
+        >
+          <Plus className="w-4 h-4 ml-2" />
+          הוסף סעיף הוצאה חדש
+        </Button>
         <Button
           onClick={() => setShowPDFImportDialog(true)}
           variant="outline"
@@ -658,9 +688,18 @@ export default function ExpenseTracking({ userId }) {
           <CollapsibleContent>
             <CardContent className="pt-0">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {FIXED_EXPENSE_CATEGORIES.map(category => (
+                {[...FIXED_EXPENSE_CATEGORIES, ...customCategories.filter(c => c.expense_type === 'fixed').map(c => c.name)].map(category => {
+                  const customCat = customCategories.find(c => c.name === category && c.expense_type === 'fixed');
+                  return (
                   <div key={category} className="space-y-1">
-                    <Label className="text-sm text-slate-600">{category}</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm text-slate-600">{category}</Label>
+                      {customCat && (
+                        <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <Input
                       type="number"
                       value={trackingData.fixed_expenses[category] || ''}
@@ -669,7 +708,8 @@ export default function ExpenseTracking({ userId }) {
                       className="h-9"
                     />
                   </div>
-                ))}
+                  );
+                })}
                 {/* Custom Fixed Expenses */}
                 {trackingData.custom_expenses.filter(e => e.type === 'fixed').map((exp, idx) => {
                   const originalIdx = trackingData.custom_expenses.findIndex(e => e === exp);
@@ -724,9 +764,18 @@ export default function ExpenseTracking({ userId }) {
           <CollapsibleContent>
             <CardContent className="pt-0">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {VARIABLE_EXPENSE_CATEGORIES.map(category => (
+                {[...VARIABLE_EXPENSE_CATEGORIES, ...customCategories.filter(c => c.expense_type === 'variable').map(c => c.name)].map(category => {
+                  const customCat = customCategories.find(c => c.name === category && c.expense_type === 'variable');
+                  return (
                   <div key={category} className="space-y-1">
-                    <Label className="text-sm text-purple-600">{category}</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm text-purple-600">{category}</Label>
+                      {customCat && (
+                        <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <Input
                       type="number"
                       value={trackingData.variable_expenses[category] || ''}
@@ -735,7 +784,8 @@ export default function ExpenseTracking({ userId }) {
                       className="h-9"
                     />
                   </div>
-                ))}
+                  );
+                })}
                 {/* Custom Variable Expenses */}
                 {trackingData.custom_expenses.filter(e => e.type === 'variable').map((exp, idx) => {
                   const originalIdx = trackingData.custom_expenses.findIndex(e => e === exp);
@@ -835,6 +885,47 @@ export default function ExpenseTracking({ userId }) {
           </div>
         </CardContent>
         </Card>
+
+      {/* Add Category Dialog */}
+      <Dialog open={showAddCategoryDialog} onOpenChange={setShowAddCategoryDialog}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>הוסף סעיף הוצאה חדש</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>שם הסעיף</Label>
+              <Input
+                value={newCategoryData.name}
+                onChange={(e) => setNewCategoryData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="לדוגמה: מנוי ספורט"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>סוג הוצאה</Label>
+              <Select value={newCategoryData.expense_type} onValueChange={(v) => setNewCategoryData(prev => ({ ...prev, expense_type: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed">הוצאה קבועה</SelectItem>
+                  <SelectItem value="variable">יתרת הוצאות (משתנה)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={() => {
+                if (!newCategoryData.name.trim()) return;
+                addCategoryMutation.mutate(newCategoryData);
+              }}
+              disabled={addCategoryMutation.isPending || !newCategoryData.name.trim()}
+              className="w-full bg-[#105330] hover:bg-[#0d4027]"
+            >
+              {addCategoryMutation.isPending ? 'מוסיף...' : 'הוסף סעיף'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <PDFExpenseImport
         open={showPDFImportDialog}

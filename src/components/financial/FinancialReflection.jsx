@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   TrendingUp, TrendingDown, ChevronDown, ChevronUp,
-  DollarSign, Receipt, FileText, Save, Check
+  DollarSign, Receipt, FileText, Save, Check, Plus, Trash2
 } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PDFReflectionImport from './PDFReflectionImport';
 
 const FIXED_EXPENSES = [
@@ -39,6 +41,8 @@ export default function FinancialReflection({ userId }) {
   const [creditCardTotal, setCreditCardTotal] = useState(0);
   const [creditCardDisplay, setCreditCardDisplay] = useState('');
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
+  const [showAddCategoryDialog, setShowAddCategoryDialog] = useState(false);
+  const [newCategory, setNewCategory] = useState({ name: '', expense_type: 'fixed' });
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -68,6 +72,26 @@ export default function FinancialReflection({ userId }) {
   const viewingClientEmail = (() => {
     try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
   })();
+
+  const { data: customCategories = [], refetch: refetchCategories } = useQuery({
+    queryKey: ['customExpenseCategories', userId],
+    queryFn: () => base44.entities.CustomExpenseCategory.filter({ user_id: userId }),
+    enabled: !!userId,
+  });
+
+  const addCategoryMutation = useMutation({
+    mutationFn: (data) => base44.entities.CustomExpenseCategory.create({ ...data, user_id: userId }),
+    onSuccess: () => {
+      refetchCategories();
+      setNewCategory({ name: '', expense_type: 'fixed' });
+      setShowAddCategoryDialog(false);
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id) => base44.entities.CustomExpenseCategory.delete(id),
+    onSuccess: () => refetchCategories(),
+  });
 
   const { data: reflection, isLoading: reflectionLoading } = useQuery({
     queryKey: ['financialReflection', userId],
@@ -201,8 +225,13 @@ export default function FinancialReflection({ userId }) {
     return Math.round(total / 3);
   };
 
-  const getTotalFixedAverage = () => FIXED_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'fixed'), 0);
-  const getTotalVariableAverage = () => VARIABLE_EXPENSES.reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'variable'), 0);
+  const customFixed = customCategories.filter(c => c.expense_type === 'fixed').map(c => c.name);
+  const customVariable = customCategories.filter(c => c.expense_type === 'variable').map(c => c.name);
+
+  const getTotalFixedAverage = () => 
+    [...FIXED_EXPENSES, ...customFixed].reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'fixed'), 0);
+  const getTotalVariableAverage = () => 
+    [...VARIABLE_EXPENSES, ...customVariable].reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'variable'), 0);
 
   const incomeAverage = calculateIncomeAverage();
   const fixedAverage = getTotalFixedAverage();
@@ -268,7 +297,15 @@ export default function FinancialReflection({ userId }) {
   return (
     <div className="space-y-6">
       {(!isViewingOther || isAdvisorOrAdmin) && (
-        <div className="flex justify-end items-center gap-3">
+        <div className="flex justify-end items-center gap-3 flex-wrap">
+          <Button
+            onClick={() => setShowAddCategoryDialog(true)}
+            variant="outline"
+            className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
+          >
+            <Plus className="w-4 h-4 ml-2" />
+            הוסף סעיף הוצאה חדש
+          </Button>
           <Button
             onClick={() => setShowPDFImportDialog(true)}
             variant="outline"
@@ -413,11 +450,20 @@ export default function FinancialReflection({ userId }) {
           <CollapsibleContent>
             <CardContent className="pt-6">
               <div className="space-y-3">
-                {FIXED_EXPENSES.map((category) => {
+                {[...FIXED_EXPENSES, ...customFixed].map((category) => {
                   const avg = calculateExpenseAverage(category, 'fixed');
+                  const isCustom = customFixed.includes(category);
+                  const customCat = isCustom ? customCategories.find(c => c.name === category && c.expense_type === 'fixed') : null;
                   return (
                     <div key={category} className="grid grid-cols-5 gap-4 items-center p-3 bg-slate-50/50 rounded-xl">
-                      <Label className="col-span-2 font-medium text-slate-700">{category}</Label>
+                      <div className="col-span-2 flex items-center gap-2">
+                        <Label className="font-medium text-slate-700">{category}</Label>
+                        {isCustom && (
+                          <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                       {[1, 2, 3].map((month) => (
                         <Input
                           key={month}
@@ -461,11 +507,20 @@ export default function FinancialReflection({ userId }) {
           <CollapsibleContent>
             <CardContent className="pt-6">
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {VARIABLE_EXPENSES.map((category) => {
+                {[...VARIABLE_EXPENSES, ...customVariable].map((category) => {
                   const avg = calculateExpenseAverage(category, 'variable');
+                  const isCustom = customVariable.includes(category);
+                  const customCat = isCustom ? customCategories.find(c => c.name === category && c.expense_type === 'variable') : null;
                   return (
                     <div key={category} className="grid grid-cols-5 gap-4 items-center p-3 bg-slate-50/50 rounded-xl">
-                      <Label className="col-span-2 font-medium text-slate-700">{category}</Label>
+                      <div className="col-span-2 flex items-center gap-2">
+                        <Label className="font-medium text-slate-700">{category}</Label>
+                        {isCustom && (
+                          <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                       {[1, 2, 3].map((month) => (
                         <Input
                           key={month}
@@ -563,6 +618,47 @@ export default function FinancialReflection({ userId }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Add Category Dialog */}
+      <Dialog open={showAddCategoryDialog} onOpenChange={setShowAddCategoryDialog}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>הוסף סעיף הוצאה חדש</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>שם הסעיף</Label>
+              <Input
+                value={newCategory.name}
+                onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="לדוגמה: מנוי ספורט"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>סוג הוצאה</Label>
+              <Select value={newCategory.expense_type} onValueChange={(v) => setNewCategory(prev => ({ ...prev, expense_type: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed">הוצאה קבועה</SelectItem>
+                  <SelectItem value="variable">יתרת הוצאות (משתנה)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={() => {
+                if (!newCategory.name.trim()) return;
+                addCategoryMutation.mutate(newCategory);
+              }}
+              disabled={addCategoryMutation.isPending || !newCategory.name.trim()}
+              className="w-full bg-[#105330] hover:bg-[#0d4027]"
+            >
+              {addCategoryMutation.isPending ? 'מוסיף...' : 'הוסף סעיף'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <PDFReflectionImport
         open={showPDFImportDialog}
