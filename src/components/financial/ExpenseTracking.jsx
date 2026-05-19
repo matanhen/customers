@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subMonths } from 'date-fns';
@@ -245,6 +245,9 @@ export default function ExpenseTracking({ userId }) {
     },
   });
 
+  const saveMutationRef = React.useRef(saveMutation);
+  saveMutationRef.current = saveMutation;
+
   const autoSaveTimerRef = React.useRef(null);
   const pendingDataRef = React.useRef(null);
 
@@ -253,20 +256,20 @@ export default function ExpenseTracking({ userId }) {
     pendingDataRef.current = data;
     clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveMutation.mutate(data);
+      saveMutationRef.current.mutate(data);
       pendingDataRef.current = null;
     }, 400);
-  }, [saveMutation]);
+  }, []);
 
   // Save immediately on unmount (navigation away)
   React.useEffect(() => {
     return () => {
       if (pendingDataRef.current) {
         clearTimeout(autoSaveTimerRef.current);
-        saveMutation.mutate(pendingDataRef.current);
+        saveMutationRef.current.mutate(pendingDataRef.current);
       }
     };
-  }, [saveMutation]);
+  }, []);
 
   // Auto-save when trackingData changes
   useEffect(() => {
