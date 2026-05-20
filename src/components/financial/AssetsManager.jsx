@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins } from 'lucide-react';
@@ -12,7 +12,7 @@ const ASSET_CATEGORIES = {
   cash: {
     title: 'מזומנים',
     icon: Wallet,
-    items: ['עובר ושב 1', 'עובר ושב 2', 'קרן כספית', 'פיקדון בבנק'],
+    items: ['עובר ושב 1', 'עובר ושב 2', 'קרן כספית', 'פיקדון בבנק', 'פקדון מהצבא', 'חיסכון לכל ילד'],
     fields: ['value']
   },
   real_estate: {
@@ -47,7 +47,8 @@ export default function AssetsManager({ userId }) {
   const [openSections, setOpenSections] = useState({});
   const [assets, setAssets] = useState({});
   const [dataLoaded, setDataLoaded] = useState(false);
-  const autoSaveTimer = React.useRef(null);
+  const dataLoadedRef = useRef(false);
+  const assetsRef = useRef({});
   const queryClient = useQueryClient();
 
   const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
@@ -78,11 +79,10 @@ export default function AssetsManager({ userId }) {
 
   useEffect(() => {
     if (dataLoaded) return; // Don't overwrite user edits after initial load
-    if (plan) {
-      setAssets(plan.assets || {});
-    } else {
-      setAssets({});
-    }
+    const loaded = plan?.assets || {};
+    setAssets(loaded);
+    assetsRef.current = loaded;
+    dataLoadedRef.current = true;
     setDataLoaded(true);
   }, [plan]);
 
@@ -118,12 +118,10 @@ export default function AssetsManager({ userId }) {
     },
   });
 
-  const triggerAutoSave = (latestAssets) => {
-    if (!dataLoaded) return;
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      saveMutation.mutate(latestAssets);
-    }, 1500);
+  const saveNowRef = useRef(null);
+  saveNowRef.current = (latestAssets) => {
+    if (!dataLoadedRef.current) return;
+    saveMutation.mutate(latestAssets);
   };
 
   const toggleSection = (key) => {
@@ -142,9 +140,13 @@ export default function AssetsManager({ userId }) {
           }
         }
       };
-      triggerAutoSave(next);
+      assetsRef.current = next;
       return next;
     });
+  };
+
+  const handleBlurSave = () => {
+    saveNowRef.current(assetsRef.current);
   };
 
   const calculateCategoryTotal = (catKey) => {
@@ -195,10 +197,11 @@ export default function AssetsManager({ userId }) {
                           <div>
                             <Label className="text-xs text-[#105330]/70">שווי</Label>
                             <Input
-                              type="number"
-                              value={assets[key]?.[item]?.value || ''}
-                              onChange={(e) => updateAsset(key, item, 'value', e.target.value)}
-                              className="rounded-lg border-[#105330]/20"
+                             type="number"
+                             value={assets[key]?.[item]?.value || ''}
+                             onChange={(e) => updateAsset(key, item, 'value', e.target.value)}
+                             onBlur={handleBlurSave}
+                             className="rounded-lg border-[#105330]/20"
                             />
                           </div>
                           {category.fields.includes('monthly_deposit') && (
@@ -208,6 +211,7 @@ export default function AssetsManager({ userId }) {
                                 type="number"
                                 value={assets[key]?.[item]?.monthly_deposit || ''}
                                 onChange={(e) => updateAsset(key, item, 'monthly_deposit', e.target.value)}
+                                onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
                               />
                             </div>
@@ -232,6 +236,7 @@ export default function AssetsManager({ userId }) {
                                 step="0.01"
                                 value={assets[key]?.[item]?.management_fee || ''}
                                 onChange={(e) => updateAsset(key, item, 'management_fee', e.target.value)}
+                                onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
                               />
                             </div>
@@ -255,6 +260,7 @@ export default function AssetsManager({ userId }) {
                                 type="number"
                                 value={assets[key]?.[item]?.rental_income || ''}
                                 onChange={(e) => updateAsset(key, item, 'rental_income', e.target.value)}
+                                onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
                               />
                             </div>
