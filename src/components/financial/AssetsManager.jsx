@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -46,16 +45,25 @@ export default function AssetsManager({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [openSections, setOpenSections] = useState({});
   const [assets, setAssets] = useState({});
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const dataLoadedRef = useRef(false);
+
+  // Refs to always hold latest values without triggering re-renders
   const assetsRef = useRef({});
-  const queryClient = useQueryClient();
+  const planIdRef = useRef(null);
+  const initializedRef = useRef(false);
 
   const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
 
   useEffect(() => {
     base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, [userId]);
+
+  // Reset on userId change so new data is loaded fresh
+  useEffect(() => {
+    initializedRef.current = false;
+    planIdRef.current = null;
+    setAssets({});
+    assetsRef.current = {};
   }, [userId]);
 
   const { data: plan } = useQuery({
@@ -67,29 +75,26 @@ export default function AssetsManager({ userId }) {
           entityName: 'FinancialPlan'
         });
         const plans = response.data?.data || [];
-        return plans.find(p => p.plan_type === 'reflection_assets');
+        return plans.find(p => p.plan_type === 'reflection_assets') || null;
       }
       const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: 'reflection_assets' });
-      return results[0];
+      return results[0] || null;
     },
     enabled: !!userId && !!currentUser,
-    staleTime: Infinity,
+    staleTime: 0,
     refetchOnWindowFocus: false,
   });
 
+  // Initialize assets from fetched plan — runs once per load
   useEffect(() => {
-    if (dataLoaded) return; // Don't overwrite user edits after initial load
+    if (plan === undefined) return; // still loading
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     const loaded = plan?.assets || {};
+    planIdRef.current = plan?.id || null;
     setAssets(loaded);
     assetsRef.current = loaded;
-    dataLoadedRef.current = true;
-    setDataLoaded(true);
-  }, [plan]);
-
-  // Keep a ref to current plan id so mutations always have latest value
-  const planIdRef = React.useRef(null);
-  useEffect(() => {
-    planIdRef.current = plan?.id || null;
   }, [plan]);
 
   const saveMutation = useMutation({
@@ -118,35 +123,30 @@ export default function AssetsManager({ userId }) {
     },
   });
 
-  const saveNowRef = useRef(null);
-  saveNowRef.current = (latestAssets) => {
-    if (!dataLoadedRef.current) return;
-    saveMutation.mutate(latestAssets);
-  };
-
   const toggleSection = (key) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const updateAsset = (category, item, field, value) => {
-    setAssets(prev => {
-      const next = {
-        ...prev,
-        [category]: {
-          ...(prev[category] || {}),
-          [item]: {
-            ...(prev[category]?.[item] || {}),
-            [field]: parseFloat(value) || 0
-          }
+    const parsed = value === '' ? 0 : parseFloat(value) || 0;
+    const next = {
+      ...assetsRef.current,
+      [category]: {
+        ...(assetsRef.current[category] || {}),
+        [item]: {
+          ...(assetsRef.current[category]?.[item] || {}),
+          [field]: parsed
         }
-      };
-      assetsRef.current = next;
-      return next;
-    });
+      }
+    };
+    assetsRef.current = next;
+    setAssets(next);
   };
 
+  // Called on every onBlur — immediately persists current state
   const handleBlurSave = () => {
-    saveNowRef.current(assetsRef.current);
+    if (!initializedRef.current) return;
+    saveMutation.mutate(assetsRef.current);
   };
 
   const calculateCategoryTotal = (catKey) => {
@@ -197,11 +197,11 @@ export default function AssetsManager({ userId }) {
                           <div>
                             <Label className="text-xs text-[#105330]/70">שווי</Label>
                             <Input
-                             type="number"
-                             value={assets[key]?.[item]?.value || ''}
-                             onChange={(e) => updateAsset(key, item, 'value', e.target.value)}
-                             onBlur={handleBlurSave}
-                             className="rounded-lg border-[#105330]/20"
+                              type="number"
+                              value={assets[key]?.[item]?.value || ''}
+                              onChange={(e) => updateAsset(key, item, 'value', e.target.value)}
+                              onBlur={handleBlurSave}
+                              className="rounded-lg border-[#105330]/20"
                             />
                           </div>
                           {category.fields.includes('monthly_deposit') && (
@@ -224,6 +224,7 @@ export default function AssetsManager({ userId }) {
                                 step="0.1"
                                 value={assets[key]?.[item]?.annual_return || ''}
                                 onChange={(e) => updateAsset(key, item, 'annual_return', e.target.value)}
+                                onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
                               />
                             </div>
@@ -249,6 +250,7 @@ export default function AssetsManager({ userId }) {
                                 step="0.1"
                                 value={assets[key]?.[item]?.annual_appreciation || ''}
                                 onChange={(e) => updateAsset(key, item, 'annual_appreciation', e.target.value)}
+                                onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
                               />
                             </div>
@@ -275,8 +277,6 @@ export default function AssetsManager({ userId }) {
           })}
         </CardContent>
       </Card>
-
-
     </div>
   );
 }
