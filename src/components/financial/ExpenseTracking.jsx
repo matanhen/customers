@@ -179,9 +179,6 @@ export default function ExpenseTracking({ userId }) {
   const lastLoadedTrackingIdRef = React.useRef(null);
 
   useEffect(() => {
-    // Don't overwrite local state if we have a pending save in progress
-    if (pendingDataRef.current) return;
-
     if (currentTracking) {
       // Only reload if we got a different record (different month or new data from server)
       if (lastLoadedTrackingIdRef.current === currentTracking.id && dataLoadedRef.current) return;
@@ -216,65 +213,39 @@ export default function ExpenseTracking({ userId }) {
     currentTrackingIdRef.current = currentTracking?.id || null;
   }, [currentTracking]);
 
-  const saveMutation = useMutation({
-    mutationFn: async (data) => {
-      if (isViewingOther && isAdvisorOrAdmin) {
-        const response = await base44.functions.invoke('saveClientData', {
-          entityName: 'ExpenseTracking',
-          clientUserId: userId,
-          data: { ...data, user_id: userId, month: currentMonth },
-          recordId: currentTrackingIdRef.current || null,
-        });
-        if (response.data?.id) currentTrackingIdRef.current = response.data.id;
-        return response.data;
-      }
-      if (currentTrackingIdRef.current) {
-        return base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, data);
-      } else {
-        const created = await base44.entities.ExpenseTracking.create({
-          ...data,
-          user_id: userId,
-          month: currentMonth,
-        });
-        currentTrackingIdRef.current = created.id;
-        return created;
-      }
-    },
-  });
 
-  const saveMutationRef = React.useRef(saveMutation);
-  saveMutationRef.current = saveMutation;
 
-  const autoSaveTimerRef = React.useRef(null);
-  const pendingDataRef = React.useRef(null);
+  // trackingDataRef always holds the latest data for use in callbacks
+  const trackingDataRef = React.useRef(trackingData);
+  trackingDataRef.current = trackingData;
 
-  const triggerSave = React.useCallback((data) => {
+  // Save the current data immediately to the DB
+  const saveNow = React.useCallback(async (data) => {
     if (!dataLoadedRef.current) return;
-    pendingDataRef.current = data;
-    clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      saveMutationRef.current.mutate(data);
-      pendingDataRef.current = null;
-    }, 800);
-  }, []);
+    const month = format(currentDate, 'yyyy-MM');
+    if (isViewingOther && isAdvisorOrAdmin) {
+      const response = await base44.functions.invoke('saveClientData', {
+        entityName: 'ExpenseTracking',
+        clientUserId: userId,
+        data: { ...data, user_id: userId, month },
+        recordId: currentTrackingIdRef.current || null,
+      });
+      if (response.data?.id) currentTrackingIdRef.current = response.data.id;
+    } else if (currentTrackingIdRef.current) {
+      await base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, data);
+    } else {
+      const created = await base44.entities.ExpenseTracking.create({
+        ...data,
+        user_id: userId,
+        month,
+      });
+      currentTrackingIdRef.current = created.id;
+    }
+    queryClient.invalidateQueries({ queryKey: ['expenseTracking', userId] });
+  }, [userId, currentDate, queryClient, isViewingOther, isAdvisorOrAdmin]);
 
-  // Save immediately on unmount (navigation away) - flush pending save
-  React.useEffect(() => {
-    return () => {
-      if (pendingDataRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        const dataToSave = pendingDataRef.current;
-        pendingDataRef.current = null;
-        saveMutationRef.current.mutate(dataToSave);
-      }
-    };
-  }, []);
-
-  // Auto-save when trackingData changes
-  useEffect(() => {
-    if (!dataLoadedRef.current) return;
-    triggerSave(trackingData);
-  }, [trackingData]);
+  const saveNowRef = React.useRef(saveNow);
+  saveNowRef.current = saveNow;
 
   const updateFixedExpense = (category, value) => {
     setTrackingData(prev => ({
@@ -294,6 +265,11 @@ export default function ExpenseTracking({ userId }) {
         [category]: parseFloat(value) || 0
       }
     }));
+  };
+
+  // Save immediately when user leaves any field
+  const handleBlurSave = () => {
+    saveNowRef.current(trackingDataRef.current);
   };
 
   const addCustomExpense = () => {
@@ -373,7 +349,7 @@ export default function ExpenseTracking({ userId }) {
     }
 
     setTrackingData(newTrackingData);
-    saveMutation.mutate(newTrackingData);
+    saveNow(newTrackingData);
 
     setUpdateExpense({ type: 'fixed', category: '', amount: 0, isCustom: false, customName: '' });
     setShowUpdateDialog(false);
@@ -466,6 +442,7 @@ export default function ExpenseTracking({ userId }) {
               type="number"
               value={trackingData.actual_income || ''}
               onChange={(e) => setTrackingData({ ...trackingData, actual_income: parseFloat(e.target.value) || 0 })}
+              onBlur={handleBlurSave}
               placeholder="הזן הכנסה בפועל"
               className="text-lg font-medium flex-1"
             />
@@ -706,6 +683,7 @@ export default function ExpenseTracking({ userId }) {
                       type="number"
                       value={trackingData.fixed_expenses[category] || ''}
                       onChange={(e) => updateFixedExpense(category, e.target.value)}
+                      onBlur={handleBlurSave}
                       placeholder="0"
                       className="h-9"
                     />
@@ -732,6 +710,7 @@ export default function ExpenseTracking({ userId }) {
                         type="number"
                         value={exp.amount || ''}
                         onChange={(e) => updateCustomExpenseAmount(originalIdx, e.target.value)}
+                        onBlur={handleBlurSave}
                         placeholder="0"
                         className="h-9"
                       />
@@ -782,6 +761,7 @@ export default function ExpenseTracking({ userId }) {
                       type="number"
                       value={trackingData.variable_expenses[category] || ''}
                       onChange={(e) => updateVariableExpense(category, e.target.value)}
+                      onBlur={handleBlurSave}
                       placeholder="0"
                       className="h-9"
                     />
@@ -808,6 +788,7 @@ export default function ExpenseTracking({ userId }) {
                         type="number"
                         value={exp.amount || ''}
                         onChange={(e) => updateCustomExpenseAmount(originalIdx, e.target.value)}
+                        onBlur={handleBlurSave}
                         placeholder="0"
                         className="h-9"
                       />
@@ -965,7 +946,7 @@ export default function ExpenseTracking({ userId }) {
             }
           });
           setTrackingData(newData);
-          saveMutation.mutate(newData);
+          saveNow(newData);
         }}
       />
 
