@@ -146,8 +146,8 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.ExpenseTracking.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const { data: monthlyPlans = [], isLoading: plansLoading } = useQuery({
@@ -175,15 +175,17 @@ export default function ExpenseTracking({ userId }) {
   const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
   const prevTracking = allTracking.find(t => t.month === prevMonth);
 
-  const lastLoadedMonthRef = React.useRef(null);
   const dataLoadedRef = React.useRef(false);
+  const lastLoadedTrackingIdRef = React.useRef(null);
 
   useEffect(() => {
-    // Only reload from DB when the month changes or data first arrives – don't overwrite user edits
-    if (lastLoadedMonthRef.current === currentMonth) return;
+    // Don't overwrite local state if we have a pending save in progress
+    if (pendingDataRef.current) return;
 
     if (currentTracking) {
-      lastLoadedMonthRef.current = currentMonth;
+      // Only reload if we got a different record (different month or new data from server)
+      if (lastLoadedTrackingIdRef.current === currentTracking.id && dataLoadedRef.current) return;
+      lastLoadedTrackingIdRef.current = currentTracking.id;
       dataLoadedRef.current = false;
       setTrackingData({
         actual_income: currentTracking.actual_income || 0,
@@ -192,10 +194,10 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: currentTracking.custom_expenses || [],
         freedom_transfer_done: currentTracking.freedom_transfer_done || false
       });
-      setTimeout(() => { dataLoadedRef.current = true; }, 200);
+      setTimeout(() => { dataLoadedRef.current = true; }, 100);
     } else if (!trackingLoading && allTracking !== undefined) {
-      // No current month tracking exists - start fresh with zeros
-      lastLoadedMonthRef.current = currentMonth;
+      if (lastLoadedTrackingIdRef.current === `empty-${currentMonth}` && dataLoadedRef.current) return;
+      lastLoadedTrackingIdRef.current = `empty-${currentMonth}`;
       dataLoadedRef.current = false;
       setTrackingData({
         actual_income: 0,
@@ -204,14 +206,9 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: [],
         freedom_transfer_done: false
       });
-      setTimeout(() => { dataLoadedRef.current = true; }, 200);
+      setTimeout(() => { dataLoadedRef.current = true; }, 100);
     }
-  }, [currentTracking, prevTracking, currentMonth]);
-
-  // Reset ref when month changes so next month loads fresh
-  useEffect(() => {
-    lastLoadedMonthRef.current = null;
-  }, [currentMonth]);
+  }, [currentTracking, currentMonth, trackingLoading]);
 
   // Keep a ref to current tracking id to avoid stale closures
   const currentTrackingIdRef = React.useRef(null);
@@ -258,15 +255,17 @@ export default function ExpenseTracking({ userId }) {
     autoSaveTimerRef.current = setTimeout(() => {
       saveMutationRef.current.mutate(data);
       pendingDataRef.current = null;
-    }, 400);
+    }, 800);
   }, []);
 
-  // Save immediately on unmount (navigation away)
+  // Save immediately on unmount (navigation away) - flush pending save
   React.useEffect(() => {
     return () => {
       if (pendingDataRef.current) {
         clearTimeout(autoSaveTimerRef.current);
-        saveMutationRef.current.mutate(pendingDataRef.current);
+        const dataToSave = pendingDataRef.current;
+        pendingDataRef.current = null;
+        saveMutationRef.current.mutate(dataToSave);
       }
     };
   }, []);
