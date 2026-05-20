@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -41,15 +41,19 @@ const ASSET_CATEGORIES = {
   }
 };
 
+const QUERY_KEY = (userId) => ['financialPlan_assets', userId];
+
 export default function AssetsManager({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [openSections, setOpenSections] = useState({});
   const [assets, setAssets] = useState({});
+  const queryClient = useQueryClient();
 
-  // Refs to always hold latest values without triggering re-renders
+  // Refs to avoid stale closure issues
   const assetsRef = useRef({});
   const planIdRef = useRef(null);
-  const initializedRef = useRef(false);
+  const readyRef = useRef(false);
+  const isSavingRef = useRef(false);
 
   const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
   const isViewingOther = !!currentUser && currentUser.id !== userId;
@@ -58,16 +62,16 @@ export default function AssetsManager({ userId }) {
     base44.auth.me().then(setCurrentUser).catch(() => {});
   }, [userId]);
 
-  // Reset on userId change so new data is loaded fresh
+  // Reset state when userId changes
   useEffect(() => {
-    initializedRef.current = false;
+    readyRef.current = false;
     planIdRef.current = null;
-    setAssets({});
     assetsRef.current = {};
+    setAssets({});
   }, [userId]);
 
-  const { data: plan } = useQuery({
-    queryKey: ['financialPlan_assets', userId, currentUser?.id],
+  const { data: plan, isFetched } = useQuery({
+    queryKey: QUERY_KEY(userId),
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('getClientData', {
@@ -85,17 +89,16 @@ export default function AssetsManager({ userId }) {
     refetchOnWindowFocus: false,
   });
 
-  // Initialize assets from fetched plan — runs once per load
+  // Load data from server into local state — only once per fetch cycle
   useEffect(() => {
-    if (plan === undefined) return; // still loading
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
+    if (!isFetched) return;
+    if (readyRef.current) return; // already initialized; don't overwrite user edits
+    readyRef.current = true;
     const loaded = plan?.assets || {};
     planIdRef.current = plan?.id || null;
-    setAssets(loaded);
     assetsRef.current = loaded;
-  }, [plan]);
+    setAssets(loaded);
+  }, [isFetched, plan]);
 
   const saveMutation = useMutation({
     mutationFn: async (latestAssets) => {
@@ -121,14 +124,20 @@ export default function AssetsManager({ userId }) {
       planIdRef.current = created.id;
       return created;
     },
+    onSuccess: (result, latestAssets) => {
+      // Update the query cache with the saved data so navigating away and back shows correct data
+      queryClient.setQueryData(QUERY_KEY(userId), (old) => ({
+        ...(old || {}),
+        id: planIdRef.current,
+        assets: latestAssets,
+        plan_type: 'reflection_assets',
+        user_id: userId,
+      }));
+    }
   });
 
-  const toggleSection = (key) => {
-    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const updateAsset = (category, item, field, value) => {
-    const parsed = value === '' ? 0 : parseFloat(value) || 0;
+    const parsed = value === '' ? 0 : (parseFloat(value) ?? 0);
     const next = {
       ...assetsRef.current,
       [category]: {
@@ -140,21 +149,27 @@ export default function AssetsManager({ userId }) {
       }
     };
     assetsRef.current = next;
-    setAssets(next);
+    setAssets({ ...next });
   };
 
-  // Called on every onBlur — immediately persists current state
-  const handleBlurSave = () => {
-    if (!initializedRef.current) return;
-    saveMutation.mutate(assetsRef.current);
+  const handleBlurSave = async () => {
+    if (!readyRef.current || isSavingRef.current) return;
+    isSavingRef.current = true;
+    try {
+      await saveMutation.mutateAsync(assetsRef.current);
+    } finally {
+      isSavingRef.current = false;
+    }
+  };
+
+  const toggleSection = (key) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const calculateCategoryTotal = (catKey) => {
     let total = 0;
     if (assets[catKey]) {
-      Object.values(assets[catKey]).forEach(item => {
-        total += item.value || 0;
-      });
+      Object.values(assets[catKey]).forEach(item => { total += item.value || 0; });
     }
     return total;
   };
@@ -198,7 +213,7 @@ export default function AssetsManager({ userId }) {
                             <Label className="text-xs text-[#105330]/70">שווי</Label>
                             <Input
                               type="number"
-                              value={assets[key]?.[item]?.value || ''}
+                              value={assets[key]?.[item]?.value ?? ''}
                               onChange={(e) => updateAsset(key, item, 'value', e.target.value)}
                               onBlur={handleBlurSave}
                               className="rounded-lg border-[#105330]/20"
@@ -209,7 +224,7 @@ export default function AssetsManager({ userId }) {
                               <Label className="text-xs text-[#105330]/70">הפקדה חודשית</Label>
                               <Input
                                 type="number"
-                                value={assets[key]?.[item]?.monthly_deposit || ''}
+                                value={assets[key]?.[item]?.monthly_deposit ?? ''}
                                 onChange={(e) => updateAsset(key, item, 'monthly_deposit', e.target.value)}
                                 onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
@@ -222,7 +237,7 @@ export default function AssetsManager({ userId }) {
                               <Input
                                 type="number"
                                 step="0.1"
-                                value={assets[key]?.[item]?.annual_return || ''}
+                                value={assets[key]?.[item]?.annual_return ?? ''}
                                 onChange={(e) => updateAsset(key, item, 'annual_return', e.target.value)}
                                 onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
@@ -235,7 +250,7 @@ export default function AssetsManager({ userId }) {
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={assets[key]?.[item]?.management_fee || ''}
+                                value={assets[key]?.[item]?.management_fee ?? ''}
                                 onChange={(e) => updateAsset(key, item, 'management_fee', e.target.value)}
                                 onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
@@ -248,7 +263,7 @@ export default function AssetsManager({ userId }) {
                               <Input
                                 type="number"
                                 step="0.1"
-                                value={assets[key]?.[item]?.annual_appreciation || ''}
+                                value={assets[key]?.[item]?.annual_appreciation ?? ''}
                                 onChange={(e) => updateAsset(key, item, 'annual_appreciation', e.target.value)}
                                 onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
@@ -260,7 +275,7 @@ export default function AssetsManager({ userId }) {
                               <Label className="text-xs text-[#105330]/70">הכנסה משכירות</Label>
                               <Input
                                 type="number"
-                                value={assets[key]?.[item]?.rental_income || ''}
+                                value={assets[key]?.[item]?.rental_income ?? ''}
                                 onChange={(e) => updateAsset(key, item, 'rental_income', e.target.value)}
                                 onBlur={handleBlurSave}
                                 className="rounded-lg border-[#105330]/20"
