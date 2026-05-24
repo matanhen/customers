@@ -28,13 +28,9 @@ export default function Layout({ children }) {
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0); // 0=hidden, 1=first confirm, 2=second confirm
   const [deletingAccount, setDeletingAccount] = useState(false);
 
-  // Dark mode detection
+  // Force light mode - app is not designed for dark mode
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const apply = (e) => document.documentElement.classList.toggle('dark', e.matches);
-    apply(mq);
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
+    document.documentElement.classList.remove('dark');
   }, []);
 
   useEffect(() => {
