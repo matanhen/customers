@@ -49,7 +49,6 @@
  */
 import AdminDashboard from './pages/AdminDashboard';
 import AdvisorDashboard from './pages/AdvisorDashboard';
-import Appointments from './pages/Appointments';
 import FinancialFreedom from './pages/FinancialFreedom';
 import FinancialManagement from './pages/FinancialManagement';
 import Investments from './pages/Investments';
@@ -60,7 +59,6 @@ import __Layout from './Layout.jsx';
 export const PAGES = {
     "AdminDashboard": AdminDashboard,
     "AdvisorDashboard": AdvisorDashboard,
-    "Appointments": Appointments,
     "FinancialFreedom": FinancialFreedom,
     "FinancialManagement": FinancialManagement,
     "Investments": Investments,

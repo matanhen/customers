@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { createPageUrl } from './utils/index.ts';
 import { base44 } from '@/api/base44Client';
 import { 
-        Home, TrendingUp, PiggyBank, Target, Calendar,
+        Home, TrendingUp, PiggyBank, Target,
         Menu, X, LogOut, Users, UserCog, ChevronRight, ChevronLeft, User, Settings, Save, GraduationCap, BookOpen, Trash2, AlertTriangle
       } from 'lucide-react';
 import FinancialAdvisor from './components/chat/FinancialAdvisor';
@@ -217,7 +217,7 @@ export default function Layout({ children }) {
     { name: 'התנהלות כלכלית', page: 'FinancialManagement', icon: PiggyBank },
     { name: 'השקעות', page: 'Investments', icon: TrendingUp },
     { name: 'תכנון חופש כלכלי', page: 'FinancialFreedom', icon: Target },
-    { name: 'קביעת פגישה', page: 'Appointments', icon: Calendar },
+
     { name: 'חוברת עבודה', page: 'Workbook', icon: BookOpen },
     { name: 'האקדמיה', externalUrl: 'https://academy.matanhen.com', icon: GraduationCap },
   ];

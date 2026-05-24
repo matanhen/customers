@@ -10,6 +10,7 @@ import PageNotFound from './lib/PageNotFound';
 import Systems from './pages/Systems';
 import Landing from './pages/Landing';
 import Workbook from './pages/Workbook';
+// Removed Appointments related imports
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ErrorBoundary from '@/lib/ErrorBoundary';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -56,6 +57,7 @@ const AuthenticatedApp = () => {
         ))}
         <Route path="/Systems" element={<ErrorBoundary><Systems /></ErrorBoundary>} />
         <Route path="/Workbook" element={<ErrorBoundary><Workbook /></ErrorBoundary>} />
+        {/* Removed /Appointments route */}
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

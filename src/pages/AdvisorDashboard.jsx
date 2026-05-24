@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, Search, Eye, 
-  Mail, Calendar, AlertCircle, UserPlus
+  Mail, AlertCircle, UserPlus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import AdvisorNotifications from '../components/notifications/AdvisorNotifications';
+
 
 const IDAN_EMAIL = 'idanhen012@gmail.com';
 const NIV_EMAIL = 'nivdavid7@gmail.com';
@@ -274,7 +274,7 @@ export default function AdvisorDashboard() {
                 <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.full_name || 'ללא שם'}</h3>
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
                   <span className="flex items-center gap-1.5 truncate"><Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" /><span className="truncate">{client.email}</span></span>
-                  <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />{client.last_login_date ? format(new Date(client.last_login_date), 'dd/MM/yyyy HH:mm') : 'לא נכנס עדיין'}</span>
+                  <span className="flex items-center gap-1.5">{client.last_login_date ? format(new Date(client.last_login_date), 'dd/MM/yyyy HH:mm') : 'לא נכנס עדיין'}</span>
                 </div>
               </div>
             </div>
@@ -414,10 +414,7 @@ export default function AdvisorDashboard() {
         </Card>
       )}
 
-      {/* Notifications */}
-      {!isLoading && !hasError && (
-        <AdvisorNotifications advisorId={user?.id} clients={clients} />
-      )}
+
 
       {/* Add Client Dialog */}
       <Dialog open={showAddClient} onOpenChange={setShowAddClient}>
