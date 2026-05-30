@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   TrendingUp, TrendingDown, ChevronDown, ChevronUp,
-  DollarSign, Receipt, FileText, Save, Check, Plus, Trash2
+  DollarSign, Receipt, FileText, Save, Check, Plus, Trash2, Image
 } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +16,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PDFReflectionImport from './PDFReflectionImport';
+import ImageCreditImport from './ImageCreditImport';
 
 const FIXED_EXPENSES = [
   'ביטוחי רכב','טסט','משכנתא','ביטוח משכנתא','שכירות',
@@ -40,7 +41,11 @@ export default function FinancialReflection({ userId }) {
   const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
   const [creditCardTotal, setCreditCardTotal] = useState(0);
   const [creditCardDisplay, setCreditCardDisplay] = useState('');
+  const [maleAge, setMaleAge] = useState('');
+  const [femaleAge, setFemaleAge] = useState('');
+  const [checkingBalance, setCheckingBalance] = useState('');
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
+  const [showImageImportDialog, setShowImageImportDialog] = useState(false);
   const [showAddCategoryDialog, setShowAddCategoryDialog] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', expense_type: 'fixed' });
   const [currentUser, setCurrentUser] = useState(null);
@@ -132,6 +137,9 @@ export default function FinancialReflection({ userId }) {
     setVariableExpenses(variable);
     setCreditCardTotal(cc);
     setCreditCardDisplay(cc > 0 ? String(cc) : '');
+    setMaleAge(reflection?.male_age ? String(reflection.male_age) : '');
+    setFemaleAge(reflection?.female_age ? String(reflection.female_age) : '');
+    setCheckingBalance(reflection?.checking_account_balance != null ? String(reflection.checking_account_balance) : '');
 
     // Init display strings
     const incDisp = {};
@@ -245,17 +253,23 @@ export default function FinancialReflection({ userId }) {
   const totalExpenseAverage = fixedAverage + variableAverage;
   const cashFlowAverage = incomeAverage - totalExpenseAverage;
 
+  const buildSavePayload = (overrides = {}) => ({
+    incomes,
+    fixed_expenses: fixedExpenses,
+    variable_expenses: variableExpenses,
+    credit_card_total: creditCardTotal,
+    male_age: parseInt(maleAge) || null,
+    female_age: parseInt(femaleAge) || null,
+    checking_account_balance: checkingBalance !== '' ? parseFloat(checkingBalance) : null,
+    ...overrides,
+  });
+
   const handleIncomeChange = (monthKey, rawValue) => {
     const num = parseFloat(rawValue) || 0;
     const nextIncomes = { ...incomes, [monthKey]: num };
     setIncomeDisplays(prev => ({ ...prev, [monthKey]: rawValue }));
     setIncomes(nextIncomes);
-    triggerAutoSave({
-      incomes: nextIncomes,
-      fixed_expenses: fixedExpenses,
-      variable_expenses: variableExpenses,
-      credit_card_total: creditCardTotal,
-    });
+    triggerAutoSave(buildSavePayload({ incomes: nextIncomes }));
   };
 
   const updateExpense = (category, month, rawValue, type) => {
@@ -264,22 +278,12 @@ export default function FinancialReflection({ userId }) {
       const nextFixed = { ...fixedExpenses, [category]: { ...(fixedExpenses[category] || {}), [month]: num } };
       setFixedDisplays(prev => ({ ...prev, [category]: { ...(prev[category] || {}), [month]: rawValue } }));
       setFixedExpenses(nextFixed);
-      triggerAutoSave({
-        incomes,
-        fixed_expenses: nextFixed,
-        variable_expenses: variableExpenses,
-        credit_card_total: creditCardTotal,
-      });
+      triggerAutoSave(buildSavePayload({ fixed_expenses: nextFixed }));
     } else {
       const nextVariable = { ...variableExpenses, [category]: { ...(variableExpenses[category] || {}), [month]: num } };
       setVariableDisplays(prev => ({ ...prev, [category]: { ...(prev[category] || {}), [month]: rawValue } }));
       setVariableExpenses(nextVariable);
-      triggerAutoSave({
-        incomes,
-        fixed_expenses: fixedExpenses,
-        variable_expenses: nextVariable,
-        credit_card_total: creditCardTotal,
-      });
+      triggerAutoSave(buildSavePayload({ variable_expenses: nextVariable }));
     }
   };
 
@@ -302,6 +306,57 @@ export default function FinancialReflection({ userId }) {
 
   return (
     <div className="space-y-6">
+      {/* Age & Checking Balance Fields */}
+      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm">
+        <CardContent className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold">גיל - גבר</Label>
+              <Input
+                type="number"
+                value={maleAge}
+                onChange={(e) => {
+                  setMaleAge(e.target.value);
+                  triggerAutoSave(buildSavePayload({ male_age: parseInt(e.target.value) || null }));
+                }}
+                placeholder="הזן גיל"
+                className="border-slate-200"
+                disabled={isViewingOther && !isAdvisorOrAdmin}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold">גיל - אישה</Label>
+              <Input
+                type="number"
+                value={femaleAge}
+                onChange={(e) => {
+                  setFemaleAge(e.target.value);
+                  triggerAutoSave(buildSavePayload({ female_age: parseInt(e.target.value) || null }));
+                }}
+                placeholder="הזן גיל"
+                className="border-slate-200"
+                disabled={isViewingOther && !isAdvisorOrAdmin}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold">יתרת עובר ושב נוכחית</Label>
+              <Input
+                type="number"
+                value={checkingBalance}
+                onChange={(e) => {
+                  setCheckingBalance(e.target.value);
+                  triggerAutoSave(buildSavePayload({ checking_account_balance: parseFloat(e.target.value) || null }));
+                }}
+                placeholder="יכול להיות במינוס, לדוגמה: -5000"
+                className="border-slate-200"
+                disabled={isViewingOther && !isAdvisorOrAdmin}
+              />
+              <p className="text-xs text-slate-400">ניתן להזין ערך חיובי או שלילי</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {(!isViewingOther || isAdvisorOrAdmin) && (
         <div className="flex justify-end items-center gap-3 flex-wrap">
           <Button
@@ -313,6 +368,14 @@ export default function FinancialReflection({ userId }) {
             הוסף סעיף הוצאה חדש
           </Button>
           <Button
+            onClick={() => setShowImageImportDialog(true)}
+            variant="outline"
+            className="border-purple-400 text-purple-600 hover:bg-purple-50"
+          >
+            <Image className="w-4 h-4 ml-2" />
+            ייבוא מתמונה
+          </Button>
+          <Button
             onClick={() => setShowPDFImportDialog(true)}
             variant="outline"
             className="border-red-400 text-red-600 hover:bg-red-50"
@@ -322,12 +385,7 @@ export default function FinancialReflection({ userId }) {
           </Button>
           <Button
             onClick={() => {
-              saveMutation.mutate({
-                incomes,
-                fixed_expenses: fixedExpenses,
-                variable_expenses: variableExpenses,
-                credit_card_total: creditCardTotal,
-              }, {
+              saveMutation.mutate(buildSavePayload(), {
                 onSuccess: () => {
                   setSaveSuccess(true);
                   setTimeout(() => setSaveSuccess(false), 2000);
@@ -343,11 +401,13 @@ export default function FinancialReflection({ userId }) {
         </div>
       )}
       
+      
       {isViewingOther && !isAdvisorOrAdmin && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-amber-800 font-medium">אתה צופה בנתוני לקוח - ניתן לראות בלבד, לא לערוך</p>
         </div>
       )}
+
 
       {/* Summary Cards */}
       <div className="grid md:grid-cols-3 gap-4">
@@ -681,12 +741,27 @@ export default function FinancialReflection({ userId }) {
           });
           setFixedExpenses(nextFixed);
           setVariableExpenses(nextVariable);
-          saveMutation.mutate({
-            incomes,
-            fixed_expenses: nextFixed,
-            variable_expenses: nextVariable,
-            credit_card_total: creditCardTotal,
+          saveMutation.mutate(buildSavePayload({ fixed_expenses: nextFixed, variable_expenses: nextVariable }));
+        }}
+      />
+
+      <ImageCreditImport
+        open={showImageImportDialog}
+        onOpenChange={setShowImageImportDialog}
+        mode="reflection"
+        onApply={(items) => {
+          let nextFixed = { ...fixedExpenses };
+          let nextVariable = { ...variableExpenses };
+          items.forEach(item => {
+            if (item.type === 'fixed') {
+              nextFixed = { ...nextFixed, [item.category]: { ...(nextFixed[item.category] || {}), [item.month]: (nextFixed[item.category]?.[item.month] || 0) + item.amount } };
+            } else {
+              nextVariable = { ...nextVariable, [item.category]: { ...(nextVariable[item.category] || {}), [item.month]: (nextVariable[item.category]?.[item.month] || 0) + item.amount } };
+            }
           });
+          setFixedExpenses(nextFixed);
+          setVariableExpenses(nextVariable);
+          saveMutation.mutate(buildSavePayload({ fixed_expenses: nextFixed, variable_expenses: nextVariable }));
         }}
       />
     </div>

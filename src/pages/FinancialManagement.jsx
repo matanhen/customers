@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import PullToRefresh from '../components/PullToRefresh';
-import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2, Landmark } from 'lucide-react';
+import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2, Landmark, Rocket } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
@@ -11,6 +11,7 @@ import ExpenseTracking from '../components/financial/ExpenseTracking';
 import DebtManager from '../components/financial/DebtManager';
 import AssetsManager from '../components/financial/AssetsManager';
 import PensionManager from '../components/investments/PensionManager';
+import FinancialForecast from '../components/financial/FinancialForecast';
 
 
 const SECTIONS = [
@@ -154,7 +155,7 @@ export default function FinancialManagement() {
     );
   }
 
-  // Reflection section: 3 sub-tabs
+  // Reflection section: tabs
   if (activeSection === 'reflection') {
     return (
       <div className="max-w-6xl mx-auto" dir="rtl">
@@ -166,34 +167,21 @@ export default function FinancialManagement() {
           <h1 className="text-2xl font-bold text-[#105330]">שיקוף פיננסי</h1>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-[#105330]/10 p-1.5 rounded-xl">
-            <TabsTrigger
-              value="reflection"
-              className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
-            >
-              <LineChart className="w-4 h-4 ml-2" />
-              תזרים
+          <TabsList className="flex w-full overflow-x-auto bg-[#105330]/10 p-1.5 rounded-xl gap-1">
+            <TabsTrigger value="reflection" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
+              <LineChart className="w-4 h-4 ml-1 hidden sm:block" />תזרים
             </TabsTrigger>
-            <TabsTrigger
-              value="debts"
-              className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
-            >
-              <CreditCard className="w-4 h-4 ml-2" />
-              התחייבויות
+            <TabsTrigger value="debts" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
+              <CreditCard className="w-4 h-4 ml-1 hidden sm:block" />התחייבויות
             </TabsTrigger>
-            <TabsTrigger
-              value="assets"
-              className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
-            >
-              <Building2 className="w-4 h-4 ml-2" />
-              נכסים
+            <TabsTrigger value="assets" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
+              <Building2 className="w-4 h-4 ml-1 hidden sm:block" />נכסים
             </TabsTrigger>
-            <TabsTrigger
-              value="pension"
-              className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm"
-            >
-              <Landmark className="w-4 h-4 ml-2" />
-              פנסיוני
+            <TabsTrigger value="pension" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
+              <Landmark className="w-4 h-4 ml-1 hidden sm:block" />פנסיוני
+            </TabsTrigger>
+            <TabsTrigger value="forecast" className="rounded-lg data-[state=active]:bg-[#c8a863] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
+              <Rocket className="w-4 h-4 ml-1 hidden sm:block" />🚀 תחזית עתיד
             </TabsTrigger>
           </TabsList>
           <TabsContent value="reflection" className="mt-0">
@@ -207,6 +195,9 @@ export default function FinancialManagement() {
           </TabsContent>
           <TabsContent value="pension" className="mt-0">
             <PensionManager userId={effectiveUserId} />
+          </TabsContent>
+          <TabsContent value="forecast" className="mt-0">
+            <ForecastWrapper userId={effectiveUserId} />
           </TabsContent>
         </Tabs>
       </div>
@@ -230,4 +221,73 @@ export default function FinancialManagement() {
   }
 
   return null;
+}
+
+// Wrapper that loads reflection data and passes calculated values to FinancialForecast
+function ForecastWrapper({ userId }) {
+  const { data: reflection } = useQuery({
+    queryKey: ['financialReflection', userId],
+    queryFn: async () => {
+      const me = await base44.auth.me();
+      const isAdvisorOrAdmin = me?.user_type === 'advisor' || me?.user_type === 'admin';
+      const isViewingOther = !!me && me.id !== userId;
+      if (isViewingOther && isAdvisorOrAdmin) {
+        try {
+          const clientData = sessionStorage.getItem('viewingClient');
+          const clientEmail = clientData ? JSON.parse(clientData).email : null;
+          const response = await base44.functions.invoke('getClientData', {
+            clientUserId: userId,
+            clientEmail,
+            entityName: 'FinancialReflection'
+          });
+          return response.data.data[0] || null;
+        } catch { return null; }
+      }
+      const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
+      return results[0] || null;
+    },
+    enabled: !!userId,
+    staleTime: 30000,
+  });
+
+  const FIXED_EXPENSES = [
+    'ביטוחי רכב','טסט','משכנתא','ביטוח משכנתא','שכירות','מנויים',
+    'ביטוחים (ללא רכב)','ועד בית','ארנונה','החזר הלוואות','הוראות קבע',
+  ];
+  const VARIABLE_EXPENSES = [
+    'מים','חשמל','גז','תספורת וקוסמטיקה','חינוך','חוגים וקייטנות','בריאות',
+    'תיקוני רכב','עמלות וריביות בנקים','טיפולי שיניים','אופטיקה','חגים ויהדות',
+    'טלפון נייד','סופר פארם','דברים לבית','ביטוח לאומי','מזון','דלק וחניה',
+    'תחבורה ציבורית','סיגריות','עוזרת / בייביסיטר','ביט','מזומן','בילויים',
+    'בגדים ונעליים','תרומות','התפתחות אישית','חופשה / טיול','בעלי חיים','מתנות ואירועים',
+  ];
+
+  const incomes = reflection?.incomes || {};
+  const incomeAvg = Math.round(
+    ['month1','month2','month3','month4','month5','month6'].reduce((s, m) => s + (incomes[m] || 0), 0) / 6
+  );
+
+  const fixedExp = reflection?.fixed_expenses || {};
+  const varExp = reflection?.variable_expenses || {};
+  const fixedAvg = Object.keys(fixedExp).reduce((sum, cat) => {
+    const avg = ['month1','month2','month3'].reduce((s, m) => s + (fixedExp[cat]?.[m] || 0), 0) / 3;
+    return sum + avg;
+  }, 0);
+  const varAvg = Object.keys(varExp).reduce((sum, cat) => {
+    const avg = ['month1','month2','month3'].reduce((s, m) => s + (varExp[cat]?.[m] || 0), 0) / 3;
+    return sum + avg;
+  }, 0);
+  const expenseAvg = Math.round(fixedAvg + varAvg);
+  const cashFlowAvg = incomeAvg - expenseAvg;
+
+  return (
+    <FinancialForecast
+      incomeAverage={incomeAvg}
+      expenseAverage={expenseAvg}
+      cashFlowAverage={cashFlowAvg}
+      checkingBalance={reflection?.checking_account_balance || 0}
+      maleAge={reflection?.male_age}
+      femaleAge={reflection?.female_age}
+    />
+  );
 }

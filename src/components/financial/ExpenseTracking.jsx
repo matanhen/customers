@@ -6,7 +6,7 @@ import { he } from 'date-fns/locale';
 import { 
         ChevronLeft, ChevronRight, Wallet, Receipt,
         Plus, Trash2, AlertTriangle, CheckCircle, TrendingDown,
-        Target, Clock, FileText, Check
+        Target, Clock, FileText, Check, Image
       } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import PDFExpenseImport from './PDFExpenseImport';
+import ImageCreditImport from './ImageCreditImport';
 
 const FIXED_EXPENSE_CATEGORIES = [
   'ביטוחי רכב',
@@ -76,6 +77,7 @@ export default function ExpenseTracking({ userId }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
+  const [showImageImportDialog, setShowImageImportDialog] = useState(false);
   const [newExpense, setNewExpense] = useState({ name: '', type: 'fixed', amount: 0 });
   const [updateExpense, setUpdateExpense] = useState({ type: 'fixed', category: '', amount: 0, isCustom: false, customName: '' });
   const [currentUser, setCurrentUser] = useState(null);
@@ -472,6 +474,14 @@ export default function ExpenseTracking({ userId }) {
         >
           <Plus className="w-4 h-4 ml-2" />
           הוסף סעיף הוצאה חדש
+        </Button>
+        <Button
+          onClick={() => setShowImageImportDialog(true)}
+          variant="outline"
+          className="border-purple-400 text-purple-600 hover:bg-purple-50"
+        >
+          <Image className="w-4 h-4 ml-2" />
+          ייבוא מתמונה
         </Button>
         <Button
           onClick={() => setShowPDFImportDialog(true)}
@@ -909,6 +919,24 @@ export default function ExpenseTracking({ userId }) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ImageCreditImport
+        open={showImageImportDialog}
+        onOpenChange={setShowImageImportDialog}
+        mode="tracking"
+        onApply={(items) => {
+          let newData = { ...trackingData };
+          items.forEach(item => {
+            if (item.type === 'fixed') {
+              newData = { ...newData, fixed_expenses: { ...newData.fixed_expenses, [item.category]: (newData.fixed_expenses[item.category] || 0) + item.amount } };
+            } else {
+              newData = { ...newData, variable_expenses: { ...newData.variable_expenses, [item.category]: (newData.variable_expenses[item.category] || 0) + item.amount } };
+            }
+          });
+          setTrackingData(newData);
+          saveNow(newData);
+        }}
+      />
 
       <PDFExpenseImport
         open={showPDFImportDialog}
