@@ -1,58 +1,38 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  TrendingUp, TrendingDown, ChevronDown, ChevronUp,
-  DollarSign, Receipt, FileText, Save, Check, Plus, Trash2, Image
-} from 'lucide-react';
-
+import { DollarSign, Receipt, TrendingUp, TrendingDown, Save, Check, FileText, Image } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PDFReflectionImport from './PDFReflectionImport';
 import ImageCreditImport from './ImageCreditImport';
+import IncomeTable from './IncomeTable';
+import ExpensesTable from './ExpensesTable';
+import FinancialForecast from './FinancialForecast';
+import { migrateLegacyExpenses } from './expenseCategories';
 
-const FIXED_EXPENSES = [
-  'ביטוחי רכב','טסט','משכנתא','ביטוח משכנתא','שכירות',
-  'מנויים','ביטוחים (ללא רכב)','ועד בית','ארנונה','החזר הלוואות','הוראות קבע',
-];
-
-const VARIABLE_EXPENSES = [
-  'מים','חשמל','גז','תספורת וקוסמטיקה','חינוך','חוגים וקייטנות','בריאות',
-  'תיקוני רכב','עמלות וריביות בנקים','טיפולי שיניים','אופטיקה','חגים ויהדות',
-  'טלפון נייד','סופר פארם','דברים לבית','ביטוח לאומי','מזון','דלק וחניה',
-  'תחבורה ציבורית','סיגריות','עוזרת / בייביסיטר','ביט','מזומן','בילויים',
-  'בגדים ונעליים','תרומות','התפתחות אישית','חופשה / טיול','בעלי חיים','מתנות ואירועים',
-];
+const MONTHS = ['month1','month2','month3','month4','month5','month6'];
 
 export default function FinancialReflection({ userId }) {
-  const [incomes, setIncomes] = useState({ month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 });
-  const [fixedExpenses, setFixedExpenses] = useState({});
-  const [variableExpenses, setVariableExpenses] = useState({});
-  const [incomeDisplays, setIncomeDisplays] = useState({});
-  const [fixedDisplays, setFixedDisplays] = useState({});
-  const [variableDisplays, setVariableDisplays] = useState({});
-  const [openSections, setOpenSections] = useState({ income: true, fixed: false, variable: false });
-  const [creditCardTotal, setCreditCardTotal] = useState(0);
-  const [creditCardDisplay, setCreditCardDisplay] = useState('');
+  const [activeTab, setActiveTab] = useState('income');
+  const [incomeRows, setIncomeRows] = useState([]);
+  const [expenses, setExpenses] = useState({});
   const [maleAge, setMaleAge] = useState('');
   const [femaleAge, setFemaleAge] = useState('');
   const [checkingBalance, setCheckingBalance] = useState('');
+  const [creditCardTotal, setCreditCardTotal] = useState(0);
+  const [creditCardDisplay, setCreditCardDisplay] = useState('');
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [showImageImportDialog, setShowImageImportDialog] = useState(false);
-  const [showAddCategoryDialog, setShowAddCategoryDialog] = useState(false);
-  const [newCategory, setNewCategory] = useState({ name: '', expense_type: 'fixed' });
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Reset dataLoaded when userId changes (e.g. advisor switching clients)
   const prevUserIdRef = useRef(userId);
   useEffect(() => {
     if (prevUserIdRef.current !== userId) {
@@ -61,11 +41,8 @@ export default function FinancialReflection({ userId }) {
     }
   }, [userId]);
 
-
-  
   const queryClient = useQueryClient();
   const autoSaveTimer = useRef(null);
-  // Keep a ref to the current reflection id so saveMutation can always access latest
   const reflectionIdRef = useRef(null);
 
   useEffect(() => {
@@ -78,25 +55,25 @@ export default function FinancialReflection({ userId }) {
     try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
   })();
 
-  const { data: customCategories = [], refetch: refetchCategories } = useQuery({
-    queryKey: ['customExpenseCategories', userId],
-    queryFn: () => base44.entities.CustomExpenseCategory.filter({ user_id: userId }),
-    enabled: !!userId,
-  });
-
-  const addCategoryMutation = useMutation({
-    mutationFn: (data) => base44.entities.CustomExpenseCategory.create({ ...data, user_id: userId }),
-    onSuccess: () => {
-      refetchCategories();
-      setNewCategory({ name: '', expense_type: 'fixed' });
-      setShowAddCategoryDialog(false);
+  const { data: pensionData = [] } = useQuery({
+    queryKey: ['pensionData', userId],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const resp = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'PensionData' });
+        return resp.data.data || [];
+      }
+      return base44.entities.PensionData.filter({ user_id: userId });
     },
+    enabled: !!userId && !!currentUser,
+    staleTime: 60000,
   });
 
-  const deleteCategoryMutation = useMutation({
-    mutationFn: (id) => base44.entities.CustomExpenseCategory.delete(id),
-    onSuccess: () => refetchCategories(),
-  });
+  const pensionMaleMonthly = pensionData
+    .filter(p => p.gender === 'male')
+    .reduce((s, p) => s + (p.monthly_deposit || 0), 0);
+  const pensionFemaleMonthly = pensionData
+    .filter(p => p.gender === 'female')
+    .reduce((s, p) => s + (p.monthly_deposit || 0), 0);
 
   const { data: reflection, isLoading: reflectionLoading } = useQuery({
     queryKey: ['financialReflection', userId],
@@ -120,45 +97,43 @@ export default function FinancialReflection({ userId }) {
     refetchOnWindowFocus: false,
   });
 
-  // Load data from DB into state on initial load and when userId changes
   useEffect(() => {
-    if (reflectionLoading) return;
-    if (dataLoaded) return;
-
-    const inc = reflection?.incomes || { month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0 };
-    const fixed = reflection?.fixed_expenses || {};
-    const variable = reflection?.variable_expenses || {};
-    const cc = reflection?.credit_card_total || 0;
+    if (reflectionLoading || dataLoaded) return;
 
     reflectionIdRef.current = reflection?.id || null;
 
-    setIncomes(inc);
-    setFixedExpenses(fixed);
-    setVariableExpenses(variable);
-    setCreditCardTotal(cc);
-    setCreditCardDisplay(cc > 0 ? String(cc) : '');
+    if (reflection?.income_rows && reflection.income_rows.length > 0) {
+      setIncomeRows(reflection.income_rows);
+    } else if (reflection?.incomes) {
+      const legacy = reflection.incomes;
+      const hasData = MONTHS.some(m => (legacy[m] || 0) > 0);
+      if (hasData) {
+        setIncomeRows([{
+          id: 'income_male',
+          name: 'הכנסות (גבר)',
+          category: 'personal',
+          locked: false,
+          ...Object.fromEntries(MONTHS.map(m => [m, legacy[m] || 0])),
+        }]);
+      }
+    }
+
+    if (reflection?.expenses && Object.keys(reflection.expenses).length > 0) {
+      setExpenses(reflection.expenses);
+    } else if (reflection?.fixed_expenses || reflection?.variable_expenses) {
+      const migrated = migrateLegacyExpenses(
+        reflection.fixed_expenses || {},
+        reflection.variable_expenses || {}
+      );
+      setExpenses(migrated);
+    }
+
     setMaleAge(reflection?.male_age ? String(reflection.male_age) : '');
     setFemaleAge(reflection?.female_age ? String(reflection.female_age) : '');
     setCheckingBalance(reflection?.checking_account_balance != null ? String(reflection.checking_account_balance) : '');
-
-    // Init display strings
-    const incDisp = {};
-    Object.keys(inc).forEach(k => { incDisp[k] = inc[k] > 0 ? String(inc[k]) : ''; });
-    setIncomeDisplays(incDisp);
-
-    const fixDisp = {};
-    Object.keys(fixed).forEach(cat => {
-      fixDisp[cat] = {};
-      ['month1','month2','month3'].forEach(m => { fixDisp[cat][m] = fixed[cat]?.[m] > 0 ? String(fixed[cat][m]) : ''; });
-    });
-    setFixedDisplays(fixDisp);
-
-    const varDisp = {};
-    Object.keys(variable).forEach(cat => {
-      varDisp[cat] = {};
-      ['month1','month2','month3'].forEach(m => { varDisp[cat][m] = variable[cat]?.[m] > 0 ? String(variable[cat][m]) : ''; });
-    });
-    setVariableDisplays(varDisp);
+    const cc = reflection?.credit_card_total || 0;
+    setCreditCardTotal(cc);
+    setCreditCardDisplay(cc > 0 ? String(cc) : '');
 
     setDataLoaded(true);
   }, [reflection, reflectionLoading]);
@@ -166,7 +141,6 @@ export default function FinancialReflection({ userId }) {
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       const payload = { user_id: userId, ...data };
-
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('saveClientData', {
           entityName: 'FinancialReflection',
@@ -177,7 +151,6 @@ export default function FinancialReflection({ userId }) {
         if (response.data?.id) reflectionIdRef.current = response.data.id;
         return response.data;
       }
-
       if (reflectionIdRef.current) {
         return base44.entities.FinancialReflection.update(reflectionIdRef.current, payload);
       }
@@ -185,10 +158,10 @@ export default function FinancialReflection({ userId }) {
       reflectionIdRef.current = created.id;
       return created;
     },
-    onSuccess: (savedRecord) => {
-      if (savedRecord?.id) {
-        reflectionIdRef.current = savedRecord.id;
-        queryClient.setQueryData(['financialReflection', userId], savedRecord);
+    onSuccess: (saved) => {
+      if (saved?.id) {
+        reflectionIdRef.current = saved.id;
+        queryClient.setQueryData(['financialReflection', userId], saved);
       }
     },
   });
@@ -196,12 +169,9 @@ export default function FinancialReflection({ userId }) {
   const pendingDataRef = useRef(null);
   const saveMutationRef = useRef(saveMutation);
   const dataLoadedRef = useRef(dataLoaded);
-
-  // Keep refs in sync
   useEffect(() => { saveMutationRef.current = saveMutation; }, [saveMutation]);
   useEffect(() => { dataLoadedRef.current = dataLoaded; }, [dataLoaded]);
 
-  // Single auto-save trigger — stable reference, uses refs internally
   const triggerAutoSave = useCallback((latestData) => {
     if (!dataLoadedRef.current) return;
     pendingDataRef.current = latestData;
@@ -209,10 +179,9 @@ export default function FinancialReflection({ userId }) {
     autoSaveTimer.current = setTimeout(() => {
       saveMutationRef.current.mutate(latestData);
       pendingDataRef.current = null;
-    }, 600);
+    }, 800);
   }, []);
 
-  // Save immediately on unmount (navigation away)
   useEffect(() => {
     return () => {
       if (pendingDataRef.current) {
@@ -222,41 +191,9 @@ export default function FinancialReflection({ userId }) {
     };
   }, []);
 
-  const toggleSection = (section) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  const calculateIncomeAverage = () => {
-    const months = ['month1', 'month2', 'month3', 'month4', 'month5', 'month6'];
-    const total = months.reduce((sum, m) => sum + (incomes[m] || 0), 0);
-    return Math.round(total / 6);
-  };
-
-  const calculateExpenseAverage = (category, type) => {
-    const expenses = type === 'fixed' ? fixedExpenses : variableExpenses;
-    const categoryData = expenses[category] || {};
-    const total = ['month1','month2','month3'].reduce((sum, m) => sum + (categoryData[m] || 0), 0);
-    return Math.round(total / 3);
-  };
-
-  const customFixed = customCategories.filter(c => c.expense_type === 'fixed').map(c => c.name);
-  const customVariable = customCategories.filter(c => c.expense_type === 'variable').map(c => c.name);
-
-  const getTotalFixedAverage = () => 
-    [...FIXED_EXPENSES, ...customFixed].reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'fixed'), 0);
-  const getTotalVariableAverage = () => 
-    [...VARIABLE_EXPENSES, ...customVariable].reduce((sum, cat) => sum + calculateExpenseAverage(cat, 'variable'), 0);
-
-  const incomeAverage = calculateIncomeAverage();
-  const fixedAverage = getTotalFixedAverage();
-  const variableAverage = getTotalVariableAverage();
-  const totalExpenseAverage = fixedAverage + variableAverage;
-  const cashFlowAverage = incomeAverage - totalExpenseAverage;
-
-  const buildSavePayload = (overrides = {}) => ({
-    incomes,
-    fixed_expenses: fixedExpenses,
-    variable_expenses: variableExpenses,
+  const buildPayload = (overrides = {}) => ({
+    income_rows: incomeRows,
+    expenses,
     credit_card_total: creditCardTotal,
     male_age: parseInt(maleAge) || null,
     female_age: parseInt(femaleAge) || null,
@@ -264,36 +201,26 @@ export default function FinancialReflection({ userId }) {
     ...overrides,
   });
 
-  const handleIncomeChange = (monthKey, rawValue) => {
-    const num = parseFloat(rawValue) || 0;
-    const nextIncomes = { ...incomes, [monthKey]: num };
-    setIncomeDisplays(prev => ({ ...prev, [monthKey]: rawValue }));
-    setIncomes(nextIncomes);
-    triggerAutoSave(buildSavePayload({ incomes: nextIncomes }));
-  };
+  // Calculations - net income excludes pension rows (auto-filled)
+  const nonPensionRows = incomeRows.filter(r => r.id !== 'pension_male' && r.id !== 'pension_female');
+  const incomeNet = Math.round(nonPensionRows.reduce((s, r) => {
+    return s + MONTHS.reduce((a, m) => a + (r[m] || 0), 0) / 6;
+  }, 0));
+  const incomeTotal = incomeNet + pensionMaleMonthly + pensionFemaleMonthly;
 
-  const updateExpense = (category, month, rawValue, type) => {
-    const num = parseFloat(rawValue) || 0;
-    if (type === 'fixed') {
-      const nextFixed = { ...fixedExpenses, [category]: { ...(fixedExpenses[category] || {}), [month]: num } };
-      setFixedDisplays(prev => ({ ...prev, [category]: { ...(prev[category] || {}), [month]: rawValue } }));
-      setFixedExpenses(nextFixed);
-      triggerAutoSave(buildSavePayload({ fixed_expenses: nextFixed }));
-    } else {
-      const nextVariable = { ...variableExpenses, [category]: { ...(variableExpenses[category] || {}), [month]: num } };
-      setVariableDisplays(prev => ({ ...prev, [category]: { ...(prev[category] || {}), [month]: rawValue } }));
-      setVariableExpenses(nextVariable);
-      triggerAutoSave(buildSavePayload({ variable_expenses: nextVariable }));
-    }
-  };
+  const expenseTotalRound = Math.round(
+    Object.values(expenses).reduce((s, catData) => {
+      return s + Object.values(catData || {}).reduce((cs, itemData) => {
+        return cs + ['month1','month2','month3'].reduce((a, m) => a + (itemData?.[m] || 0), 0) / 3;
+      }, 0);
+    }, 0)
+  );
+
+  const cashFlow = incomeNet - expenseTotalRound;
 
   if (reflectionLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-10 w-48" />
-        </div>
         <div className="grid md:grid-cols-3 gap-4">
           <Skeleton className="h-24 rounded-xl" />
           <Skeleton className="h-24 rounded-xl" />
@@ -305,9 +232,9 @@ export default function FinancialReflection({ userId }) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Age & Checking Balance Fields */}
-      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm">
+    <div className="space-y-6" dir="rtl">
+      {/* Age & Checking Balance */}
+      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
         <CardContent className="p-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -315,12 +242,8 @@ export default function FinancialReflection({ userId }) {
               <Input
                 type="number"
                 value={maleAge}
-                onChange={(e) => {
-                  setMaleAge(e.target.value);
-                  triggerAutoSave(buildSavePayload({ male_age: parseInt(e.target.value) || null }));
-                }}
+                onChange={e => { setMaleAge(e.target.value); triggerAutoSave(buildPayload({ male_age: parseInt(e.target.value) || null })); }}
                 placeholder="הזן גיל"
-                className="border-slate-200"
                 disabled={isViewingOther && !isAdvisorOrAdmin}
               />
             </div>
@@ -329,12 +252,8 @@ export default function FinancialReflection({ userId }) {
               <Input
                 type="number"
                 value={femaleAge}
-                onChange={(e) => {
-                  setFemaleAge(e.target.value);
-                  triggerAutoSave(buildSavePayload({ female_age: parseInt(e.target.value) || null }));
-                }}
+                onChange={e => { setFemaleAge(e.target.value); triggerAutoSave(buildPayload({ female_age: parseInt(e.target.value) || null })); }}
                 placeholder="הזן גיל"
-                className="border-slate-200"
                 disabled={isViewingOther && !isAdvisorOrAdmin}
               />
             </div>
@@ -343,55 +262,26 @@ export default function FinancialReflection({ userId }) {
               <Input
                 type="number"
                 value={checkingBalance}
-                onChange={(e) => {
-                  setCheckingBalance(e.target.value);
-                  triggerAutoSave(buildSavePayload({ checking_account_balance: parseFloat(e.target.value) || null }));
-                }}
+                onChange={e => { setCheckingBalance(e.target.value); triggerAutoSave(buildPayload({ checking_account_balance: parseFloat(e.target.value) || null })); }}
                 placeholder="יכול להיות במינוס, לדוגמה: -5000"
-                className="border-slate-200"
                 disabled={isViewingOther && !isAdvisorOrAdmin}
               />
-              <p className="text-xs text-slate-400">ניתן להזין ערך חיובי או שלילי</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Action Buttons */}
       {(!isViewingOther || isAdvisorOrAdmin) && (
         <div className="flex justify-end items-center gap-3 flex-wrap">
-          <Button
-            onClick={() => setShowAddCategoryDialog(true)}
-            variant="outline"
-            className="border-[#105330] text-[#105330] hover:bg-[#105330]/10"
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            הוסף סעיף הוצאה חדש
+          <Button onClick={() => setShowImageImportDialog(true)} variant="outline" className="border-purple-400 text-purple-600 hover:bg-purple-50">
+            <Image className="w-4 h-4 ml-2" />ייבוא מתמונה
+          </Button>
+          <Button onClick={() => setShowPDFImportDialog(true)} variant="outline" className="border-red-400 text-red-600 hover:bg-red-50">
+            <FileText className="w-4 h-4 ml-2" />ייבוא מ-PDF
           </Button>
           <Button
-            onClick={() => setShowImageImportDialog(true)}
-            variant="outline"
-            className="border-purple-400 text-purple-600 hover:bg-purple-50"
-          >
-            <Image className="w-4 h-4 ml-2" />
-            ייבוא מתמונה
-          </Button>
-          <Button
-            onClick={() => setShowPDFImportDialog(true)}
-            variant="outline"
-            className="border-red-400 text-red-600 hover:bg-red-50"
-          >
-            <FileText className="w-4 h-4 ml-2" />
-            ייבוא מ-PDF
-          </Button>
-          <Button
-            onClick={() => {
-              saveMutation.mutate(buildSavePayload(), {
-                onSuccess: () => {
-                  setSaveSuccess(true);
-                  setTimeout(() => setSaveSuccess(false), 2000);
-                }
-              });
-            }}
+            onClick={() => { saveMutation.mutate(buildPayload(), { onSuccess: () => { setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 2000); } }); }}
             disabled={saveMutation.isPending}
             className="bg-[#105330] hover:bg-[#0d4027] text-white"
           >
@@ -400,283 +290,145 @@ export default function FinancialReflection({ userId }) {
           </Button>
         </div>
       )}
-      
-      
+
       {isViewingOther && !isAdvisorOrAdmin && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-amber-800 font-medium">אתה צופה בנתוני לקוח - ניתן לראות בלבד, לא לערוך</p>
+          <p className="text-amber-800 font-medium">אתה צופה בנתוני לקוח - ניתן לראות בלבד</p>
         </div>
       )}
-
 
       {/* Summary Cards */}
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="border-0 shadow-xl shadow-emerald-100/50 bg-gradient-to-br from-emerald-50 to-teal-50">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-emerald-500/10">
-                <DollarSign className="w-8 h-8 text-emerald-600" />
-              </div>
+              <div className="p-3 rounded-2xl bg-emerald-500/10"><DollarSign className="w-8 h-8 text-emerald-600" /></div>
               <div>
-                <p className="text-sm text-emerald-600 font-medium">ממוצע הכנסות</p>
-                <p className="text-2xl font-bold text-emerald-700">₪{incomeAverage.toLocaleString()}</p>
+                <p className="text-sm text-emerald-600 font-medium">ממוצע הכנסות נטו</p>
+                <p className="text-2xl font-bold text-emerald-700">₪{incomeNet.toLocaleString()}</p>
+                {incomeTotal !== incomeNet && <p className="text-xs text-emerald-500">כולל פנסיוני: ₪{incomeTotal.toLocaleString()}</p>}
               </div>
             </div>
           </CardContent>
         </Card>
-
         <Card className="border-0 shadow-xl shadow-rose-100/50 bg-gradient-to-br from-rose-50 to-pink-50">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-rose-500/10">
-                <Receipt className="w-8 h-8 text-rose-600" />
-              </div>
+              <div className="p-3 rounded-2xl bg-rose-500/10"><Receipt className="w-8 h-8 text-rose-600" /></div>
               <div>
                 <p className="text-sm text-rose-600 font-medium">ממוצע הוצאות</p>
-                <p className="text-2xl font-bold text-rose-700">₪{totalExpenseAverage.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-rose-700">₪{expenseTotalRound.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        <Card className={`border-0 shadow-xl ${cashFlowAverage >= 0 ? 'shadow-indigo-100/50 bg-gradient-to-br from-indigo-50 to-purple-50' : 'shadow-red-100/50 bg-gradient-to-br from-red-50 to-orange-50'}`}>
+        <Card className={`border-0 shadow-xl ${cashFlow >= 0 ? 'shadow-indigo-100/50 bg-gradient-to-br from-indigo-50 to-purple-50' : 'shadow-red-100/50 bg-gradient-to-br from-red-50 to-orange-50'}`}>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-2xl ${cashFlowAverage >= 0 ? 'bg-indigo-500/10' : 'bg-red-500/10'}`}>
-                {cashFlowAverage >= 0 ? <TrendingUp className="w-8 h-8 text-indigo-600" /> : <TrendingDown className="w-8 h-8 text-red-600" />}
+              <div className={`p-3 rounded-2xl ${cashFlow >= 0 ? 'bg-indigo-500/10' : 'bg-red-500/10'}`}>
+                {cashFlow >= 0 ? <TrendingUp className="w-8 h-8 text-indigo-600" /> : <TrendingDown className="w-8 h-8 text-red-600" />}
               </div>
               <div>
-                <p className={`text-sm font-medium ${cashFlowAverage >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>תזרים ממוצע</p>
-                <p className={`text-2xl font-bold ${cashFlowAverage >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
-                  ₪{cashFlowAverage.toLocaleString()}
-                </p>
+                <p className={`text-sm font-medium ${cashFlow >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>תזרים ממוצע</p>
+                <p className={`text-2xl font-bold ${cashFlow >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>₪{cashFlow.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Income Section */}
-      <Collapsible open={openSections.income} onOpenChange={() => toggleSection('income')}>
-        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-slate-50/50 transition-colors border-b border-slate-100">
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-emerald-500/10">
-                    <DollarSign className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <span className="text-slate-800">הכנסות - 6 חודשים אחרונים</span>
-                </span>
-                {openSections.income ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
-              </CardTitle>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {[1, 2, 3, 4, 5, 6].map((month) => (
-                  <div key={month} className="space-y-2">
-                    <Label className="text-slate-500 text-sm">חודש {month}</Label>
-                    <Input
-                      type="number"
-                      value={incomeDisplays[`month${month}`] ?? ''}
-                      onChange={(e) => handleIncomeChange(`month${month}`, e.target.value)}
-                      placeholder="סכום"
-                      className="border-slate-200"
-                      disabled={isViewingOther && !isAdvisorOrAdmin}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200/50">
-                <p className="font-semibold text-emerald-700">ממוצע הכנסות: ₪{incomeAverage.toLocaleString()}</p>
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="flex w-full bg-[#105330]/10 p-1.5 rounded-xl gap-1">
+          <TabsTrigger value="income" className="flex-1 rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm">
+            הכנסות
+          </TabsTrigger>
+          <TabsTrigger value="expenses" className="flex-1 rounded-lg data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm">
+            הוצאות
+          </TabsTrigger>
+          <TabsTrigger value="forecast" className="flex-1 rounded-lg data-[state=active]:bg-[#c8a863] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm">
+            🚀 תחזית עתיד
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="income" className="mt-4">
+          <IncomeTable
+            rows={incomeRows}
+            onChange={(rows) => { setIncomeRows(rows); triggerAutoSave(buildPayload({ income_rows: rows })); }}
+            pensionMaleMonthly={pensionMaleMonthly}
+            pensionFemaleMonthly={pensionFemaleMonthly}
+            disabled={isViewingOther && !isAdvisorOrAdmin}
+          />
+        </TabsContent>
+
+        <TabsContent value="expenses" className="mt-4 space-y-4">
+          <ExpensesTable
+            expenses={expenses}
+            onChange={(newExpenses) => { setExpenses(newExpenses); triggerAutoSave(buildPayload({ expenses: newExpenses })); }}
+            disabled={isViewingOther && !isAdvisorOrAdmin}
+          />
+          {/* Credit Card Total */}
+          <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-xl bg-orange-500/10 shrink-0"><Receipt className="w-5 h-5 text-orange-600" /></div>
+                <Label className="text-slate-700 font-semibold text-base whitespace-nowrap">סך הכל חיוב אשראי נוכחי</Label>
+                <div className="flex-1 max-w-xs">
+                  <Input
+                    type="text" inputMode="numeric" value={creditCardDisplay}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                      const num = parseInt(raw, 10) || 0;
+                      setCreditCardTotal(num); setCreditCardDisplay(raw);
+                      triggerAutoSave(buildPayload({ credit_card_total: num }));
+                    }}
+                    placeholder="₪ הזן סכום"
+                    className="border-orange-200 focus-visible:ring-orange-400"
+                    disabled={isViewingOther && !isAdvisorOrAdmin} dir="ltr"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 hidden md:block">* לצורך בהירות בלבד</p>
               </div>
             </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+          </Card>
+        </TabsContent>
 
-      {/* Fixed Expenses Section */}
-      <Collapsible open={openSections.fixed} onOpenChange={() => toggleSection('fixed')}>
-        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-slate-50/50 transition-colors border-b border-slate-100">
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-blue-500/10">
-                    <Receipt className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <span className="text-slate-800">הוצאות קבועות - 3 חודשים אחרונים</span>
-                </span>
-                {openSections.fixed ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
-              </CardTitle>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-6">
-              <div className="space-y-3">
-                {[...FIXED_EXPENSES, ...customFixed].map((category) => {
-                  const avg = calculateExpenseAverage(category, 'fixed');
-                  const isCustom = customFixed.includes(category);
-                  const customCat = isCustom ? customCategories.find(c => c.name === category && c.expense_type === 'fixed') : null;
-                  return (
-                    <div key={category} className="grid grid-cols-5 gap-4 items-center p-3 bg-slate-50/50 rounded-xl">
-                      <div className="col-span-2 flex items-center gap-2">
-                        <Label className="font-medium text-slate-700">{category}</Label>
-                        {isCustom && (
-                          <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                      {[1, 2, 3].map((month) => (
-                        <Input
-                          key={month}
-                          type="number"
-                          value={fixedDisplays[category]?.[`month${month}`] ?? ''}
-                          onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'fixed')}
-                          placeholder={`חודש ${month}`}
-                          className="border-slate-200"
-                          disabled={isViewingOther && !isAdvisorOrAdmin}
-                        />
-                      ))}
-                      <p className="text-sm font-semibold text-blue-600">ממוצע: ₪{avg.toLocaleString()}</p>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/50">
-                <p className="font-semibold text-blue-700">סה״כ ממוצע הוצאות קבועות: ₪{fixedAverage.toLocaleString()}</p>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+        <TabsContent value="forecast" className="mt-4">
+          <FinancialForecast
+            incomeAverage={incomeNet}
+            expenseAverage={expenseTotalRound}
+            cashFlowAverage={cashFlow}
+            checkingBalance={reflection?.checking_account_balance || 0}
+            maleAge={reflection?.male_age}
+            femaleAge={reflection?.female_age}
+          />
+        </TabsContent>
+      </Tabs>
 
-      {/* Variable Expenses Section */}
-      <Collapsible open={openSections.variable} onOpenChange={() => toggleSection('variable')}>
-        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-slate-50/50 transition-colors border-b border-slate-100">
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-purple-500/10">
-                    <Receipt className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <span className="text-slate-800">יתרת הוצאות - 3 חודשים אחרונים</span>
-                </span>
-                {openSections.variable ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
-              </CardTitle>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-6">
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {[...VARIABLE_EXPENSES, ...customVariable].map((category) => {
-                  const avg = calculateExpenseAverage(category, 'variable');
-                  const isCustom = customVariable.includes(category);
-                  const customCat = isCustom ? customCategories.find(c => c.name === category && c.expense_type === 'variable') : null;
-                  return (
-                    <div key={category} className="grid grid-cols-5 gap-4 items-center p-3 bg-slate-50/50 rounded-xl">
-                      <div className="col-span-2 flex items-center gap-2">
-                        <Label className="font-medium text-slate-700">{category}</Label>
-                        {isCustom && (
-                          <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                      {[1, 2, 3].map((month) => (
-                        <Input
-                          key={month}
-                          type="number"
-                          value={variableDisplays[category]?.[`month${month}`] ?? ''}
-                          onChange={(e) => updateExpense(category, `month${month}`, e.target.value, 'variable')}
-                          placeholder={`חודש ${month}`}
-                          className="border-slate-200"
-                          disabled={isViewingOther && !isAdvisorOrAdmin}
-                        />
-                      ))}
-                      <p className="text-sm font-semibold text-purple-600">ממוצע: ₪{avg.toLocaleString()}</p>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200/50">
-                <p className="font-semibold text-purple-700">סה״כ ממוצע יתרת הוצאות: ₪{variableAverage.toLocaleString()}</p>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
-      {/* Credit Card Total */}
-      <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm overflow-hidden">
-        <CardContent className="p-5">
-          <div className="flex items-center gap-4">
-            <div className="p-2 rounded-xl bg-orange-500/10 shrink-0">
-              <Receipt className="w-5 h-5 text-orange-600" />
-            </div>
-            <Label className="text-slate-700 font-semibold text-base whitespace-nowrap">סך הכל חיוב אשראי נוכחי</Label>
-            <div className="flex-1 max-w-xs">
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={creditCardDisplay}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/[^0-9]/g, '');
-                  const num = parseInt(raw, 10) || 0;
-                  setCreditCardTotal(num);
-                  setCreditCardDisplay(raw);
-                  triggerAutoSave({
-                    incomes,
-                    fixed_expenses: fixedExpenses,
-                    variable_expenses: variableExpenses,
-                    credit_card_total: num,
-                  });
-                }}
-                placeholder="₪ הזן סכום"
-                className="border-orange-200 focus-visible:ring-orange-400 text-left"
-                disabled={isViewingOther && !isAdvisorOrAdmin}
-                dir="ltr"
-              />
-            </div>
-            <p className="text-xs text-slate-400 hidden md:block">* מספר לצורך בהירות בלבד, לא נכלל בחישובים</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Averages Bar Chart */}
-      {(incomeAverage > 0 || totalExpenseAverage > 0) && (
-        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-sm">
+      {/* Chart */}
+      {(incomeNet > 0 || expenseTotalRound > 0) && activeTab !== 'forecast' && (
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-slate-800">
-              <div className="p-2 rounded-xl bg-indigo-500/10">
-                <TrendingUp className="w-5 h-5 text-indigo-600" />
-              </div>
+              <div className="p-2 rounded-xl bg-indigo-500/10"><TrendingUp className="w-5 h-5 text-indigo-600" /></div>
               סיכום ממוצעים
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={[
-                { name: 'ממוצע הכנסות', ערך: incomeAverage },
-                { name: 'ממוצע הוצאות', ערך: totalExpenseAverage },
-                { name: 'ממוצע תזרים', ערך: cashFlowAverage },
+                { name: 'הכנסות נטו', ערך: incomeNet },
+                { name: 'הוצאות', ערך: expenseTotalRound },
+                { name: 'תזרים', ערך: cashFlow },
               ]} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b' }} />
-                <YAxis tickFormatter={(v) => `₪${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#64748b' }} />
-                <Tooltip formatter={(value) => [`₪${value.toLocaleString()}`, 'סכום']} contentStyle={{ direction: 'rtl', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
+                <YAxis tickFormatter={v => `₪${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#64748b' }} />
+                <Tooltip formatter={value => [`₪${value.toLocaleString()}`, 'סכום']} contentStyle={{ direction: 'rtl', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
                 <ReferenceLine y={0} stroke="#94a3b8" />
                 <Bar dataKey="ערך" radius={[6, 6, 0, 0]}>
-                  {[
-                    { fill: '#10b981' },
-                    { fill: '#f43f5e' },
-                    { fill: cashFlowAverage >= 0 ? '#6366f1' : '#ef4444' },
-                  ].map((entry, index) => (
-                    <Cell key={index} fill={entry.fill} />
+                  {[{ fill: '#10b981' }, { fill: '#f43f5e' }, { fill: cashFlow >= 0 ? '#6366f1' : '#ef4444' }].map((e, i) => (
+                    <Cell key={i} fill={e.fill} />
                   ))}
                 </Bar>
               </BarChart>
@@ -685,63 +437,17 @@ export default function FinancialReflection({ userId }) {
         </Card>
       )}
 
-      {/* Add Category Dialog */}
-      <Dialog open={showAddCategoryDialog} onOpenChange={setShowAddCategoryDialog}>
-        <DialogContent dir="rtl">
-          <DialogHeader>
-            <DialogTitle>הוסף סעיף הוצאה חדש</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>שם הסעיף</Label>
-              <Input
-                value={newCategory.name}
-                onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="לדוגמה: מנוי ספורט"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>סוג הוצאה</Label>
-              <Select value={newCategory.expense_type} onValueChange={(v) => setNewCategory(prev => ({ ...prev, expense_type: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fixed">הוצאה קבועה</SelectItem>
-                  <SelectItem value="variable">יתרת הוצאות (משתנה)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              onClick={() => {
-                if (!newCategory.name.trim()) return;
-                addCategoryMutation.mutate(newCategory);
-              }}
-              disabled={addCategoryMutation.isPending || !newCategory.name.trim()}
-              className="w-full bg-[#105330] hover:bg-[#0d4027]"
-            >
-              {addCategoryMutation.isPending ? 'מוסיף...' : 'הוסף סעיף'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <PDFReflectionImport
         open={showPDFImportDialog}
         onOpenChange={setShowPDFImportDialog}
         onApply={(items) => {
-          let nextFixed = { ...fixedExpenses };
-          let nextVariable = { ...variableExpenses };
+          let next = { ...expenses };
           items.forEach(item => {
-            if (item.type === 'fixed') {
-              nextFixed = { ...nextFixed, [item.category]: { ...(nextFixed[item.category] || {}), [item.month]: (nextFixed[item.category]?.[item.month] || 0) + item.amount } };
-            } else {
-              nextVariable = { ...nextVariable, [item.category]: { ...(nextVariable[item.category] || {}), [item.month]: (nextVariable[item.category]?.[item.month] || 0) + item.amount } };
-            }
+            const catKey = item.categoryKey || 'misc';
+            next = { ...next, [catKey]: { ...(next[catKey] || {}), [item.category]: { ...(next[catKey]?.[item.category] || {}), [item.month]: (next[catKey]?.[item.category]?.[item.month] || 0) + item.amount } } };
           });
-          setFixedExpenses(nextFixed);
-          setVariableExpenses(nextVariable);
-          saveMutation.mutate(buildSavePayload({ fixed_expenses: nextFixed, variable_expenses: nextVariable }));
+          setExpenses(next);
+          saveMutation.mutate(buildPayload({ expenses: next }));
         }}
       />
 
@@ -750,18 +456,13 @@ export default function FinancialReflection({ userId }) {
         onOpenChange={setShowImageImportDialog}
         mode="reflection"
         onApply={(items) => {
-          let nextFixed = { ...fixedExpenses };
-          let nextVariable = { ...variableExpenses };
+          let next = { ...expenses };
           items.forEach(item => {
-            if (item.type === 'fixed') {
-              nextFixed = { ...nextFixed, [item.category]: { ...(nextFixed[item.category] || {}), [item.month]: (nextFixed[item.category]?.[item.month] || 0) + item.amount } };
-            } else {
-              nextVariable = { ...nextVariable, [item.category]: { ...(nextVariable[item.category] || {}), [item.month]: (nextVariable[item.category]?.[item.month] || 0) + item.amount } };
-            }
+            const catKey = item.categoryKey || 'misc';
+            next = { ...next, [catKey]: { ...(next[catKey] || {}), [item.category]: { ...(next[catKey]?.[item.category] || {}), [item.month]: (next[catKey]?.[item.category]?.[item.month] || 0) + item.amount } } };
           });
-          setFixedExpenses(nextFixed);
-          setVariableExpenses(nextVariable);
-          saveMutation.mutate(buildSavePayload({ fixed_expenses: nextFixed, variable_expenses: nextVariable }));
+          setExpenses(next);
+          saveMutation.mutate(buildPayload({ expenses: next }));
         }}
       />
     </div>

@@ -6,6 +6,7 @@ import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, B
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
+
 import BeforeAfterComparison from '../components/financial/BeforeAfterComparison';
 import ExpenseTracking from '../components/financial/ExpenseTracking';
 import DebtManager from '../components/financial/DebtManager';
@@ -250,34 +251,37 @@ function ForecastWrapper({ userId }) {
     staleTime: 30000,
   });
 
-  const FIXED_EXPENSES = [
-    'ביטוחי רכב','טסט','משכנתא','ביטוח משכנתא','שכירות','מנויים',
-    'ביטוחים (ללא רכב)','ועד בית','ארנונה','החזר הלוואות','הוראות קבע',
-  ];
-  const VARIABLE_EXPENSES = [
-    'מים','חשמל','גז','תספורת וקוסמטיקה','חינוך','חוגים וקייטנות','בריאות',
-    'תיקוני רכב','עמלות וריביות בנקים','טיפולי שיניים','אופטיקה','חגים ויהדות',
-    'טלפון נייד','סופר פארם','דברים לבית','ביטוח לאומי','מזון','דלק וחניה',
-    'תחבורה ציבורית','סיגריות','עוזרת / בייביסיטר','ביט','מזומן','בילויים',
-    'בגדים ונעליים','תרומות','התפתחות אישית','חופשה / טיול','בעלי חיים','מתנות ואירועים',
-  ];
-
-  const incomes = reflection?.incomes || {};
+  // Calculate income from new income_rows format
+  const incomeRows = reflection?.income_rows || [];
   const incomeAvg = Math.round(
-    ['month1','month2','month3','month4','month5','month6'].reduce((s, m) => s + (incomes[m] || 0), 0) / 6
+    incomeRows
+      .filter(r => r.id !== 'pension_male' && r.id !== 'pension_female')
+      .reduce((s, r) => {
+        return s + ['month1','month2','month3','month4','month5','month6'].reduce((a, m) => a + (r[m] || 0), 0) / 6;
+      }, 0)
+  ) || Math.round(
+    // Fallback to legacy
+    ['month1','month2','month3','month4','month5','month6'].reduce((s, m) => s + ((reflection?.incomes?.[m]) || 0), 0) / 6
   );
 
-  const fixedExp = reflection?.fixed_expenses || {};
-  const varExp = reflection?.variable_expenses || {};
-  const fixedAvg = Object.keys(fixedExp).reduce((sum, cat) => {
-    const avg = ['month1','month2','month3'].reduce((s, m) => s + (fixedExp[cat]?.[m] || 0), 0) / 3;
-    return sum + avg;
-  }, 0);
-  const varAvg = Object.keys(varExp).reduce((sum, cat) => {
-    const avg = ['month1','month2','month3'].reduce((s, m) => s + (varExp[cat]?.[m] || 0), 0) / 3;
-    return sum + avg;
-  }, 0);
-  const expenseAvg = Math.round(fixedAvg + varAvg);
+  // Calculate expenses from new structure
+  const expensesObj = reflection?.expenses || {};
+  const expenseAvg = Math.round(
+    Object.values(expensesObj).reduce((s, catData) => {
+      return s + Object.values(catData || {}).reduce((cs, itemData) => {
+        return cs + ['month1','month2','month3'].reduce((a, m) => a + (itemData?.[m] || 0), 0) / 3;
+      }, 0);
+    }, 0)
+  ) || Math.round(
+    // Fallback to legacy
+    (() => {
+      const fe = reflection?.fixed_expenses || {};
+      const ve = reflection?.variable_expenses || {};
+      const fa = Object.values(fe).reduce((s, d) => s + ['month1','month2','month3'].reduce((a, m) => a + (d?.[m] || 0), 0) / 3, 0);
+      const va = Object.values(ve).reduce((s, d) => s + ['month1','month2','month3'].reduce((a, m) => a + (d?.[m] || 0), 0) / 3, 0);
+      return fa + va;
+    })()
+  );
   const cashFlowAvg = incomeAvg - expenseAvg;
 
   return (

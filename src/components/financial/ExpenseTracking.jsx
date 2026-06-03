@@ -5,7 +5,7 @@ import { format, subMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { 
         ChevronLeft, ChevronRight, Wallet, Receipt,
-        Plus, Trash2, AlertTriangle, CheckCircle, TrendingDown,
+        Plus, Trash2, AlertTriangle, CheckCircle,
         Target, Clock, FileText, Check, Image
       } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,58 +20,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
+import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS } from './expenseCategories';
 
-const FIXED_EXPENSE_CATEGORIES = [
-  'ביטוחי רכב',
-  'טסט',
-  'משכנתא',
-  'ביטוח משכנתא',
-  'שכירות',
-  'מנויים',
-  'ביטוחים (ללא רכב)',
-  'ועד בית',
-  'ארנונה',
-  'החזר הלוואות',
-  'הוראות קבע'
-];
-
-const VARIABLE_EXPENSE_CATEGORIES = [
-  'מים',
-  'חשמל',
-  'גז',
-  'תספורת וקוסמטיקה',
-  'חינוך',
-  'חוגים וקייטנות',
-  'בריאות',
-  'תיקוני רכב',
-  'עמלות וריביות בנקים',
-  'טיפולי שיניים',
-  'אופטיקה',
-  'חגים ויהדות',
-  'טלפון נייד',
-  'סופר פארם',
-  'דברים לבית',
-  'ביטוח לאומי',
-  'מזון',
-  'דלק וחניה',
-  'תחבורה ציבורית',
-  'סיגריות',
-  'עוזרת / בייביסיטר',
-  'ביט',
-  'מזומן',
-  'בילויים',
-  'בגדים ונעליים',
-  'תרומות',
-  'התפתחות אישית',
-  'חופשה / טיול',
-  'בעלי חיים',
-  'מתנות ואירועים'
-];
+// Flat list for legacy compatibility
+const FIXED_EXPENSE_CATEGORIES = ALL_EXPENSE_ITEMS;
+const VARIABLE_EXPENSE_CATEGORIES = ALL_EXPENSE_ITEMS;
 
 export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [openFixed, setOpenFixed] = useState(false);
-  const [openVariable, setOpenVariable] = useState(false);
   const [showAddCategoryDialog, setShowAddCategoryDialog] = useState(false);
   const [newCategoryData, setNewCategoryData] = useState({ name: '', expense_type: 'fixed' });
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -360,6 +317,7 @@ export default function ExpenseTracking({ userId }) {
 
 
   // Calculations — includes both standard and custom categories
+  // All standard expenses are now in fixed_expenses (unified categories)
   const totalFixedActual = Object.values(trackingData.fixed_expenses).reduce((sum, v) => sum + (v || 0), 0) +
     trackingData.custom_expenses.filter(e => e.type === 'fixed').reduce((sum, e) => sum + (e.amount || 0), 0);
   
@@ -535,8 +493,13 @@ export default function ExpenseTracking({ userId }) {
                     <SelectValue placeholder="בחר מהרשימה" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(updateExpense.type === 'fixed' ? FIXED_EXPENSE_CATEGORIES : VARIABLE_EXPENSE_CATEGORIES).map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    {EXPENSE_CATEGORIES.map(cat => (
+                      <React.Fragment key={cat.key}>
+                        <div className="px-2 py-1 text-xs font-bold text-slate-500 bg-slate-50">{cat.label}</div>
+                        {cat.items.map(item => (
+                          <SelectItem key={item} value={item}>{item}</SelectItem>
+                        ))}
+                      </React.Fragment>
                     ))}
                     <SelectItem value="custom">➕ הוסף הוצאה שלא ברשימה</SelectItem>
                   </SelectContent>
@@ -675,141 +638,58 @@ export default function ExpenseTracking({ userId }) {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {[...FIXED_EXPENSE_CATEGORIES, ...customCategories.filter(c => c.expense_type === 'fixed').map(c => c.name)].map(category => {
-                  const customCat = customCategories.find(c => c.name === category && c.expense_type === 'fixed');
-                  return (
-                  <div key={category} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-slate-600">{category}</Label>
-                      {customCat && (
-                        <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                    <Input
-                      type="number"
-                      value={trackingData.fixed_expenses[category] || ''}
-                      onChange={(e) => updateFixedExpense(category, e.target.value)}
-                      onBlur={handleBlurSave}
-                      placeholder="0"
-                      className="h-9"
-                    />
+            <CardContent className="pt-0 space-y-4">
+              {EXPENSE_CATEGORIES.map(cat => (
+                <div key={cat.key}>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-1">{cat.label}</h4>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[...cat.items, ...customCategories.filter(c => c.expense_type === 'fixed' && (c.categoryKey || 'misc') === cat.key).map(c => c.name)].map(category => {
+                      const customCat = customCategories.find(c => c.name === category && c.expense_type === 'fixed');
+                      return (
+                        <div key={category} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm text-slate-600">{category}</Label>
+                            {customCat && (
+                              <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                          <Input
+                            type="number"
+                            value={trackingData.fixed_expenses[category] || ''}
+                            onChange={(e) => updateFixedExpense(category, e.target.value)}
+                            onBlur={handleBlurSave}
+                            placeholder="0"
+                            className="h-9"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                  );
-                })}
-                {/* Custom Fixed Expenses */}
-                {trackingData.custom_expenses.filter(e => e.type === 'fixed').map((exp, idx) => {
-                  const originalIdx = trackingData.custom_expenses.findIndex(e => e === exp);
-                  return (
-                    <div key={`custom-${idx}`} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm text-slate-600">{exp.name}</Label>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => removeCustomExpense(originalIdx)}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <Input
-                        type="number"
-                        value={exp.amount || ''}
-                        onChange={(e) => updateCustomExpenseAmount(originalIdx, e.target.value)}
-                        onBlur={handleBlurSave}
-                        placeholder="0"
-                        className="h-9"
-                      />
+                </div>
+              ))}
+              {/* Custom expenses not in categories */}
+              {trackingData.custom_expenses.filter(e => e.type === 'fixed').map((exp, idx) => {
+                const originalIdx = trackingData.custom_expenses.findIndex(e => e === exp);
+                return (
+                  <div key={`custom-${idx}`} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm text-slate-600">{exp.name}</Label>
+                      <Button variant="ghost" size="sm" onClick={() => removeCustomExpense(originalIdx)} className="h-6 w-6 p-0 text-red-500 hover:text-red-700">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     </div>
-                  );
-                })}
-              </div>
+                    <Input type="number" value={exp.amount || ''} onChange={(e) => updateCustomExpenseAmount(originalIdx, e.target.value)} onBlur={handleBlurSave} placeholder="0" className="h-9" />
+                  </div>
+                );
+              })}
             </CardContent>
           </CollapsibleContent>
         </Card>
       </Collapsible>
 
-      {/* Variable Expenses */}
-      <Collapsible open={openVariable} onOpenChange={setOpenVariable}>
-        <Card className="border-2 border-purple-300">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-purple-50">
-              <CardTitle className="flex items-center justify-between text-purple-700">
-                <div className="flex items-center gap-2">
-                  <TrendingDown className="w-5 h-5" />
-                  יתרת הוצאות - פירוט
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-orange-100 text-orange-700 border-0">
-                    ₪{totalVariableActual.toLocaleString()}
-                  </Badge>
-                  <ChevronLeft className={`w-5 h-5 transition-transform ${openVariable ? 'rotate-90' : ''}`} />
-                </div>
-              </CardTitle>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-0">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {[...VARIABLE_EXPENSE_CATEGORIES, ...customCategories.filter(c => c.expense_type === 'variable').map(c => c.name)].map(category => {
-                  const customCat = customCategories.find(c => c.name === category && c.expense_type === 'variable');
-                  return (
-                  <div key={category} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-purple-600">{category}</Label>
-                      {customCat && (
-                        <button onClick={() => deleteCategoryMutation.mutate(customCat.id)} className="text-red-400 hover:text-red-600">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                    <Input
-                      type="number"
-                      value={trackingData.variable_expenses[category] || ''}
-                      onChange={(e) => updateVariableExpense(category, e.target.value)}
-                      onBlur={handleBlurSave}
-                      placeholder="0"
-                      className="h-9"
-                    />
-                  </div>
-                  );
-                })}
-                {/* Custom Variable Expenses */}
-                {trackingData.custom_expenses.filter(e => e.type === 'variable').map((exp, idx) => {
-                  const originalIdx = trackingData.custom_expenses.findIndex(e => e === exp);
-                  return (
-                    <div key={`custom-var-${idx}`} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm text-purple-600">{exp.name}</Label>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => removeCustomExpense(originalIdx)}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <Input
-                        type="number"
-                        value={exp.amount || ''}
-                        onChange={(e) => updateCustomExpenseAmount(originalIdx, e.target.value)}
-                        onBlur={handleBlurSave}
-                        placeholder="0"
-                        className="h-9"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+      {/* Variable Expenses - removed, all in fixed now under categories */}
 
       {/* Comparison Summary */}
       <Card className="border-0 shadow-xl bg-gradient-to-br from-[#105330]/5 to-[#c8a863]/5">
