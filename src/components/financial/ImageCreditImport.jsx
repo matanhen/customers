@@ -1,24 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, Loader2, Check, AlertCircle, Image, ChevronDown, ChevronUp } from 'lucide-react';
+import { ALL_EXPENSE_ITEMS } from './expenseCategories';
 
-const FIXED_EXPENSES = [
-  'ביטוחי רכב','טסט','משכנתא','ביטוח משכנתא','שכירות','מנויים',
-  'ביטוחים (ללא רכב)','ועד בית','ארנונה','החזר הלוואות','הוראות קבע',
-];
-
-const VARIABLE_EXPENSES = [
-  'מים','חשמל','גז','תספורת וקוסמטיקה','חינוך','חוגים וקייטנות','בריאות',
-  'תיקוני רכב','עמלות וריביות בנקים','טיפולי שיניים','אופטיקה','חגים ויהדות',
-  'טלפון נייד','סופר פארם','דברים לבית','ביטוח לאומי','מזון','דלק וחניה',
-  'תחבורה ציבורית','סיגריות','עוזרת / בייביסיטר','ביט','מזומן','בילויים',
-  'בגדים ונעליים','תרומות','התפתחות אישית','חופשה / טיול','בעלי חיים','מתנות ואירועים',
-];
-
-const CLASSIFICATION_PROMPT = `אתה מומחה לניתוח פיננסי. המסמך המצורף הוא **תמונה של פירוט עסקאות** כרטיס אשראי ישראלי.
+const buildClassificationPrompt = (mappingNote = '') => `אתה מומחה לניתוח פיננסי. המסמך המצורף הוא **תמונה של פירוט עסקאות** כרטיס אשראי ישראלי.
 
 ## משימתך: קרא את התמונה ויזואלית וחלץ כל שורה מהטבלה.
 
@@ -27,13 +16,21 @@ const CLASSIFICATION_PROMPT = `אתה מומחה לניתוח פיננסי. המ
 - הסכום תמיד חיובי
 - אל תכלול שורת כותרת, שורת סיכום ("סה"כ"), או שורות ריקות
 
-## קטגוריות הוצאות קבועות (fixed):
-ביטוחי רכב, טסט, משכנתא, ביטוח משכנתא, שכירות, מנויים, ביטוחים (ללא רכב), ועד בית, ארנונה, החזר הלוואות, הוראות קבע
+## רשימת הסעיפים האפשריים (השתמש בדיוק בשמות הבאים):
+${ALL_EXPENSE_ITEMS.join(', ')}
 
-## קטגוריות יתרת הוצאות (variable):
-מים, חשמל, גז, תספורת וקוסמטיקה, חינוך, חוגים וקייטנות, בריאות, תיקוני רכב, עמלות וריביות בנקים, טיפולי שיניים, אופטיקה, חגים ויהדות, טלפון נייד, סופר פארם, דברים לבית, ביטוח לאומי, מזון, דלק וחניה, תחבורה ציבורית, סיגריות, עוזרת / בייביסיטר, ביט, מזומן, בילויים, בגדים ונעליים, תרומות, התפתחות אישית, חופשה / טיול, בעלי חיים, מתנות ואירועים
+## התאמות נפוצות:
+- סונול/פז/דלק ישראל → דלק וחניה
+- שופרסל/רמי לוי/יוחננוף/מגה/ויקטורי → מזון
+- Wolt/תן ביס/Ten Bis → מסעדות וקפה
+- בוקינג/אל-על/Airbnb/מלון → חופשה / טיול
+- זארה/H&M/Fox/נייק/אדידס → בגדים ונעליים
+- נטפליקס/ספוטיפיי/yes/HOT/Apple.com/iCloud → מנויים
+- סלקום/פרטנר/HOT מובייל/גולן → טלפון נייד
+- מגדל/הראל/כלל/מנורה/הפניקס → ביטוחים (ללא רכב)
+- בית מרקחת/קופת חולים → ספורט ובריאות${mappingNote}
 
-החזר JSON תקין בלבד. category חייב להיות בדיוק כפי שמופיע ברשימות למעלה.`;
+החזר JSON תקין בלבד. category חייב להיות אחד מהסעיפים ברשימה למעלה.`;
 
 // mode: 'reflection' (months 1-3) | 'tracking' (no month selection)
 export default function ImageCreditImport({ open, onOpenChange, onApply, mode = 'reflection' }) {
@@ -44,6 +41,18 @@ export default function ImageCreditImport({ open, onOpenChange, onApply, mode = 
   const [expandedGroups, setExpandedGroups] = useState({});
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
+
+  const { data: expenseMappings = [] } = useQuery({
+    queryKey: ['expenseMappings'],
+    queryFn: () => base44.entities.ExpenseMapping.list(),
+    staleTime: 60000,
+  });
+
+  const getPrompt = () => {
+    if (!expenseMappings.length) return buildClassificationPrompt();
+    const lines = expenseMappings.map(m => `- "${m.keyword}" → ${m.target_item}`).join('\n');
+    return buildClassificationPrompt(`\n\n## מיפויים מותאמים אישית (עדיפות גבוהה):\n${lines}`);
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -57,7 +66,7 @@ export default function ImageCreditImport({ open, onOpenChange, onApply, mode = 
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: CLASSIFICATION_PROMPT,
+        prompt: getPrompt(),
         file_urls: [file_url],
         response_json_schema: {
           type: 'object',
@@ -138,8 +147,6 @@ export default function ImageCreditImport({ open, onOpenChange, onApply, mode = 
 
   const confirmedCount = groupedView.filter(g => g.confirmed && g.category).length;
   const totalAmount = groupedView.filter(g => g.confirmed).reduce((s, g) => s + g.total, 0);
-  const typeLabel = (t) => t === 'fixed' ? 'קבועה' : 'משתנה';
-  const typeColor = (t) => t === 'fixed' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -219,22 +226,35 @@ export default function ImageCreditImport({ open, onOpenChange, onApply, mode = 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-slate-800 text-sm">{group.category}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColor(group.type)}`}>{typeLabel(group.type)}</span>
                         {group.items.length > 1 && <span className="text-xs text-slate-400">{group.items.length} עסקאות</span>}
                       </div>
                       <p className="text-base font-bold text-[#105330]">₪{Math.round(group.total).toLocaleString()}</p>
                     </div>
-                    {group.confirmed && mode === 'reflection' && (
-                      <Select value={group.month} onValueChange={(v) => updateGroup(index, 'month', v)}>
-                        <SelectTrigger className="h-8 w-24 text-xs shrink-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="month1">חודש 1</SelectItem>
-                          <SelectItem value="month2">חודש 2</SelectItem>
-                          <SelectItem value="month3">חודש 3</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    {group.confirmed && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        {mode === 'reflection' && (
+                          <Select value={group.month} onValueChange={(v) => updateGroup(index, 'month', v)}>
+                            <SelectTrigger className="h-8 w-24 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="month1">חודש 1</SelectItem>
+                              <SelectItem value="month2">חודש 2</SelectItem>
+                              <SelectItem value="month3">חודש 3</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <Select value={group.category} onValueChange={(v) => updateGroup(index, 'category', v)}>
+                          <SelectTrigger className="h-8 w-36 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[220px]">
+                            {ALL_EXPENSE_ITEMS.map(item => (
+                              <SelectItem key={item} value={item}>{item}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
                     <Button
                       variant={group.confirmed ? 'outline' : 'ghost'}

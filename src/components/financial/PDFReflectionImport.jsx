@@ -1,104 +1,52 @@
 import React, { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, Loader2, Check, AlertCircle, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { ALL_EXPENSE_ITEMS } from './expenseCategories';
 
-const FIXED_EXPENSES = [
-  'ביטוחי רכב','טסט','משכנתא','ביטוח משכנתא','שכירות','מנויים',
-  'ביטוחים (ללא רכב)','ועד בית','ארנונה','החזר הלוואות','הוראות קבע',
-];
+const buildClassificationPrompt = (mappingNote = '') => `אתה מומחה לניתוח פיננסי. קיבלת רשימת עסקאות שחולצו מפירוט כרטיס אשראי ישראלי.
 
-const VARIABLE_EXPENSES = [
-  'מים','חשמל','גז','תספורת וקוסמטיקה','חינוך','חוגים וקייטנות','בריאות',
-  'תיקוני רכב','עמלות וריביות בנקים','טיפולי שיניים','אופטיקה','חגים ויהדות',
-  'טלפון נייד','סופר פארם','דברים לבית','ביטוח לאומי','מזון','דלק וחניה',
-  'תחבורה ציבורית','סיגריות','עוזרת / בייביסיטר','ביט','מזומן','בילויים',
-  'בגדים ונעליים','תרומות','התפתחות אישית','חופשה / טיול','בעלי חיים','מתנות ואירועים',
-];
+## משימתך: סווג כל עסקה מהרשימה לסעיף המתאים.
 
-const CLASSIFICATION_PROMPT = `אתה מומחה לניתוח פיננסי. המסמך המצורף הוא **תמונה של פירוט עסקאות** כרטיס אשראי ישראלי (מסטרקארד/ויזה/אמריקן אקספרס).
+## רשימת הסעיפים האפשריים (השתמש בדיוק בשמות הבאים):
+${ALL_EXPENSE_ITEMS.join(', ')}
 
-## משימתך: קרא את התמונה ויזואלית וחלץ כל שורה מהטבלה.
+## התאמות נפוצות:
+- סונול/פז/דלק ישראל → דלק וחניה
+- שופרסל/רמי לוי/יוחננוף/מגה/ויקטורי → מזון
+- Wolt/תן ביס/Ten Bis → מסעדות וקפה
+- בוקינג/אל-על/Airbnb/מלון → חופשה / טיול
+- זארה/H&M/Fox/נייק/אדידס → בגדים ונעליים
+- נטפליקס/ספוטיפיי/yes/HOT/Apple.com/iCloud → מנויים
+- סלקום/פרטנר/HOT מובייל/גולן → טלפון נייד
+- מגדל/הראל/כלל/מנורה/הפניקס → ביטוחים (ללא רכב)
+- בית מרקחת/קופת חולים → ספורט ובריאות
+- ביטוח לאומי → ביטוח לאומי${mappingNote}
 
-## מבנה הטבלה בתמונה:
-הטבלה מכילה את העמודות הבאות (מימין לשמאל כי זה עברית):
-- **תאריך** (לדוגמה: 13/04/26)
-- **בית עסק** (שם הספק, לדוגמה: סונול, יוחננוף, WEBIZ)
-- **סכום חיוב בש"ח** (מספר כמו 895.00 או 1,156.40)
-- **תשלומים** (לרוב ריק)
-- **סכום ההנחה בש"ח** (לרוב ריק)
-
-## חוקים קריטיים:
-- חלץ **כל שורה** בטבלה — כל שורה = הוצאה אחת
-- הסכום הוא המספר בעמודת "סכום חיוב בש"ח" (לא הסכום הכולל בראש הדף)
-- אל תכלול שורת כותרת, שורת סיכום ("סה"כ"), או שורות ריקות
-- סכום תמיד חיובי
-
-## קטגוריות הוצאות קבועות (fixed) - שייך כאן אם ההוצאה חוזרת כל חודש:
-- **ביטוחי רכב**: ביטוח חובה, ביטוח מקיף לרכב, כל ביטוח שמוזכר בהקשר של רכב/אוטו/מכונית
-- **טסט**: תשלום לטסט, רישיון רכב שנתי
-- **משכנתא**: תשלום משכנתא, הלוואת בנק לדיור
-- **ביטוח משכנתא**: ביטוח חיים על משכנתא, ביטוח מבנה
-- **שכירות**: דמי שכירות, שכר דירה
-- **מנויים**: נטפליקס, ספוטיפיי, yes, HOT, Wolt Plus, Amazon Prime, YouTube Premium, iCloud, Google One, כל מנוי חודשי דיגיטלי, חדר כושר, בריכה
-- **ביטוחים (ללא רכב)**: מגדל, הראל, כלל, מנורה, הפניקס, ביטוח בריאות פרטי, ביטוח חיים, ביטוח תאונות אישיות
-- **ועד בית**: ועד בית, תשלום לבניין
-- **ארנונה**: ארנונה, עיריית...
-- **החזר הלוואות**: החזר הלוואה, תשלום אשראי, החזר כרטיס אשראי
-- **הוראות קבע**: הוראות קבע אחרות שלא שוייכו לעיל
-
-## קטגוריות יתרת הוצאות (variable) - שייך כאן לפי ספק/שם:
-- **מים**: תשלום למים, חברת מקורות
-- **חשמל**: חברת חשמל, IEC
-- **גז**: גז, רסניק, גז ישראל, ליברה גז
-- **תספורת וקוסמטיקה**: מספרה, סלון יופי, קוסמטיקה, ציפורניים, במבי, ויקטוריה
-- **חינוך**: שכר לימוד, אוניברסיטה, מכללה, בית ספר, גן ילדים, פעוטון
-- **חוגים וקייטנות**: חוג כדורגל, חוג מוזיקה, קייטנה, ספורט ילדים
-- **בריאות**: בית מרקחת, סופר-פארם רק תרופות, קופת חולים, מרפאה, רופא, ניתוח
-- **תיקוני רכב**: מוסך, תיקון רכב, החלפת שמן, טיולי גלגלים
-- **עמלות וריביות בנקים**: עמלת ניהול חשבון, ריבית, עמלת העברה, עמלת כרטיס
-- **טיפולי שיניים**: שיניים, אורתודנטיה, קליניקת שיניים
-- **אופטיקה**: משקפיים, עדשות מגע, אופטיקנה
-- **חגים ויהדות**: ספרי תורה, בית כנסת, הכנה לחג, מצות
-- **טלפון נייד**: סלקום, פרטנר, HOT מובייל, 012, רמי לוי סלולר, גולן טלקום, סימפל
-- **סופר פארם**: סופר-פארם (קניות כלליות, לא תרופות), שופרסל בריאות ויופי
-- **דברים לבית**: איקאה, HOME CENTER, ACE, זארה הום, ציוד לבית, כלי בית
-- **ביטוח לאומי**: ביטוח לאומי, מס בריאות
-- **מזון**: רמי לוי, שופרסל, מגה, ויקטורי, יוחננוף, AM:PM, מינימרקט, סופרמרקט, קאשר, מכולת, אוכל, מסעדה, ארוחה, קפה, פיצה, מקדונלד'ס, בורגר קינג, שווארמה, פלאפל, Wolt, Ten Bis, תן ביס, אורקל, סטיקס, טביל, ממילא, קנט, קינג ג'ורג', פסטה
-- **דלק וחניה**: דלק, סונול, פז, כלי שמן, חניה, פנגו, פנגו פארק, עמידר
-- **תחבורה ציבורית**: רב קו, אוטובוס, רכבת ישראל, חיפוש תחבורה
-- **סיגריות**: סיגריות, טבק
-- **עוזרת / בייביסיטר**: בייביסיטר, עוזרת בית, ניקיון
-- **ביט**: ביט, העברת ביט (כשלא ברור מה ההוצאה)
-- **מזומן**: משיכת מזומן, ATM, כספומט
-- **בילויים**: סרט, קולנוע, יס פלאנט, HOT Cinema, קונצרט, כדורגל, אירוע, פאב, בר, כיף
-- **בגדים ונעליים**: זארה, H&M, Fox, מנגו, קסטרו, קפיטל, אדידס, נייק, נעליים, ביגוד
-- **תרומות**: תרומה, צדקה
-- **התפתחות אישית**: קורס, ספר, סדנה, coaching, אימון אישי
-- **חופשה / טיול**: מלון, צימר, בוקינג, Airbnb, טיסה, אל-על, ויזות, פארק מים, תיירות
-- **בעלי חיים**: וטרינר, אוכל לכלב/חתול, חנות חיות
-- **מתנות ואירועים**: מתנה, אירוע, חתונה, בר מצווה, מסיבה
-- **התפתחות אישית**: BASE44, קורס, ספר, סדנה, coaching, אימון אישי, פלטפורמות SaaS עסקיות
-- **מנויים**: Zoom, Canva, ManyChat, Make.com, ChatGPT, Claude, נטפליקס, ספוטיפיי, iCloud, Apple.com/bill, Google One, YouTube Premium, Amazon Prime, Adobe, Notion, Slack, כל מנוי חודשי דיגיטלי
-- **בילויים**: Facebook Ads, פרסום ברשתות חברתיות, Meta Ads, Google Ads (אם נראים כהוצאות אישיות)
-- **דברים לבית**: מחסני חשמל, KSP, כלי עבודה, ציוד
-
-## כלל חשוב לאגירה:
-כאשר יש כמה עסקאות מאותו ספק/סוג, **שייך לאותה קטגוריה** — המערכת תאגד אוטומטית.
-
-החזר JSON תקין בלבד. category חייב להיות בדיוק כפי שמופיע ברשימות למעלה.`;
+החזר JSON תקין בלבד. category חייב להיות אחד מהסעיפים ברשימה למעלה.`;
 
 export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
   const [step, setStep] = useState('upload');
-  const [parsedItems, setParsedItems] = useState([]);
   const [groupedView, setGroupedView] = useState([]);
   const [error, setError] = useState('');
   const [globalMonth, setGlobalMonth] = useState('month1');
   const [expandedGroups, setExpandedGroups] = useState({});
   const fileInputRef = useRef(null);
+
+  const { data: expenseMappings = [] } = useQuery({
+    queryKey: ['expenseMappings'],
+    queryFn: () => base44.entities.ExpenseMapping.list(),
+    staleTime: 60000,
+  });
+
+  const getPrompt = () => {
+    if (!expenseMappings.length) return buildClassificationPrompt();
+    const lines = expenseMappings.map(m => `- "${m.keyword}" → ${m.target_item}`).join('\n');
+    return buildClassificationPrompt(`\n\n## מיפויים מותאמים אישית (עדיפות גבוהה):\n${lines}`);
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -110,7 +58,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      // Step 1: Extract raw text/data from PDF
+      // Step 1: Extract raw transactions from PDF
       const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
         file_url,
         json_schema: {
@@ -135,9 +83,9 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
         ? rawTransactions.map(t => `- ${t.description || t.name || JSON.stringify(t)}: ${t.amount || ''}`).join('\n')
         : JSON.stringify(rawTransactions);
 
-      // Step 2: Classify with LLM
+      // Step 2: Classify with LLM using custom mappings
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: CLASSIFICATION_PROMPT + `\n\n## רשימת העסקאות שחולצו מהקובץ:\n${transactionsText}\n\nסווג כל עסקה מהרשימה לעיל.`,
+        prompt: getPrompt() + `\n\n## רשימת העסקאות שחולצו מהקובץ:\n${transactionsText}\n\nסווג כל עסקה מהרשימה לעיל.`,
         response_json_schema: {
           type: 'object',
           properties: {
@@ -157,7 +105,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
         }
       });
 
-      // Group by category and sum amounts
+      // Group by category
       const grouped = {};
       (result.expenses || []).forEach(exp => {
         if (!exp.amount || exp.amount <= 0) return;
@@ -185,7 +133,6 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
     setGroupedView(prev => prev.map((g, i) => i === index ? { ...g, [field]: value } : g));
   };
 
-  // Move a single item from its group to a different category (splits it out)
   const moveItemToCategory = (groupIndex, itemIndex, newCategory, newType) => {
     setGroupedView(prev => {
       const groups = prev.map(g => ({ ...g, items: [...g.items] }));
@@ -238,7 +185,6 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
   const handleClose = () => {
     setStep('upload');
     setGroupedView([]);
-    setParsedItems([]);
     setError('');
     setGlobalMonth('month1');
     setExpandedGroups({});
@@ -247,9 +193,6 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
 
   const confirmedCount = groupedView.filter(g => g.confirmed && g.category && g.month).length;
   const totalAmount = groupedView.filter(g => g.confirmed).reduce((s, g) => s + g.total, 0);
-
-  const typeLabel = (t) => t === 'fixed' ? 'קבועה' : 'משתנה';
-  const typeColor = (t) => t === 'fixed' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -280,7 +223,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
             )}
             <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
               <p className="font-semibold mb-1">💡 איך זה עובד?</p>
-              <p>ה-AI יקרא את הקובץ, יזהה ויסווג כל הוצאה בדיוק גבוה לקטגוריה הנכונה, ויאגד הוצאות מאותה קטגוריה. לכל קבוצה תוכל לבחור לאיזה חודש בשיקוף (1/2/3) היא שייכת.</p>
+              <p>ה-AI יקרא את הקובץ, יזהה ויסווג כל הוצאה לקטגוריה הנכונה, ויאגד הוצאות מאותה קטגוריה. לכל קבוצה תוכל לבחור לאיזה חודש בשיקוף (1/2/3) היא שייכת.</p>
             </div>
           </div>
         )}
@@ -318,11 +261,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
 
             <div className="space-y-2 max-h-[450px] overflow-y-auto">
               {groupedView.map((group, index) => (
-                <div
-                  key={index}
-                  className={`rounded-xl border transition-all ${group.confirmed ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-50'}`}
-                >
-                  {/* Group Header */}
+                <div key={index} className={`rounded-xl border transition-all ${group.confirmed ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-50'}`}>
                   <div className="flex items-center gap-3 p-3">
                     <button
                       onClick={() => setExpandedGroups(prev => ({ ...prev, [index]: !prev[index] }))}
@@ -333,7 +272,6 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-slate-800 text-sm">{group.category}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColor(group.type)}`}>{typeLabel(group.type)}</span>
                         {group.items.length > 1 && (
                           <span className="text-xs text-slate-400">{group.items.length} עסקאות</span>
                         )}
@@ -353,30 +291,14 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
                             <SelectItem value="month3">חודש 3</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Select
-                          value={group.type}
-                          onValueChange={(v) => updateGroup(index, 'type', v)}
-                        >
-                          <SelectTrigger className="h-8 w-24 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">קבועה</SelectItem>
-                            <SelectItem value="variable">משתנה</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={group.category}
-                          onValueChange={(v) => updateGroup(index, 'category', v)}
-                        >
+                        <Select value={group.category} onValueChange={(v) => updateGroup(index, 'category', v)}>
                           <SelectTrigger className="h-8 w-36 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="max-h-[220px]">
-                            <SelectItem value="_fixed_header" disabled className="font-bold text-blue-700 text-xs">— קבועות —</SelectItem>
-                            {FIXED_EXPENSES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                            <SelectItem value="_var_header" disabled className="font-bold text-purple-700 text-xs">— משתנות —</SelectItem>
-                            {VARIABLE_EXPENSES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                            {ALL_EXPENSE_ITEMS.map(item => (
+                              <SelectItem key={item} value={item}>{item}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -392,7 +314,6 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
                     </Button>
                   </div>
 
-                  {/* Expanded transactions */}
                   {expandedGroups[index] && (
                     <div className="px-4 pb-3 pt-0 border-t border-slate-100">
                       <p className="text-xs text-slate-400 mt-2 mb-1">לחץ על קטגוריה כדי להעביר עסקה בודדת:</p>
@@ -413,13 +334,8 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
                                   <SelectValue placeholder="העבר ל..." />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[220px]">
-                                  <SelectItem value="_fixed_header" disabled className="font-bold text-blue-700 text-xs">— קבועות —</SelectItem>
-                                  {FIXED_EXPENSES.filter(c => c !== group.category).map(cat => (
-                                    <SelectItem key={cat} value={`fixed::${cat}`}>{cat}</SelectItem>
-                                  ))}
-                                  <SelectItem value="_var_header" disabled className="font-bold text-purple-700 text-xs">— משתנות —</SelectItem>
-                                  {VARIABLE_EXPENSES.filter(c => c !== group.category).map(cat => (
-                                    <SelectItem key={cat} value={`variable::${cat}`}>{cat}</SelectItem>
+                                  {ALL_EXPENSE_ITEMS.filter(c => c !== group.category).map(item => (
+                                    <SelectItem key={item} value={`variable::${item}`}>{item}</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -437,11 +353,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
               <Button variant="outline" onClick={() => { setStep('upload'); setGroupedView([]); }}>
                 העלה קובץ אחר
               </Button>
-              <Button
-                onClick={handleApply}
-                disabled={confirmedCount === 0}
-                className="bg-[#105330] hover:bg-[#0d4027]"
-              >
+              <Button onClick={handleApply} disabled={confirmedCount === 0} className="bg-[#105330] hover:bg-[#0d4027]">
                 <Check className="w-4 h-4 ml-1" />
                 אשר ויישם ({confirmedCount} קטגוריות — ₪{Math.round(groupedView.filter(g=>g.confirmed).reduce((s,g)=>s+g.total,0)).toLocaleString()})
               </Button>
