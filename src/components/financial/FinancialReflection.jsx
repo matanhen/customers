@@ -233,10 +233,10 @@ export default function FinancialReflection({ userId }) {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Age & Checking Balance */}
+      {/* Age, Checking Balance & Credit Card */}
       <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
         <CardContent className="p-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label className="text-slate-700 font-semibold">גיל - גבר</Label>
               <Input
@@ -265,6 +265,24 @@ export default function FinancialReflection({ userId }) {
                 onChange={e => { setCheckingBalance(e.target.value); triggerAutoSave(buildPayload({ checking_account_balance: parseFloat(e.target.value) || null })); }}
                 placeholder="יכול להיות במינוס, לדוגמה: -5000"
                 disabled={isViewingOther && !isAdvisorOrAdmin}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold flex items-center gap-1">
+                <Receipt className="w-4 h-4 text-orange-500" />
+                סך הכל חיוב אשראי נוכחי
+              </Label>
+              <Input
+                type="text" inputMode="numeric" value={creditCardDisplay}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^0-9]/g, '');
+                  const num = parseInt(raw, 10) || 0;
+                  setCreditCardTotal(num); setCreditCardDisplay(raw);
+                  triggerAutoSave(buildPayload({ credit_card_total: num }));
+                }}
+                placeholder="₪ הזן סכום"
+                className="border-orange-200 focus-visible:ring-orange-400"
+                disabled={isViewingOther && !isAdvisorOrAdmin} dir="ltr"
               />
             </div>
           </div>
@@ -361,36 +379,12 @@ export default function FinancialReflection({ userId }) {
           />
         </TabsContent>
 
-        <TabsContent value="expenses" className="mt-4 space-y-4">
+        <TabsContent value="expenses" className="mt-4">
           <ExpensesTable
             expenses={expenses}
             onChange={(newExpenses) => { setExpenses(newExpenses); triggerAutoSave(buildPayload({ expenses: newExpenses })); }}
             disabled={isViewingOther && !isAdvisorOrAdmin}
           />
-          {/* Credit Card Total */}
-          <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-xl bg-orange-500/10 shrink-0"><Receipt className="w-5 h-5 text-orange-600" /></div>
-                <Label className="text-slate-700 font-semibold text-base whitespace-nowrap">סך הכל חיוב אשראי נוכחי</Label>
-                <div className="flex-1 max-w-xs">
-                  <Input
-                    type="text" inputMode="numeric" value={creditCardDisplay}
-                    onChange={e => {
-                      const raw = e.target.value.replace(/[^0-9]/g, '');
-                      const num = parseInt(raw, 10) || 0;
-                      setCreditCardTotal(num); setCreditCardDisplay(raw);
-                      triggerAutoSave(buildPayload({ credit_card_total: num }));
-                    }}
-                    placeholder="₪ הזן סכום"
-                    className="border-orange-200 focus-visible:ring-orange-400"
-                    disabled={isViewingOther && !isAdvisorOrAdmin} dir="ltr"
-                  />
-                </div>
-                <p className="text-xs text-slate-400 hidden md:block">* לצורך בהירות בלבד</p>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="forecast" className="mt-4">

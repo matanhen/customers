@@ -1,13 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, PiggyBank, TrendingUp, Target, Calendar } from 'lucide-react';
+import { Home, PiggyBank, TrendingUp, Target, Scale } from 'lucide-react';
 import { createPageUrl } from '../utils/index.ts';
 
 const navItems = [
   { name: 'בית', page: 'Home', icon: Home },
-  { name: 'כלכלה', page: 'FinancialManagement', icon: PiggyBank },
+  { name: 'התנהלות', page: 'FinancialManagement', icon: PiggyBank },
+  { name: 'מאזן', page: 'Balance', icon: Scale },
   { name: 'השקעות', page: 'Investments', icon: TrendingUp },
-  { name: 'חופש', page: 'FinancialFreedom', icon: Target },
-  { name: 'פגישות', page: 'Appointments', icon: Calendar },
+  { name: 'תכנון', page: 'FinancialFreedom', icon: Target },
 ];
 
 export default function MobileNav() {

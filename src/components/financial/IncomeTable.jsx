@@ -120,7 +120,7 @@ export default function IncomeTable({ rows, onChange, pensionMaleMonthly = 0, pe
   );
 
   return (
-    <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
+    <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80" dir="rtl">
       <CardHeader className="pb-3">
         <CardTitle className="text-slate-800 text-lg">טבלת הכנסות - 6 חודשים אחרונים</CardTitle>
       </CardHeader>

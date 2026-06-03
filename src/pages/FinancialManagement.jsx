@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import PullToRefresh from '../components/PullToRefresh';
-import { Wallet, LineChart, TrendingUp, ClipboardList, CreditCard, ArrowRight, Building2, Landmark, Rocket } from 'lucide-react';
+import { Wallet, LineChart, TrendingUp, ClipboardList, ArrowRight, Landmark, Rocket } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
@@ -10,7 +10,6 @@ import FinancialReflection from '../components/financial/FinancialReflection';
 import BeforeAfterComparison from '../components/financial/BeforeAfterComparison';
 import ExpenseTracking from '../components/financial/ExpenseTracking';
 import DebtManager from '../components/financial/DebtManager';
-import AssetsManager from '../components/financial/AssetsManager';
 import PensionManager from '../components/investments/PensionManager';
 import FinancialForecast from '../components/financial/FinancialForecast';
 
@@ -173,10 +172,7 @@ export default function FinancialManagement() {
               <LineChart className="w-4 h-4 ml-1 hidden sm:block" />תזרים
             </TabsTrigger>
             <TabsTrigger value="debts" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
-              <CreditCard className="w-4 h-4 ml-1 hidden sm:block" />התחייבויות
-            </TabsTrigger>
-            <TabsTrigger value="assets" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
-              <Building2 className="w-4 h-4 ml-1 hidden sm:block" />נכסים
+              <ClipboardList className="w-4 h-4 ml-1 hidden sm:block" />התחייבויות
             </TabsTrigger>
             <TabsTrigger value="pension" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
               <Landmark className="w-4 h-4 ml-1 hidden sm:block" />פנסיוני
@@ -190,9 +186,6 @@ export default function FinancialManagement() {
           </TabsContent>
           <TabsContent value="debts" className="mt-0">
             <DebtManager userId={effectiveUserId} />
-          </TabsContent>
-          <TabsContent value="assets" className="mt-0">
-            <AssetsManager userId={effectiveUserId} />
           </TabsContent>
           <TabsContent value="pension" className="mt-0">
             <PensionManager userId={effectiveUserId} />

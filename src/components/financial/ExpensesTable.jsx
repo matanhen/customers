@@ -9,7 +9,10 @@ const MONTHS = ['month1','month2','month3'];
 const MONTH_LABELS = ['חודש 1','חודש 2','חודש 3'];
 
 export default function ExpensesTable({ expenses = {}, onChange, disabled = false }) {
-  const [expandedCategories, setExpandedCategories] = useState({});
+  // All categories open by default
+  const [expandedCategories, setExpandedCategories] = useState(
+    () => Object.fromEntries(EXPENSE_CATEGORIES.map(cat => [cat.key, true]))
+  );
   const [newItemName, setNewItemName] = useState({});
 
   const toggleCategory = (key) => {
@@ -68,8 +71,11 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
     return [...defaultWithData, ...customItems];
   };
 
+  const ITEM_COL_WIDTH = 160;
+  const MONTH_COL_WIDTH = 90;
+
   return (
-    <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
+    <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80" dir="rtl">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-slate-800 text-lg">טבלת הוצאות - ממוצע 3 חודשים</CardTitle>
@@ -82,7 +88,6 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
         {EXPENSE_CATEGORIES.map(cat => {
           const isExpanded = expandedCategories[cat.key];
           const catTotal = getCategoryTotal(cat.key);
-          const items = getCategoryItems(cat);
 
           return (
             <div key={cat.key} className="border border-slate-200 rounded-xl overflow-hidden">
@@ -94,9 +99,6 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
                 <div className="flex items-center gap-3">
                   {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                   <span className="font-semibold text-slate-700">{cat.label}</span>
-                  {items.length > 0 && (
-                    <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{items.length} סעיפים</span>
-                  )}
                 </div>
                 <span className={`font-bold text-sm ${catTotal > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
                   ₪{catTotal.toLocaleString()}
@@ -106,44 +108,44 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
               {/* Category Content */}
               {isExpanded && (
                 <div className="p-3 space-y-2">
-                  {/* Table */}
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[400px] text-sm">
+                    <table className="text-sm" style={{ width: ITEM_COL_WIDTH + MONTH_COL_WIDTH * 3 + 70 + (disabled ? 0 : 32) }}>
                       <thead>
                         <tr className="text-slate-500 text-xs">
-                          <th className="text-right pb-2 font-medium w-40">סעיף</th>
+                          <th className="text-right pb-2 font-medium" style={{ width: ITEM_COL_WIDTH }}>סעיף</th>
                           {MONTH_LABELS.map((l, i) => (
-                            <th key={i} className="text-center pb-2 font-medium">{l}</th>
+                            <th key={i} className="pb-2 font-medium text-center" style={{ width: MONTH_COL_WIDTH }}>{l}</th>
                           ))}
-                          <th className="text-center pb-2 font-medium">ממוצע</th>
-                          {!disabled && <th className="w-8"></th>}
+                          <th className="pb-2 font-medium text-center" style={{ width: 70 }}>ממוצע</th>
+                          {!disabled && <th style={{ width: 32 }}></th>}
                         </tr>
                       </thead>
                       <tbody>
-                        {/* Default items (always shown) */}
+                        {/* Default items */}
                         {cat.items.map(item => {
                           const monthData = expenses[cat.key]?.[item] || {};
                           const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
                           return (
                             <tr key={item} className="border-t border-slate-100">
-                              <td className="py-1.5 pr-1 text-slate-700 text-xs">{item}</td>
+                              <td className="py-1.5 pr-2 text-slate-700 text-xs" style={{ width: ITEM_COL_WIDTH }}>{item}</td>
                               {MONTHS.map(m => (
-                                <td key={m} className="px-1 py-1.5">
+                                <td key={m} className="py-1.5 px-1" style={{ width: MONTH_COL_WIDTH }}>
                                   <Input
                                     type="number"
                                     value={monthData[m] || ''}
                                     onChange={e => updateCell(cat.key, item, m, e.target.value)}
-                                    className="h-7 text-xs text-center border-slate-200 w-20"
+                                    className="h-7 text-xs text-center border-slate-200"
+                                    style={{ width: MONTH_COL_WIDTH - 8 }}
                                     placeholder="0"
                                     disabled={disabled}
                                     dir="ltr"
                                   />
                                 </td>
                               ))}
-                              <td className="px-2 text-center font-semibold text-rose-600 text-xs">
+                              <td className="px-2 text-center font-semibold text-rose-600 text-xs" style={{ width: 70 }}>
                                 {avg > 0 ? `₪${avg.toLocaleString()}` : '-'}
                               </td>
-                              {!disabled && <td className="w-6"></td>}
+                              {!disabled && <td style={{ width: 32 }}></td>}
                             </tr>
                           );
                         })}
@@ -155,26 +157,27 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
                             const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
                             return (
                               <tr key={item} className="border-t border-slate-100 bg-blue-50/30">
-                                <td className="py-1.5 pr-1 text-blue-700 text-xs font-medium">{item}</td>
+                                <td className="py-1.5 pr-2 text-blue-700 text-xs font-medium" style={{ width: ITEM_COL_WIDTH }}>{item}</td>
                                 {MONTHS.map(m => (
-                                  <td key={m} className="px-1 py-1.5">
+                                  <td key={m} className="py-1.5 px-1" style={{ width: MONTH_COL_WIDTH }}>
                                     <Input
                                       type="number"
                                       value={monthData[m] || ''}
                                       onChange={e => updateCell(cat.key, item, m, e.target.value)}
-                                      className="h-7 text-xs text-center border-blue-200 w-20"
+                                      className="h-7 text-xs text-center border-blue-200"
+                                      style={{ width: MONTH_COL_WIDTH - 8 }}
                                       placeholder="0"
                                       disabled={disabled}
                                       dir="ltr"
                                     />
                                   </td>
                                 ))}
-                                <td className="px-2 text-center font-semibold text-rose-600 text-xs">
+                                <td className="px-2 text-center font-semibold text-rose-600 text-xs" style={{ width: 70 }}>
                                   {avg > 0 ? `₪${avg.toLocaleString()}` : '-'}
                                 </td>
                                 {!disabled && (
-                                  <td className="px-1">
-                                    <button onClick={() => deleteItem(cat.key, item)} className="text-slate-300 hover:text-red-400">
+                                  <td style={{ width: 32 }}>
+                                    <button onClick={() => deleteItem(cat.key, item)} className="text-slate-300 hover:text-red-400 pr-1">
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </td>
