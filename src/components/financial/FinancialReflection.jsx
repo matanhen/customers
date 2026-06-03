@@ -14,7 +14,7 @@ import ImageCreditImport from './ImageCreditImport';
 import IncomeTable from './IncomeTable';
 import ExpensesTable from './ExpensesTable';
 import FinancialForecast from './FinancialForecast';
-import { migrateLegacyExpenses } from './expenseCategories';
+import { migrateLegacyExpenses, getDefaultExpenses, EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS } from './expenseCategories';
 
 const MONTHS = ['month1','month2','month3','month4','month5','month6'];
 
@@ -126,6 +126,9 @@ export default function FinancialReflection({ userId }) {
         reflection.variable_expenses || {}
       );
       setExpenses(migrated);
+    } else {
+      // Seed default empty structure for new users
+      setExpenses(getDefaultExpenses());
     }
 
     setMaleAge(reflection?.male_age ? String(reflection.male_age) : '');
@@ -437,8 +440,12 @@ export default function FinancialReflection({ userId }) {
         onApply={(items) => {
           let next = { ...expenses };
           items.forEach(item => {
-            const catKey = item.categoryKey || 'misc';
-            next = { ...next, [catKey]: { ...(next[catKey] || {}), [item.category]: { ...(next[catKey]?.[item.category] || {}), [item.month]: (next[catKey]?.[item.category]?.[item.month] || 0) + item.amount } } };
+            let catKey = 'misc';
+            for (const cat of EXPENSE_CATEGORIES) {
+              if (cat.items.includes(item.category)) { catKey = cat.key; break; }
+            }
+            const month = item.month || 'month1';
+            next = { ...next, [catKey]: { ...(next[catKey] || {}), [item.category]: { ...(next[catKey]?.[item.category] || {}), [month]: (next[catKey]?.[item.category]?.[month] || 0) + item.amount } } };
           });
           setExpenses(next);
           saveMutation.mutate(buildPayload({ expenses: next }));
@@ -452,8 +459,12 @@ export default function FinancialReflection({ userId }) {
         onApply={(items) => {
           let next = { ...expenses };
           items.forEach(item => {
-            const catKey = item.categoryKey || 'misc';
-            next = { ...next, [catKey]: { ...(next[catKey] || {}), [item.category]: { ...(next[catKey]?.[item.category] || {}), [item.month]: (next[catKey]?.[item.category]?.[item.month] || 0) + item.amount } } };
+            let catKey = 'misc';
+            for (const cat of EXPENSE_CATEGORIES) {
+              if (cat.items.includes(item.category)) { catKey = cat.key; break; }
+            }
+            const month = item.month || 'month1';
+            next = { ...next, [catKey]: { ...(next[catKey] || {}), [item.category]: { ...(next[catKey]?.[item.category] || {}), [month]: (next[catKey]?.[item.category]?.[month] || 0) + item.amount } } };
           });
           setExpenses(next);
           saveMutation.mutate(buildPayload({ expenses: next }));

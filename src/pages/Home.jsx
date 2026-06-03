@@ -1,18 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Target } from 'lucide-react';
 import PullToRefresh from '../components/PullToRefresh';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import AIChatAssistant from '../components/chat/AIChatAssistant';
+import { EXPENSE_CATEGORIES } from '../components/financial/expenseCategories';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell
 } from 'recharts';
 
-const EXPENSE_COLORS = ['#ef4444', '#f97316'];
+const DONUT_COLORS = [
+  'hsl(168,55%,32%)',
+  'hsl(42,80%,55%)',
+  'hsl(210,60%,50%)',
+  'hsl(340,65%,55%)',
+  'hsl(280,55%,55%)',
+  'hsl(120,40%,45%)',
+  'hsl(30,70%,50%)',
+  'hsl(190,60%,45%)',
+  'hsl(0,60%,50%)',
+  'hsl(60,70%,45%)',
+];
+
 const ASSET_COLORS = ['#105330', '#1a7a4a', '#c8a863', '#3b82f6', '#8b5cf6', '#14b8a6'];
 
 function prevMonthKey() {
@@ -90,6 +104,12 @@ export default function Home() {
     enabled: !!effectiveUserId,
   });
 
+  const { data: financialGoals } = useQuery({
+    queryKey: ['financialGoals', effectiveUserId],
+    queryFn: () => base44.entities.FinancialGoal.filter({ user_id: effectiveUserId }),
+    enabled: !!effectiveUserId,
+  });
+
   useEffect(() => {
     if (monthlyPlans && effectiveUserId && !viewingClientId) {
       const currentMonth = new Date().toISOString().slice(0, 7);
@@ -98,7 +118,6 @@ export default function Home() {
     }
   }, [monthlyPlans, effectiveUserId, viewingClientId]);
 
-  // Bar chart: income vs expenses from ExpenseTracking (actual), last 6 months sorted
   const sortedTrackings = (expenseTrackings || [])
     .filter(t => t.month)
     .sort((a, b) => a.month.localeCompare(b.month))
@@ -106,7 +125,6 @@ export default function Home() {
 
   const availableMonths = sortedTrackings.map(t => t.month);
 
-  // Default to prevMonth if exists in data, else last available
   const effectiveSelectedMonth = availableMonths.includes(selectedMonth)
     ? selectedMonth
     : (availableMonths[availableMonths.length - 1] || selectedMonth);
@@ -123,29 +141,45 @@ export default function Home() {
     };
   });
 
-  // Expense breakdown: from selected month
+  // Expense breakdown by CATEGORY from actual tracking data
   const prevTracking = (expenseTrackings || []).find(t => t.month === effectiveSelectedMonth)
     || sortedTrackings[sortedTrackings.length - 1];
 
   const expenseBreakdown = (() => {
     if (!prevTracking) return [];
-    const fixedTotal = Object.values(prevTracking.fixed_expenses || {}).reduce((s, v) => s + (v || 0), 0);
-    const variableTotal = Object.values(prevTracking.variable_expenses || {}).reduce((s, v) => s + (v || 0), 0);
-    const customFixed = (prevTracking.custom_expenses || []).filter(e => e.type === 'fixed').reduce((s, e) => s + (e.amount || 0), 0);
-    const customVariable = (prevTracking.custom_expenses || []).filter(e => e.type === 'variable').reduce((s, e) => s + (e.amount || 0), 0);
-    return [
-      { name: 'הוצאות קבועות', value: fixedTotal + customFixed },
-      { name: 'הוצאות משתנות', value: variableTotal + customVariable },
-    ].filter(e => e.value > 0);
+    const allExpenses = {
+      ...prevTracking.fixed_expenses,
+      ...prevTracking.variable_expenses,
+    };
+    // Group by EXPENSE_CATEGORIES
+    const byCategory = {};
+    EXPENSE_CATEGORIES.forEach(cat => { byCategory[cat.key] = 0; });
+
+    Object.entries(allExpenses).forEach(([itemName, amount]) => {
+      let catKey = 'misc';
+      for (const cat of EXPENSE_CATEGORIES) {
+        if (cat.items.includes(itemName)) { catKey = cat.key; break; }
+      }
+      byCategory[catKey] = (byCategory[catKey] || 0) + (amount || 0);
+    });
+
+    (prevTracking.custom_expenses || []).forEach(e => {
+      byCategory['misc'] = (byCategory['misc'] || 0) + (e.amount || 0);
+    });
+
+    return EXPENSE_CATEGORIES
+      .map(cat => ({ name: cat.label, value: byCategory[cat.key] || 0 }))
+      .filter(e => e.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
   })();
 
-  // Assets from reflection plan
+  // Assets
   const reflectionAssets = reflectionPlan?.[0]?.assets || {};
   const totalAssets = Object.values(reflectionAssets).reduce((sum, cat) => {
     return sum + Object.values(cat).reduce((s, item) => s + (item.value || 0), 0);
   }, 0);
 
-  // Asset breakdown by category (reflection + pension)
   const totalPension = (pensionData || []).reduce((sum, p) => sum + (p.current_amount || 0), 0);
   const assetBreakdown = [
     ...Object.entries(reflectionAssets).map(([key, cat]) => ({
@@ -166,52 +200,54 @@ export default function Home() {
     await queryClient.invalidateQueries({ queryKey: ['debts', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['pensionData', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['reflectionPlan', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['financialGoals', effectiveUserId] });
   }, [queryClient, effectiveUserId]);
+
+  const topGoals = (financialGoals || []).slice(0, 5);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <div className="max-w-6xl mx-auto">
-      {/* Hero */}
-      <div className="relative mb-10 rounded-3xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#105330] via-[#0d4027] to-[#105330]" />
-        <div className="absolute top-0 left-0 w-72 h-72 bg-[#c8a863]/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#c8a863]/10 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
-        <div className="relative px-8 py-12 lg:py-16 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#c8a863]/20 backdrop-blur-sm rounded-full text-[#c8a863] text-sm font-medium mb-4 border border-[#c8a863]/30">
-            <Sparkles className="w-4 h-4" />
-            צעירים מתעשרים
+      {/* Compact Hero */}
+      <div className="relative mb-6 rounded-2xl overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#105330] via-[#0d4027] to-[#105330]" />
+        <div className="relative px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#c8a863]/20 rounded-full text-[#c8a863] text-xs font-medium border border-[#c8a863]/30">
+              <Sparkles className="w-3 h-3" />
+              צעירים מתעשרים
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-white leading-tight">
+                שלום{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''} 👋
+              </h1>
+              <p className="text-white/70 text-xs">מערכת פרימיום לניהול כסף של ה-1%</p>
+            </div>
           </div>
-          <h1 className="text-4xl lg:text-5xl font-black text-white mb-3 leading-tight">
-            שלום{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''} 👋
-          </h1>
-          <p className="text-lg text-white/80 max-w-xl mx-auto mb-6">
-            מערכת פרימיום לניהול כסף של ה-1%
-          </p>
           <button
             onClick={() => {
               const event = new CustomEvent('openFinancialAdvisor');
               window.dispatchEvent(event);
             }}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#c8a863] hover:bg-[#d4b87a] text-[#105330] font-bold rounded-2xl shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#c8a863] hover:bg-[#d4b87a] text-[#105330] font-bold rounded-xl shadow text-sm transition-all"
           >
-            <Sparkles className="w-5 h-5" />
-            יועץ פיננסי AI
+            <Sparkles className="w-4 h-4" />
+            יועץ AI
           </button>
         </div>
       </div>
 
       {/* System Button */}
-      <div className="mb-8">
+      <div className="mb-6">
         <Link to="/Systems">
-          <div className="relative rounded-3xl overflow-hidden cursor-pointer group">
+          <div className="relative rounded-2xl overflow-hidden cursor-pointer group">
             <div className="absolute inset-0 bg-gradient-to-r from-[#c8a863] via-[#d4b87a] to-[#c8a863] group-hover:brightness-105 transition-all duration-300" />
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIgZmlsbD0icmdiYSgwLDAsMCwwLjA1KSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg==')] opacity-30" />
-            <div className="relative px-5 py-4 flex items-center justify-between">
+            <div className="relative px-5 py-3.5 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="text-3xl group-hover:scale-110 transition-transform duration-300">🚀</div>
-                <h2 className="text-lg font-black text-[#105330]">תגלה מה הצעד הבא שלך</h2>
+                <div className="text-2xl group-hover:scale-110 transition-transform duration-300">🚀</div>
+                <h2 className="text-base font-black text-[#105330]">תגלה מה הצעד הבא שלך</h2>
               </div>
-              <div className="text-2xl text-[#105330]/40 group-hover:translate-x-1 transition-transform duration-300">←</div>
+              <div className="text-xl text-[#105330]/40 group-hover:translate-x-1 transition-transform duration-300">←</div>
             </div>
           </div>
         </Link>
@@ -248,7 +284,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               {incomeVsExpensesData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={240}>
+                <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={incomeVsExpensesData} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 12 }} />
@@ -265,25 +301,79 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* Expense Breakdown Pie */}
+          {/* Expense Breakdown Donut Chart by Category */}
           <Card className="border-0 shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[#105330] text-base font-bold">פילוח הוצאות</CardTitle>
+              <CardTitle className="text-[#105330] text-base font-bold">פילוח הוצאות לפי קטגוריה</CardTitle>
             </CardHeader>
             <CardContent>
               {expenseBreakdown.length > 0 ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie data={expenseBreakdown} cx="50%" cy="45%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
-                      {expenseBreakdown.map((_, i) => (
-                        <Cell key={i} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="flex gap-4 items-center">
+                  <div className="flex-shrink-0">
+                    <PieChart width={150} height={150}>
+                      <Pie
+                        data={expenseBreakdown}
+                        cx={70} cy={70}
+                        innerRadius={40}
+                        outerRadius={68}
+                        dataKey="value"
+                        strokeWidth={2}
+                      >
+                        {expenseBreakdown.map((_, i) => (
+                          <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
+                    </PieChart>
+                  </div>
+                  <div className="flex-1 space-y-1.5 min-w-0">
+                    {expenseBreakdown.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                        />
+                        <span className="text-slate-700 truncate flex-1">{item.name}</span>
+                        <span className="font-semibold text-slate-600 flex-shrink-0">₪{item.value.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <p className="text-gray-400 text-sm text-center py-8">אין נתוני הוצאות</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Financial Goals */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-[#105330] text-base font-bold">
+                <Target className="w-4 h-4" />
+                יעדים פיננסיים
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {topGoals.length > 0 ? (
+                <div className="space-y-4">
+                  {topGoals.map((goal) => {
+                    const pct = Math.min(100, Math.round(((goal.current_amount || 0) / (goal.target_amount || 1)) * 100));
+                    return (
+                      <div key={goal.id}>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="font-semibold text-slate-800">{goal.name}</span>
+                          <span className="text-slate-400 text-xs">₪{(goal.current_amount || 0).toLocaleString()} / ₪{(goal.target_amount || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={pct} className="h-2 flex-1" />
+                          <span className="text-xs font-bold text-[#105330] w-8 text-left">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm text-center py-6">אין יעדים עדיין</p>
               )}
             </CardContent>
           </Card>
@@ -294,7 +384,7 @@ export default function Home() {
               <CardTitle className="text-[#105330] text-base font-bold">נכסים לעומת התחייבויות</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
                 <div className="text-center p-3 sm:p-4 rounded-2xl bg-emerald-50">
                   <p className="text-xs text-gray-500 mb-1">סה"כ נכסים</p>
                   <p className="text-sm sm:text-xl font-black text-emerald-700 break-all leading-tight">₪{(totalAssets + totalPension).toLocaleString()}</p>
@@ -310,28 +400,28 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Asset Breakdown Pie */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[#105330] text-base font-bold">פילוח נכסים</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {assetBreakdown.length > 0 ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie data={assetBreakdown} cx="50%" cy="45%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
-                      {assetBreakdown.map((_, i) => (
-                        <Cell key={i} fill={ASSET_COLORS[i % ASSET_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-gray-400 text-sm text-center py-8">אין נתוני נכסים</p>
+              {assetBreakdown.length > 0 && (
+                <div className="flex gap-4 items-center">
+                  <div className="flex-shrink-0">
+                    <PieChart width={110} height={110}>
+                      <Pie data={assetBreakdown} cx={50} cy={50} innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={2}>
+                        {assetBreakdown.map((_, i) => (
+                          <Cell key={i} fill={ASSET_COLORS[i % ASSET_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
+                    </PieChart>
+                  </div>
+                  <div className="flex-1 space-y-1 min-w-0">
+                    {assetBreakdown.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: ASSET_COLORS[i % ASSET_COLORS.length] }} />
+                        <span className="text-slate-700 truncate flex-1">{item.name}</span>
+                        <span className="font-semibold text-slate-600 flex-shrink-0">₪{item.value.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

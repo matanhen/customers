@@ -63,12 +63,11 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
 
   const grandTotal = EXPENSE_CATEGORIES.reduce((s, cat) => s + getCategoryTotal(cat.key), 0);
 
-  // All items for a category: default items that have data + custom items
+  // All items for a category: all default items + custom items
   const getCategoryItems = (cat) => {
     const catData = expenses[cat.key] || {};
-    const defaultWithData = cat.items.filter(item => catData[item] !== undefined);
     const customItems = Object.keys(catData).filter(item => !cat.items.includes(item));
-    return [...defaultWithData, ...customItems];
+    return [...cat.items, ...customItems];
   };
 
   const ITEM_COL_WIDTH = 160;
@@ -122,34 +121,34 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
                       </thead>
                       <tbody>
                         {/* Default items */}
-                        {cat.items.map(item => {
-                          const monthData = expenses[cat.key]?.[item] || {};
-                          const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
-                          return (
-                            <tr key={item} className="border-t border-slate-100">
-                              <td className="py-1.5 pr-2 text-slate-700 text-xs" style={{ width: ITEM_COL_WIDTH }}>{item}</td>
-                              {MONTHS.map(m => (
-                                <td key={m} className="py-1.5 px-1" style={{ width: MONTH_COL_WIDTH }}>
-                                  <Input
-                                    type="number"
-                                    value={monthData[m] || ''}
-                                    onChange={e => updateCell(cat.key, item, m, e.target.value)}
-                                    className="h-7 text-xs text-center border-slate-200"
-                                    style={{ width: MONTH_COL_WIDTH - 8 }}
-                                    placeholder="0"
-                                    disabled={disabled}
-                                    dir="ltr"
-                                  />
-                                </td>
-                              ))}
-                              <td className="px-2 text-center font-semibold text-rose-600 text-xs" style={{ width: 70 }}>
-                                {avg > 0 ? `₪${avg.toLocaleString()}` : '-'}
-                              </td>
-                              {!disabled && <td style={{ width: 32 }}></td>}
-                            </tr>
-                          );
-                        })}
-                        {/* Custom items */}
+                         {cat.items.map(item => {
+                           const monthData = expenses[cat.key]?.[item] || {};
+                           const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
+                           return (
+                             <tr key={item} className="border-t border-slate-100">
+                               <td className="py-1.5 pr-2 text-slate-700 text-xs" style={{ width: ITEM_COL_WIDTH }}>{item}</td>
+                               {MONTHS.map(m => (
+                                 <td key={m} className="py-1.5 px-1" style={{ width: MONTH_COL_WIDTH }}>
+                                   <Input
+                                     type="number"
+                                     value={monthData[m] || ''}
+                                     onChange={e => updateCell(cat.key, item, m, e.target.value)}
+                                     className="h-7 text-xs text-center border-slate-200"
+                                     style={{ width: MONTH_COL_WIDTH - 8 }}
+                                     placeholder="0"
+                                     disabled={disabled}
+                                     dir="ltr"
+                                   />
+                                 </td>
+                               ))}
+                               <td className="px-2 text-center font-semibold text-rose-600 text-xs" style={{ width: 70 }}>
+                                 {avg > 0 ? `₪${avg.toLocaleString()}` : '-'}
+                               </td>
+                               {!disabled && <td style={{ width: 32 }}></td>}
+                             </tr>
+                           );
+                         })}
+                         {/* Custom items */}
                         {Object.keys(expenses[cat.key] || {})
                           .filter(item => !cat.items.includes(item))
                           .map(item => {

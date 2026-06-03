@@ -10,12 +10,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ASSET_CATEGORIES = [
-  { key: 'cash', label: 'מזומנים ופיקדונות', icon: Wallet },
+  { key: 'cash', label: 'מזומנים', icon: Wallet },
   { key: 'real_estate', label: 'נדל"ן', icon: Building2 },
   { key: 'vehicles', label: 'רכבים', icon: Car },
   { key: 'stocks', label: 'שוק ההון', icon: TrendingUp },
   { key: 'pension', label: 'פנסיה וקרנות', icon: Landmark },
   { key: 'other', label: 'אחר', icon: Coins },
+];
+
+const DEFAULT_ASSETS = [
+  { id: 'a_cash1', name: 'עובר ושב (גבר)', category: 'cash', value: 0, monthly_income: 0 },
+  { id: 'a_cash2', name: 'עובר ושב (אישה)', category: 'cash', value: 0, monthly_income: 0 },
+  { id: 'a_cash3', name: 'פיקדון בבנק', category: 'cash', value: 0, monthly_income: 0 },
+  { id: 'a_cash4', name: 'קרן כספית', category: 'cash', value: 0, monthly_income: 0 },
+  { id: 'a_veh1', name: 'רכב (גבר)', category: 'vehicles', value: 0, monthly_income: 0 },
+  { id: 'a_veh2', name: 'רכב (אישה)', category: 'vehicles', value: 0, monthly_income: 0 },
+  { id: 'a_stk1', name: 'תיק השקעות עצמאי', category: 'stocks', value: 0, monthly_income: 0 },
+  { id: 'a_stk2', name: 'קופת גמל להשקעה', category: 'stocks', value: 0, monthly_income: 0 },
 ];
 
 const LIABILITY_CATEGORIES = [
@@ -149,7 +160,9 @@ export default function Balance() {
     staleTime: 0,
   });
 
-  const assets = planData?.assets?.items || [];
+  // Use default assets for new users (planData is null = not loaded yet, undefined = no record)
+  const rawAssets = planData?.assets?.items;
+  const assets = rawAssets !== undefined ? rawAssets : DEFAULT_ASSETS;
   const liabilities = planData?.liabilities?.items || [];
 
   const totalAssets = assets.reduce((s, a) => s + (Number(a.value) || 0), 0);

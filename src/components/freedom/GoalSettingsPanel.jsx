@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Target, Home, Coins, User } from 'lucide-react';
+import { Target, Coins, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function GoalSettingsPanel({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [settings, setSettings] = useState({
-    goal_type: 'financial_freedom',
+    goal_type: 'financial_freedom',  // always financial_freedom
     gender: 'male',
     target_age: 55,
     target_amount: 2000000,
@@ -137,34 +137,14 @@ export default function GoalSettingsPanel({ userId }) {
             </Select>
           </div>
 
-          {/* Goal Type */}
+          {/* Goal Type - always financial_freedom */}
           <div className="space-y-2">
             <Label className="text-[#105330] font-semibold">מה המטרה?</Label>
             <div className="flex gap-3">
-              <Button
-                type="button"
-                onClick={() => updateSettings({ ...settings, goal_type: 'home' })}
-                className={`flex-1 rounded-xl py-7 text-base transition-all duration-300 ${
-                  settings.goal_type === 'home' 
-                    ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg scale-105' 
-                    : 'bg-white border-2 border-[#105330]/30 text-[#105330] hover:bg-[#105330]/5 hover:scale-102'
-                }`}
-              >
-                <Home className="w-5 h-5 ml-1" />
-                בית
-              </Button>
-              <Button
-                type="button"
-                onClick={() => updateSettings({ ...settings, goal_type: 'financial_freedom' })}
-                className={`flex-1 rounded-xl py-7 text-base transition-all duration-300 ${
-                  settings.goal_type === 'financial_freedom' 
-                    ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg scale-105' 
-                    : 'bg-white border-2 border-[#105330]/30 text-[#105330] hover:bg-[#105330]/5 hover:scale-102'
-                }`}
-              >
-                <Coins className="w-5 h-5 ml-1" />
-                חופש כלכלי
-              </Button>
+              <div className="flex-1 rounded-xl py-4 px-4 text-base bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg flex items-center justify-center gap-2">
+                <Coins className="w-5 h-5" />
+                תכנון חופש כלכלי מבוסס הכנסה פאסיבית
+              </div>
             </div>
           </div>
 
@@ -192,28 +172,16 @@ export default function GoalSettingsPanel({ userId }) {
             />
           </div>
 
-          {/* Target Amount or Passive Income */}
-          {settings.goal_type === 'home' ? (
-            <div className="space-y-2">
-              <Label className="text-[#105330] font-semibold">סכום המטרה</Label>
-              <Input
-                type="number"
-                value={settings.target_amount || ''}
-                onChange={(e) => updateSettings({ ...settings, target_amount: parseFloat(e.target.value) || 0 })}
-                className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg"
-              />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label className="text-[#105330] font-semibold">הכנסה פאסיבית רצויה</Label>
-              <Input
-                type="number"
-                value={settings.passive_income_target || ''}
-                onChange={(e) => updateSettings({ ...settings, passive_income_target: parseFloat(e.target.value) || 0 })}
-                className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg"
-              />
-            </div>
-          )}
+          {/* Passive Income Target */}
+          <div className="space-y-2">
+            <Label className="text-[#105330] font-semibold">הכנסה פאסיבית רצויה (חודשי)</Label>
+            <Input
+              type="number"
+              value={settings.passive_income_target || ''}
+              onChange={(e) => updateSettings({ ...settings, passive_income_target: parseFloat(e.target.value) || 0 })}
+              className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg"
+            />
+          </div>
 
           {/* Pension Info */}
           <div className="space-y-2">
@@ -234,10 +202,7 @@ export default function GoalSettingsPanel({ userId }) {
         {/* Summary */}
         <div className="p-5 bg-gradient-to-r from-[#105330]/10 to-[#c8a863]/10 rounded-2xl border border-[#105330]/20 mb-6 transform hover:scale-[1.01] transition-transform">
           <p className="text-[#105330] font-bold text-center text-lg">
-            {settings.goal_type === 'home' 
-              ? `מטרה: לצבור ₪${(settings.target_amount || 0).toLocaleString()} עד גיל ${settings.target_age}`
-              : `מטרה: הכנסה פאסיבית של ₪${(settings.passive_income_target || 0).toLocaleString()}/חודש בגיל ${settings.target_age}`
-            }
+            מטרה: הכנסה פאסיבית של ₪{(settings.passive_income_target || 0).toLocaleString()}/חודש בגיל {settings.target_age}
           </p>
         </div>
 

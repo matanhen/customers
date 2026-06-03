@@ -11,7 +11,7 @@ const SECTIONS = [
     key: 'cashflow',
     label: 'תכנון תזרימי',
     icon: BarChart3,
-    description: 'תכנון ומעקב תזרים חודשי, יעדים וחופש כלכלי',
+    description: 'תכנון חופש כלכלי מבוסס הכנסה פאסיבית',
     color: 'from-[#105330] to-[#1a7a4a]',
   },
   {

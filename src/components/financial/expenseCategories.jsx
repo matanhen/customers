@@ -3,37 +3,48 @@ export const EXPENSE_CATEGORIES = [
   {
     key: 'housing',
     label: 'דיור ותקשורת',
-    items: ['משכנתא', 'שכירות', 'ועד בית', 'ארנונה', 'חשמל', 'מים', 'גז', 'אינטרנט', 'טלפון נייד', 'כבלים/סלולר'],
+    items: [
+      'מזון ומכולת', 'משכנתא', 'שכירות', 'ארנונה', 'חשמל', 'מים', 'גז',
+      'טלויזיה ואינטרנט', 'טלפון נייד', 'ועד בית', 'ביטוח משכנתא', 'ריהוט ודברים לבית',
+    ],
   },
   {
     key: 'vehicles',
-    label: 'רכב ותחבורה',
-    items: ['ביטוחי רכב', 'טסט', 'דלק וחניה', 'תחבורה ציבורית', 'תיקוני רכב', 'ליסינג/הלוואת רכב'],
+    label: 'רכבים ונסיעות',
+    items: [
+      'ביטוחי רכב', 'טסט', 'דלק', 'חניה', 'תיקוני רכב', 'תחבורה ציבורית',
+    ],
   },
   {
     key: 'insurance',
-    label: 'ביטוחים ופיננסים',
-    items: ['ביטוחים (ללא רכב)', 'ביטוח משכנתא', 'החזר הלוואות', 'עמלות וריביות בנקים', 'ביטוח לאומי'],
+    label: 'ביטוחים ובריאות',
+    items: [
+      'ביטוחי חיים', 'ביטוחי בריאות', 'קופת חולים', 'טיפולי שיניים',
+    ],
   },
   {
-    key: 'food',
-    label: 'מזון וקניות',
-    items: ['מזון', 'סופר פארם', 'דברים לבית', 'מסעדות וקפה'],
+    key: 'leisure',
+    label: 'תחביבים ופנאי',
+    items: [
+      'בילויים ומסעדות', 'בגדים ונעליים', 'הזמנת אוכל הביתה', 'חופשה / טיול',
+      'חדר כושר', 'סיגריות', 'תספורת וקוסמטיקה', 'מתנות ואירועים',
+    ],
   },
   {
-    key: 'lifestyle',
-    label: 'אורח חיים ובילוי',
-    items: ['בילויים', 'חופשה / טיול', 'בגדים ונעליים', 'ספורט ובריאות', 'אופטיקה', 'טיפולי שיניים', 'תספורת וקוסמטיקה', 'בעלי חיים', 'מתנות ואירועים', 'חגים ויהדות', 'סיגריות'],
-  },
-  {
-    key: 'education',
-    label: 'חינוך והתפתחות',
-    items: ['חינוך', 'חוגים וקייטנות', 'התפתחות אישית', 'ספרים וקורסים'],
+    key: 'children',
+    label: 'ילדים',
+    items: [
+      'חינוך', 'חוגים וקייטנות', 'עוזרת / בייביסיטר',
+    ],
   },
   {
     key: 'misc',
     label: 'שונות',
-    items: ['עוזרת / בייביסיטר', 'ביט', 'מזומן', 'תרומות', 'הוראות קבע', 'מנויים', 'אחר'],
+    items: [
+      'החזר הלוואות', 'הוראות קבע', 'עמלות וריביות בנקים', 'אופטיקה',
+      'חגים ויהדות', 'סופר פארם', 'ביטוח לאומי', 'מזומן', 'ביט',
+      'תרומות', 'התפתחות אישית', 'בעלי חיים',
+    ],
   },
 ];
 
@@ -47,7 +58,6 @@ export function migrateLegacyExpenses(fixedExpenses = {}, variableExpenses = {})
   const result = {};
 
   Object.entries(allLegacy).forEach(([itemName, monthData]) => {
-    // Find which category this item belongs to
     let catKey = 'misc';
     for (const cat of EXPENSE_CATEGORIES) {
       if (cat.items.includes(itemName)) {
@@ -69,5 +79,17 @@ export function getAllExpenseItems() {
   );
 }
 
-// Flat list of all item names (for legacy compatibility)
+// Flat list of all item names
 export const ALL_EXPENSE_ITEMS = EXPENSE_CATEGORIES.flatMap(cat => cat.items);
+
+// Default expense structure for new users
+export function getDefaultExpenses() {
+  const result = {};
+  EXPENSE_CATEGORIES.forEach(cat => {
+    result[cat.key] = {};
+    cat.items.forEach(item => {
+      result[cat.key][item] = { month1: 0, month2: 0, month3: 0 };
+    });
+  });
+  return result;
+}
