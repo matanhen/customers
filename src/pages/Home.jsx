@@ -98,9 +98,12 @@ export default function Home() {
     enabled: !!effectiveUserId,
   });
 
-  const { data: reflectionPlan } = useQuery({
-    queryKey: ['reflectionPlan', effectiveUserId],
-    queryFn: () => base44.entities.FinancialPlan.filter({ user_id: effectiveUserId, plan_type: 'reflection_assets' }),
+  const { data: balancePlan } = useQuery({
+    queryKey: ['balance_plan', effectiveUserId],
+    queryFn: async () => {
+      const results = await base44.entities.FinancialPlan.filter({ user_id: effectiveUserId, plan_type: 'balance_sheet' });
+      return results[0] || null;
+    },
     enabled: !!effectiveUserId,
   });
 
@@ -141,29 +144,29 @@ export default function Home() {
     };
   });
 
-  // Expense breakdown by CATEGORY from actual tracking data
-  const prevTracking = (expenseTrackings || []).find(t => t.month === effectiveSelectedMonth)
+  // Expense breakdown by CATEGORY from ExpenseTracking (monthly tracking) for selected month
+  const selectedTracking = (expenseTrackings || []).find(t => t.month === effectiveSelectedMonth)
     || sortedTrackings[sortedTrackings.length - 1];
 
   const expenseBreakdown = (() => {
-    if (!prevTracking) return [];
-    const allExpenses = {
-      ...prevTracking.fixed_expenses,
-      ...prevTracking.variable_expenses,
-    };
-    // Group by EXPENSE_CATEGORIES
+    if (!selectedTracking) return [];
     const byCategory = {};
     EXPENSE_CATEGORIES.forEach(cat => { byCategory[cat.key] = 0; });
 
-    Object.entries(allExpenses).forEach(([itemName, amount]) => {
+    // fixed_expenses and variable_expenses are flat: { itemName: amount }
+    const allFlat = {
+      ...selectedTracking.fixed_expenses,
+      ...selectedTracking.variable_expenses,
+    };
+    Object.entries(allFlat).forEach(([itemName, amount]) => {
       let catKey = 'misc';
       for (const cat of EXPENSE_CATEGORIES) {
         if (cat.items.includes(itemName)) { catKey = cat.key; break; }
       }
-      byCategory[catKey] = (byCategory[catKey] || 0) + (amount || 0);
+      byCategory[catKey] = (byCategory[catKey] || 0) + (Number(amount) || 0);
     });
 
-    (prevTracking.custom_expenses || []).forEach(e => {
+    (selectedTracking.custom_expenses || []).forEach(e => {
       byCategory['misc'] = (byCategory['misc'] || 0) + (e.amount || 0);
     });
 
@@ -171,36 +174,40 @@ export default function Home() {
       .map(cat => ({ name: cat.label, value: byCategory[cat.key] || 0 }))
       .filter(e => e.value > 0)
       .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
+      .slice(0, 8);
   })();
 
-  // Assets
-  const reflectionAssets = reflectionPlan?.[0]?.assets || {};
-  const totalAssets = Object.values(reflectionAssets).reduce((sum, cat) => {
-    return sum + Object.values(cat).reduce((s, item) => s + (item.value || 0), 0);
-  }, 0);
-
+  // Assets from Balance sheet (FinancialPlan plan_type=balance_sheet)
+  const balanceAssets = balancePlan?.assets?.items || [];
+  const totalAssets = balanceAssets.reduce((s, a) => s + (Number(a.value) || 0), 0);
   const totalPension = (pensionData || []).reduce((sum, p) => sum + (p.current_amount || 0), 0);
+
+  // Group balance assets by category for breakdown
+  const assetCatTotals = {};
+  balanceAssets.forEach(a => {
+    const catKey = a.category || 'other';
+    const label = ASSET_CATEGORY_LABELS[catKey] || catKey;
+    assetCatTotals[label] = (assetCatTotals[label] || 0) + (Number(a.value) || 0);
+  });
   const assetBreakdown = [
-    ...Object.entries(reflectionAssets).map(([key, cat]) => ({
-      name: ASSET_CATEGORY_LABELS[key] || key,
-      value: Object.values(cat).reduce((s, item) => s + (item.value || 0), 0),
-    })),
-    ...(totalPension > 0 ? [{ name: 'פנסיוני', value: totalPension }] : []),
+    ...Object.entries(assetCatTotals).map(([name, value]) => ({ name, value })),
+    ...(totalPension > 0 ? [{ name: 'פנסיוני וקרנות', value: totalPension }] : []),
   ].filter(e => e.value > 0);
 
-  const totalDebts = (debts || []).reduce((sum, d) => sum + (d.remaining_amount || 0), 0);
+  const balanceLiabilities = balancePlan?.liabilities?.items || [];
+  const totalDebts = balanceLiabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
   const netWorth = totalAssets + totalPension - totalDebts;
 
-  const hasData = incomeVsExpensesData.length > 0 || totalAssets > 0 || totalDebts > 0;
+  const hasData = incomeVsExpensesData.length > 0 || (totalAssets + totalPension) > 0 || totalDebts > 0;
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['monthlyPlans', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['expenseTrackings', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['debts', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['pensionData', effectiveUserId] });
-    await queryClient.invalidateQueries({ queryKey: ['reflectionPlan', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['balance_plan', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['financialGoals', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['expenseMappings'] });
   }, [queryClient, effectiveUserId]);
 
   const topGoals = (financialGoals || []).slice(0, 5);
@@ -345,35 +352,66 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* Financial Goals */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="pb-2">
+          {/* Financial Goals - Luxury */}
+          <Card className="border-0 shadow-lg overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-[#c8a863] via-[#105330] to-[#c8a863]" />
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-[#105330] text-base font-bold">
-                <Target className="w-4 h-4" />
+                <Target className="w-4 h-4 text-[#c8a863]" />
                 יעדים פיננסיים
               </CardTitle>
             </CardHeader>
             <CardContent>
               {topGoals.length > 0 ? (
-                <div className="space-y-4">
-                  {topGoals.map((goal) => {
-                    const pct = Math.min(100, Math.round(((goal.current_amount || 0) / (goal.target_amount || 1)) * 100));
+                <div className="space-y-5">
+                  {topGoals.map((goal, idx) => {
+                    const current = goal.current_amount || 0;
+                    const target = goal.target_amount || 1;
+                    const pct = Math.min(100, Math.round((current / target) * 100));
+                    const remaining = Math.max(0, target - current);
+                    const goalColors = [
+                      { bar: 'from-[#105330] to-[#1a7a4a]', bg: 'bg-emerald-50', badge: 'text-emerald-700 bg-emerald-100' },
+                      { bar: 'from-[#c8a863] to-[#d4b87a]', bg: 'bg-amber-50', badge: 'text-amber-700 bg-amber-100' },
+                      { bar: 'from-blue-500 to-indigo-500', bg: 'bg-blue-50', badge: 'text-blue-700 bg-blue-100' },
+                      { bar: 'from-purple-500 to-pink-500', bg: 'bg-purple-50', badge: 'text-purple-700 bg-purple-100' },
+                      { bar: 'from-rose-500 to-orange-400', bg: 'bg-rose-50', badge: 'text-rose-700 bg-rose-100' },
+                    ];
+                    const col = goalColors[idx % goalColors.length];
                     return (
-                      <div key={goal.id}>
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="font-semibold text-slate-800">{goal.name}</span>
-                          <span className="text-slate-400 text-xs">₪{(goal.current_amount || 0).toLocaleString()} / ₪{(goal.target_amount || 0).toLocaleString()}</span>
+                      <div key={goal.id} className={`rounded-2xl p-4 ${col.bg}`}>
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">{goal.name}</p>
+                            {goal.target_date && (
+                              <p className="text-xs text-slate-400 mt-0.5">יעד: {new Date(goal.target_date).toLocaleDateString('he-IL')}</p>
+                            )}
+                          </div>
+                          <span className={`text-xs font-black px-2.5 py-1 rounded-full ${col.badge}`}>{pct}%</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Progress value={pct} className="h-2 flex-1" />
-                          <span className="text-xs font-bold text-[#105330] w-8 text-left">{pct}%</span>
+                        {/* Progress bar */}
+                        <div className="relative h-3 bg-white/70 rounded-full overflow-hidden mb-2">
+                          <div
+                            className={`h-full rounded-full bg-gradient-to-r ${col.bar} transition-all duration-700`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-500">
+                          <span>₪{current.toLocaleString()} <span className="text-slate-400">הושג</span></span>
+                          {remaining > 0
+                            ? <span className="font-semibold">נותר: ₪{remaining.toLocaleString()}</span>
+                            : <span className="font-bold text-emerald-600">✓ הושלם!</span>
+                          }
+                          <span>₪{target.toLocaleString()} <span className="text-slate-400">יעד</span></span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <p className="text-gray-400 text-sm text-center py-6">אין יעדים עדיין</p>
+                <div className="text-center py-8">
+                  <Target className="w-10 h-10 text-[#c8a863]/40 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">אין יעדים עדיין</p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -390,7 +428,7 @@ export default function Home() {
                   <p className="text-sm sm:text-xl font-black text-emerald-700 break-all leading-tight">₪{(totalAssets + totalPension).toLocaleString()}</p>
                 </div>
                 <div className="text-center p-3 sm:p-4 rounded-2xl bg-red-50">
-                  <p className="text-xs text-gray-500 mb-1">סה"כ חובות</p>
+                  <p className="text-xs text-gray-500 mb-1">סה"כ התחייבויות</p>
                   <p className="text-sm sm:text-xl font-black text-red-600 break-all leading-tight">₪{totalDebts.toLocaleString()}</p>
                 </div>
                 <div className={`text-center p-3 sm:p-4 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'}`}>

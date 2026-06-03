@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark, Lock } from 'lucide-react';
+import LoanRefinanceSimulator from '../components/balance/LoanRefinanceSimulator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +15,6 @@ const ASSET_CATEGORIES = [
   { key: 'real_estate', label: 'נדל"ן', icon: Building2 },
   { key: 'vehicles', label: 'רכבים', icon: Car },
   { key: 'stocks', label: 'שוק ההון', icon: TrendingUp },
-  { key: 'pension', label: 'פנסיה וקרנות', icon: Landmark },
   { key: 'other', label: 'אחר', icon: Coins },
 ];
 
@@ -149,6 +149,12 @@ export default function Balance() {
 
   const userId = viewingClientId || user?.id;
 
+  const { data: pensionData = [] } = useQuery({
+    queryKey: ['pensionData', userId],
+    queryFn: () => base44.entities.PensionData.filter({ user_id: userId }),
+    enabled: !!userId,
+  });
+
   const { data: planData } = useQuery({
     queryKey: ['balance_plan', userId],
     queryFn: async () => {
@@ -167,7 +173,18 @@ export default function Balance() {
 
   const totalAssets = assets.reduce((s, a) => s + (Number(a.value) || 0), 0);
   const totalLiabilities = liabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
-  const netWorth = totalAssets - totalLiabilities;
+
+  // Pension assets (read-only)
+  const pensionTotal = pensionData.reduce((s, p) => s + (p.current_amount || 0), 0);
+  const pensionByType = pensionData.reduce((acc, p) => {
+    const label = p.fund_type === 'pension' ? 'פנסיה' : p.fund_type === 'keren_hishtalmut' ? 'קרן השתלמות' : 'קופת גמל';
+    const genderLabel = p.gender === 'male' ? 'גבר' : 'אישה';
+    const key = `${label} (${genderLabel})`;
+    acc[key] = (acc[key] || 0) + (p.current_amount || 0);
+    return acc;
+  }, {});
+
+  const netWorth = totalAssets + pensionTotal - totalLiabilities;
   const totalMonthlyPayment = liabilities.reduce((s, l) => s + (Number(l.monthly_payment) || 0), 0);
 
   const saveMutation = useMutation({
@@ -234,7 +251,8 @@ export default function Balance() {
           <div className="h-full border-r-4 border-[#105330]">
             <CardContent className="p-5">
               <p className="text-sm text-slate-500 mb-1">סה"כ נכסים</p>
-              <p className="text-2xl font-bold text-emerald-600">₪{totalAssets.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-emerald-600">₪{(totalAssets + pensionTotal).toLocaleString()}</p>
+              {pensionTotal > 0 && <p className="text-xs text-slate-400 mt-1">כולל פנסיוני: ₪{pensionTotal.toLocaleString()}</p>}
             </CardContent>
           </div>
         </Card>
@@ -254,6 +272,7 @@ export default function Balance() {
               <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-[#105330]' : 'text-rose-600'}`}>
                 ₪{netWorth.toLocaleString()}
               </p>
+              <p className="text-xs text-slate-400 mt-1">נכסים – התחייבויות</p>
             </CardContent>
           </div>
         </Card>
@@ -272,7 +291,7 @@ export default function Balance() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {assets.length === 0 && <p className="text-slate-400 text-sm text-center py-4">אין נכסים עדיין</p>}
+            {assets.length === 0 && pensionTotal === 0 && <p className="text-slate-400 text-sm text-center py-4">אין נכסים עדיין</p>}
             {ASSET_CATEGORIES.map(cat => {
               const catItems = assetsByCategory[cat.key] || [];
               if (catItems.length === 0) return null;
@@ -292,6 +311,25 @@ export default function Balance() {
                 </div>
               );
             })}
+
+            {/* Pension - read only */}
+            {pensionTotal > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Landmark className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">פנסיוני וקרנות</span>
+                  <span className="text-xs text-slate-400 flex items-center gap-1"><Lock className="w-3 h-3" />לצפייה בלבד</span>
+                </div>
+                <div className="space-y-0.5">
+                  {Object.entries(pensionByType).map(([label, value]) => value > 0 && (
+                    <div key={label} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50/80">
+                      <span className="text-slate-600 text-sm">{label}</span>
+                      <span className="font-bold text-sm text-slate-800">₪{value.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -326,6 +364,7 @@ export default function Balance() {
                 </div>
               );
             })}
+            <LoanRefinanceSimulator liabilities={liabilities} />
           </CardContent>
         </Card>
       </div>

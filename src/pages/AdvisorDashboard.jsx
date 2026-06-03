@@ -6,6 +6,7 @@ import {
   Users, Search, Eye, 
   Mail, AlertCircle, UserPlus
 } from 'lucide-react';
+import ExpenseCoach from '../components/advisor/ExpenseCoach';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -293,6 +294,9 @@ export default function AdvisorDashboard() {
         <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-blue-700 to-indigo-700 bg-clip-text text-transparent">דשבורד יועץ</h1>
         <p className="text-slate-500 mt-2 text-lg">צפייה ועריכת נתוני לקוחות</p>
       </div>
+
+      {/* Expense Coach */}
+      <ExpenseCoach />
 
       {hasError && (
         <Card className="mb-6 border-red-200 bg-red-50">

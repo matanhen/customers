@@ -327,8 +327,9 @@ export default function PensionManager({ userId }) {
   const renderTabs = (gender) => (
     <Tabs value={activeFund} onValueChange={setActiveFund}>
       <TabsList className="mb-6 bg-[#105330]/10 p-1 rounded-xl">
-        <TabsTrigger value="pension" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white font-semibold px-6">פנסיה</TabsTrigger>
-        <TabsTrigger value="keren_hishtalmut" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white font-semibold px-6">קרן השתלמות</TabsTrigger>
+        <TabsTrigger value="pension" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white font-semibold px-4">פנסיה</TabsTrigger>
+        <TabsTrigger value="keren_hishtalmut" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white font-semibold px-4">קרן השתלמות</TabsTrigger>
+        <TabsTrigger value="kupat_gemel" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white font-semibold px-4">קופת גמל</TabsTrigger>
       </TabsList>
       <TabsContent value="pension">
         <PensionForm
@@ -345,6 +346,15 @@ export default function PensionManager({ userId }) {
           gender={gender}
           fundType="keren_hishtalmut"
           initialData={getFundData(gender, 'keren_hishtalmut')}
+          onSave={handleSave}
+        />
+      </TabsContent>
+      <TabsContent value="kupat_gemel">
+        <PensionForm
+          key={`${gender}-kupat_gemel`}
+          gender={gender}
+          fundType="kupat_gemel"
+          initialData={getFundData(gender, 'kupat_gemel')}
           onSave={handleSave}
         />
       </TabsContent>
