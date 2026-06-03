@@ -69,7 +69,5 @@ export function getAllExpenseItems() {
   );
 }
 
-// Flat export for direct import
-export const ALL_EXPENSE_ITEMS = EXPENSE_CATEGORIES.flatMap(cat =>
-  cat.items.map(item => ({ item, categoryKey: cat.key, categoryLabel: cat.label }))
-);
+// Flat list of all item names (for legacy compatibility)
+export const ALL_EXPENSE_ITEMS = EXPENSE_CATEGORIES.flatMap(cat => cat.items);
