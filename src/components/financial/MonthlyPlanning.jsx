@@ -6,13 +6,14 @@ import { he } from 'date-fns/locale';
 import { 
   ChevronLeft, ChevronRight, Wallet, 
   PiggyBank, Target, AlertCircle, CheckCircle,
-  TrendingUp, Shield, Sparkles
+  TrendingUp, Shield, Sparkles, Save, FileText
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 import FinancialGoals from './FinancialGoals';
 
 export default function MonthlyPlanning({ userId }) {
@@ -33,7 +34,10 @@ export default function MonthlyPlanning({ userId }) {
     dreams_savings: 0,
     emergency_fund_current: 0,
     emergency_fund_allocation: 0,
+    notes: '',
   });
+  const [notesInput, setNotesInput] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
   const queryClient = useQueryClient();
 
   const currentMonth = format(currentDate, 'yyyy-MM');
@@ -153,7 +157,9 @@ export default function MonthlyPlanning({ userId }) {
       dreams_savings: currentPlan.dreams_savings || 0,
       emergency_fund_current: currentPlan.emergency_fund_current || 0,
       emergency_fund_allocation: currentPlan.emergency_fund_allocation || 0,
+      notes: currentPlan.notes || '',
     });
+    setNotesInput(currentPlan.notes || '');
   }, [currentPlan, monthlyPlans, currentMonth, currentDate, plansLoading]);
 
   // Keep a ref to the current plan id so save always uses the latest value
@@ -269,6 +275,15 @@ export default function MonthlyPlanning({ userId }) {
     return Math.round((value / planData.expected_income) * 100);
   };
 
+  const handleSaveNotes = async () => {
+    setNotesSaving(true);
+    const newData = { ...planData, notes: notesInput };
+    setPlanData(newData);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    saveMutation.mutate(newData);
+    setNotesSaving(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Month Navigation */}
@@ -291,6 +306,36 @@ export default function MonthlyPlanning({ userId }) {
               onClick={() => setCurrentDate(subMonths(currentDate, 1))}
             >
               <ChevronLeft className="w-5 h-5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notes */}
+      <Card className="border-2 border-amber-200 bg-amber-50/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-amber-700 text-base">
+            <FileText className="w-5 h-5 text-amber-600" />
+            הערות לחודש {format(currentDate, 'MMMM yyyy', { locale: he })}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={notesInput}
+            onChange={e => setNotesInput(e.target.value)}
+            placeholder="רשום כאן הערות חופשיות לחודש זה..."
+            className="min-h-[80px] text-sm resize-none border-amber-200 focus:border-amber-400"
+            dir="rtl"
+          />
+          <div className="flex justify-end mt-2">
+            <Button
+              size="sm"
+              onClick={handleSaveNotes}
+              disabled={notesSaving}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              <Save className="w-4 h-4 ml-1" />
+              {notesSaving ? 'שומר...' : 'שמור הערות'}
             </Button>
           </div>
         </CardContent>

@@ -113,13 +113,7 @@ export default function Home() {
     enabled: !!effectiveUserId,
   });
 
-  useEffect(() => {
-    if (monthlyPlans && effectiveUserId && !viewingClientId) {
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const hasCurrentMonth = monthlyPlans.some(p => p.month === currentMonth);
-      if (!hasCurrentMonth) setShowAIChat(true);
-    }
-  }, [monthlyPlans, effectiveUserId, viewingClientId]);
+  // No auto-open chat popup - user manages monthly planning themselves
 
   const sortedTrackings = (expenseTrackings || [])
     .filter(t => t.month)
@@ -244,17 +238,15 @@ export default function Home() {
         </div>
       </div>
 
-      {/* System Button */}
-      <div className="mb-6">
+      {/* System Button - compact */}
+      <div className="mb-4">
         <Link to="/Systems">
-          <div className="relative rounded-2xl overflow-hidden cursor-pointer group">
+          <div className="relative rounded-xl overflow-hidden cursor-pointer group inline-flex">
             <div className="absolute inset-0 bg-gradient-to-r from-[#c8a863] via-[#d4b87a] to-[#c8a863] group-hover:brightness-105 transition-all duration-300" />
-            <div className="relative px-5 py-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl group-hover:scale-110 transition-transform duration-300">🚀</div>
-                <h2 className="text-base font-black text-[#105330]">תגלה מה הצעד הבא שלך</h2>
-              </div>
-              <div className="text-xl text-[#105330]/40 group-hover:translate-x-1 transition-transform duration-300">←</div>
+            <div className="relative px-4 py-2 flex items-center gap-2">
+              <span className="text-lg">🚀</span>
+              <span className="text-sm font-bold text-[#105330]">תגלה מה הצעד הבא שלך</span>
+              <span className="text-[#105330]/40 text-sm">←</span>
             </div>
           </div>
         </Link>

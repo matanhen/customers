@@ -76,20 +76,32 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
     }
   }, [initialData]);
 
-  const handleChange = (field, value) => {
-    const parsed = value === '' ? '' : (field.includes('age') || field === 'retirement_age' || field === 'stop_deposits_age' ? parseInt(value) : parseFloat(value));
-    const newData = { ...formData, [field]: parsed === '' ? '' : (isNaN(parsed) ? 0 : parsed) };
+  const handleChange = (field, rawValue) => {
+    // Allow typing decimals like "0." or "1.1" without immediately losing the dot
+    const isAgeField = field === 'current_age' || field === 'retirement_age' || field === 'stop_deposits_age';
+    // Store raw string in form while typing, parse to number for saving
+    const parsed = rawValue === '' ? '' : isAgeField ? parseInt(rawValue) : parseFloat(rawValue);
+    const displayValue = rawValue; // keep raw string so "0." doesn't jump to "0"
+    const saveValue = (rawValue === '' || isNaN(parsed)) ? 0 : parsed;
+
+    const newData = { ...formData, [field]: rawValue === '' ? '' : (isAgeField ? (isNaN(parseInt(rawValue)) ? 0 : parseInt(rawValue)) : rawValue) };
     setFormData(newData);
     isDirty.current = true;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       isDirty.current = false;
-      onSave({ gender, fundType, data: newData });
+      // When saving, parse all numeric fields properly
+      const dataToSave = {
+        ...newData,
+        [field]: isAgeField ? (parseInt(rawValue) || 0) : (parseFloat(rawValue) || 0),
+      };
+      onSave({ gender, fundType, data: dataToSave });
     }, 1500);
   };
 
   const getNumericValue = (val) => {
     if (val === '' || val === undefined || val === null) return '';
+    // Return as-is to allow decimal input like "0." mid-typing
     return val;
   };
 

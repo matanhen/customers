@@ -51,6 +51,33 @@
         }
       }
     },
+    "credit_payments": {
+      "type": "array",
+      "description": "\u05ea\u05e9\u05dc\u05d5\u05de\u05d9\u05dd \u05d1\u05d0\u05e9\u05e8\u05d0\u05d9",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "total_amount": {
+            "type": "number"
+          },
+          "total_installments": {
+            "type": "number"
+          },
+          "paid_installments": {
+            "type": "number"
+          },
+          "monthly_amount": {
+            "type": "number"
+          }
+        }
+      }
+    },
     "freedom_transfer_done": {
       "type": "boolean",
       "default": false,
