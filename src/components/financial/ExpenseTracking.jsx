@@ -6,7 +6,7 @@ import { he } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, Wallet, Receipt,
   Plus, Trash2, AlertTriangle, CheckCircle,
-  Target, Clock, FileText, Image, CreditCard
+  Target, Clock, FileText, Image, CreditCard, PenLine
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ export default function ExpenseTracking({ userId }) {
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
   const [showImageImportDialog, setShowImageImportDialog] = useState(false);
   const [showCreditDialog, setShowCreditDialog] = useState(false);
+  const [showManualDialog, setShowManualDialog] = useState(false);
+  const [manualForm, setManualForm] = useState({ catKey: '', item: '', amount: '' });
   const [currentUser, setCurrentUser] = useState(null);
 
   // Credit payment form state
@@ -119,17 +121,26 @@ export default function ExpenseTracking({ userId }) {
       if (lastLoadedTrackingIdRef.current === `empty-${currentMonth}` && dataLoadedRef.current) return;
       lastLoadedTrackingIdRef.current = `empty-${currentMonth}`;
       dataLoadedRef.current = false;
+
+      // Auto-carry-over active credit payments from previous month
+      const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
+      const prevTracking = allTracking.find(t => t.month === prevMonth);
+      const prevPayments = prevTracking?.credit_payments || [];
+      const carriedPayments = prevPayments
+        .map(p => ({ ...p, paid_installments: (p.paid_installments || 0) + 1 }))
+        .filter(p => (p.total_installments || 1) - (p.paid_installments || 0) > 0);
+
       setTrackingData({
         actual_income: 0,
         fixed_expenses: {},
         variable_expenses: {},
         custom_expenses: [],
-        credit_payments: [],
+        credit_payments: carriedPayments,
         freedom_transfer_done: false
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     }
-  }, [currentTracking, currentMonth, trackingLoading]);
+  }, [currentTracking, currentMonth, trackingLoading, allTracking, currentDate]);
 
   const currentTrackingIdRef = useRef(null);
   useEffect(() => {
@@ -227,6 +238,18 @@ export default function ExpenseTracking({ userId }) {
     const newData = { ...trackingData, credit_payments: newPayments };
     setTrackingData(newData);
     saveNow(newData);
+  };
+
+  // Manual expense entry
+  const addManualExpense = () => {
+    if (!manualForm.catKey || !manualForm.item || !manualForm.amount) return;
+    const amount = parseFloat(manualForm.amount) || 0;
+    const newCatExpenses = { ...categoryExpenses };
+    if (!newCatExpenses[manualForm.catKey]) newCatExpenses[manualForm.catKey] = {};
+    newCatExpenses[manualForm.catKey][manualForm.item] = (newCatExpenses[manualForm.catKey][manualForm.item] || 0) + amount;
+    handleExpenseTableChange(newCatExpenses);
+    setManualForm({ catKey: '', item: '', amount: '' });
+    setShowManualDialog(false);
   };
 
   // Totals
@@ -365,6 +388,9 @@ export default function ExpenseTracking({ userId }) {
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 flex-wrap">
+        <Button onClick={() => setShowManualDialog(true)} variant="outline" className="border-green-500 text-green-700 hover:bg-green-50">
+          <PenLine className="w-4 h-4 ml-2" />עדכון הוצאה ידנית
+        </Button>
         <Button onClick={() => setShowImageImportDialog(true)} variant="outline" className="border-purple-400 text-purple-600 hover:bg-purple-50">
           <Image className="w-4 h-4 ml-2" />ייבוא מתמונה
         </Button>
@@ -502,6 +528,65 @@ export default function ExpenseTracking({ userId }) {
               <Button variant="outline" onClick={() => setShowCreditDialog(false)}>ביטול</Button>
               <Button onClick={addCreditPayment} disabled={!creditForm.category || !creditForm.total_amount || !creditForm.total_installments} className="bg-purple-600 hover:bg-purple-700">
                 הוסף תשלום
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Expense Dialog */}
+      <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PenLine className="w-5 h-5 text-green-600" />
+              עדכון הוצאה ידנית
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>קטגוריה</Label>
+              <Select value={manualForm.catKey} onValueChange={v => setManualForm(p => ({ ...p, catKey: v, item: '' }))}>
+                <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
+                <SelectContent>
+                  {EXPENSE_CATEGORIES.map(cat => (
+                    <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {manualForm.catKey && (
+              <div className="space-y-2">
+                <Label>סעיף</Label>
+                <Select value={manualForm.item} onValueChange={v => setManualForm(p => ({ ...p, item: v }))}>
+                  <SelectTrigger><SelectValue placeholder="בחר סעיף" /></SelectTrigger>
+                  <SelectContent>
+                    {(EXPENSE_CATEGORIES.find(c => c.key === manualForm.catKey)?.items || []).map(item => (
+                      <SelectItem key={item} value={item}>{item}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>סכום להוסיף (₪)</Label>
+              <Input
+                type="number"
+                value={manualForm.amount}
+                onChange={e => setManualForm(p => ({ ...p, amount: e.target.value }))}
+                placeholder="0"
+                dir="ltr"
+              />
+              {manualForm.item && categoryExpenses[manualForm.catKey]?.[manualForm.item] > 0 && (
+                <p className="text-xs text-slate-500">
+                  סכום נוכחי: ₪{(categoryExpenses[manualForm.catKey][manualForm.item] || 0).toLocaleString()} — יתווסף לסכום הקיים
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowManualDialog(false)}>ביטול</Button>
+              <Button onClick={addManualExpense} disabled={!manualForm.catKey || !manualForm.item || !manualForm.amount} className="bg-green-600 hover:bg-green-700">
+                הוסף הוצאה
               </Button>
             </DialogFooter>
           </div>

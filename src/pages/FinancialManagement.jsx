@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import PullToRefresh from '../components/PullToRefresh';
-import { Wallet, LineChart, TrendingUp, ClipboardList, ArrowRight, Rocket } from 'lucide-react';
+import { Wallet, LineChart, TrendingUp, ClipboardList, ArrowRight } from 'lucide-react';
 // Note: DebtManager and PensionManager removed from Reflection tab per product decision
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
@@ -10,8 +10,6 @@ import FinancialReflection from '../components/financial/FinancialReflection';
 
 import BeforeAfterComparison from '../components/financial/BeforeAfterComparison';
 import ExpenseTracking from '../components/financial/ExpenseTracking';
-import FinancialForecast from '../components/financial/FinancialForecast';
-
 
 const SECTIONS = [
   {
@@ -154,7 +152,7 @@ export default function FinancialManagement() {
     );
   }
 
-  // Reflection section: tabs
+  // Reflection section: direct, no wrapper tabs (FinancialReflection has its own tabs)
   if (activeSection === 'reflection') {
     return (
       <div className="max-w-6xl mx-auto" dir="rtl">
@@ -165,22 +163,7 @@ export default function FinancialManagement() {
           </button>
           <h1 className="text-2xl font-bold text-[#105330]">שיקוף פיננסי</h1>
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="flex w-full overflow-x-auto bg-[#105330]/10 p-1.5 rounded-xl gap-1">
-            <TabsTrigger value="reflection" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
-              <LineChart className="w-4 h-4 ml-1 hidden sm:block" />תזרים
-            </TabsTrigger>
-            <TabsTrigger value="forecast" className="rounded-lg data-[state=active]:bg-[#c8a863] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm whitespace-nowrap">
-              <Rocket className="w-4 h-4 ml-1 hidden sm:block" />🚀 תחזית עתיד
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="reflection" className="mt-0">
-            <FinancialReflection userId={effectiveUserId} />
-          </TabsContent>
-          <TabsContent value="forecast" className="mt-0">
-            <ForecastWrapper userId={effectiveUserId} />
-          </TabsContent>
-        </Tabs>
+        <FinancialReflection userId={effectiveUserId} />
       </div>
     );
   }
@@ -202,76 +185,4 @@ export default function FinancialManagement() {
   }
 
   return null;
-}
-
-// Wrapper that loads reflection data and passes calculated values to FinancialForecast
-function ForecastWrapper({ userId }) {
-  const { data: reflection } = useQuery({
-    queryKey: ['financialReflection', userId],
-    queryFn: async () => {
-      const me = await base44.auth.me();
-      const isAdvisorOrAdmin = me?.user_type === 'advisor' || me?.user_type === 'admin';
-      const isViewingOther = !!me && me.id !== userId;
-      if (isViewingOther && isAdvisorOrAdmin) {
-        try {
-          const clientData = sessionStorage.getItem('viewingClient');
-          const clientEmail = clientData ? JSON.parse(clientData).email : null;
-          const response = await base44.functions.invoke('getClientData', {
-            clientUserId: userId,
-            clientEmail,
-            entityName: 'FinancialReflection'
-          });
-          return response.data.data[0] || null;
-        } catch { return null; }
-      }
-      const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
-      return results[0] || null;
-    },
-    enabled: !!userId,
-    staleTime: 30000,
-  });
-
-  // Calculate income from new income_rows format
-  const incomeRows = reflection?.income_rows || [];
-  const incomeAvg = Math.round(
-    incomeRows
-      .filter(r => r.id !== 'pension_male' && r.id !== 'pension_female')
-      .reduce((s, r) => {
-        return s + ['month1','month2','month3','month4','month5','month6'].reduce((a, m) => a + (r[m] || 0), 0) / 6;
-      }, 0)
-  ) || Math.round(
-    // Fallback to legacy
-    ['month1','month2','month3','month4','month5','month6'].reduce((s, m) => s + ((reflection?.incomes?.[m]) || 0), 0) / 6
-  );
-
-  // Calculate expenses from new structure
-  const expensesObj = reflection?.expenses || {};
-  const expenseAvg = Math.round(
-    Object.values(expensesObj).reduce((s, catData) => {
-      return s + Object.values(catData || {}).reduce((cs, itemData) => {
-        return cs + ['month1','month2','month3'].reduce((a, m) => a + (itemData?.[m] || 0), 0) / 3;
-      }, 0);
-    }, 0)
-  ) || Math.round(
-    // Fallback to legacy
-    (() => {
-      const fe = reflection?.fixed_expenses || {};
-      const ve = reflection?.variable_expenses || {};
-      const fa = Object.values(fe).reduce((s, d) => s + ['month1','month2','month3'].reduce((a, m) => a + (d?.[m] || 0), 0) / 3, 0);
-      const va = Object.values(ve).reduce((s, d) => s + ['month1','month2','month3'].reduce((a, m) => a + (d?.[m] || 0), 0) / 3, 0);
-      return fa + va;
-    })()
-  );
-  const cashFlowAvg = incomeAvg - expenseAvg;
-
-  return (
-    <FinancialForecast
-      incomeAverage={incomeAvg}
-      expenseAverage={expenseAvg}
-      cashFlowAverage={cashFlowAvg}
-      checkingBalance={reflection?.checking_account_balance || 0}
-      maleAge={reflection?.male_age}
-      femaleAge={reflection?.female_age}
-    />
-  );
 }

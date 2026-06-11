@@ -53,11 +53,20 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
     setNewItemName(prev => ({ ...prev, [catKey]: '' }));
   };
 
+  // Safely get month data - handle cases where stored value is a plain number (legacy/corrupt)
+  const getMonthData = (catKey, itemName) => {
+    const val = expenses[catKey]?.[itemName];
+    if (!val || typeof val !== 'object') return {};
+    return val;
+  };
+
   const getCategoryTotal = (catKey) => {
     const catData = expenses[catKey] || {};
     return Math.round(
-      Object.values(catData).reduce((s, monthData) =>
-        s + MONTHS.reduce((a, m) => a + (monthData?.[m] || 0), 0) / 3, 0)
+      Object.entries(catData).reduce((s, [itemName]) => {
+        const monthData = getMonthData(catKey, itemName);
+        return s + MONTHS.reduce((a, m) => a + (monthData[m] || 0), 0) / 3;
+      }, 0)
     );
   };
 
@@ -118,8 +127,8 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
                       </thead>
                       <tbody>
                         {cat.items.map(item => {
-                          const monthData = expenses[cat.key]?.[item] || {};
-                          const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
+                         const monthData = getMonthData(cat.key, item);
+                         const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
                           return (
                             <tr key={item} className="border-t border-slate-100">
                               <td className="py-1 pr-2 text-slate-700 text-xs truncate max-w-[100px]">{item}</td>
@@ -146,10 +155,10 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
                         {Object.keys(expenses[cat.key] || {})
                           .filter(item => !cat.items.includes(item))
                           .map(item => {
-                            const monthData = expenses[cat.key]?.[item] || {};
-                            const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
-                            return (
-                              <tr key={item} className="border-t border-slate-100 bg-blue-50/30">
+                            const monthData = getMonthData(cat.key, item);
+                              const avg = Math.round(MONTHS.reduce((s, m) => s + (monthData[m] || 0), 0) / 3);
+                              return (
+                                <tr key={item} className="border-t border-slate-100 bg-blue-50/30">
                                 <td className="py-1 pr-2 text-blue-700 text-xs font-medium truncate max-w-[100px]">{item}</td>
                                 {MONTHS.map(m => (
                                   <td key={m} className="py-1 px-0.5">

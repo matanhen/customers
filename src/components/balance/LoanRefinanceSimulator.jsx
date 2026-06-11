@@ -7,14 +7,22 @@ import { Button } from '@/components/ui/button';
 
 export default function LoanRefinanceSimulator({ liabilities }) {
   const [open, setOpen] = useState(false);
-  const [selectedLiabilityId, setSelectedLiabilityId] = useState('');
+  const [selectedMode, setSelectedMode] = useState('all'); // 'all' | loan id
   const [newRate, setNewRate] = useState('');
   const [newMonths, setNewMonths] = useState('');
   const [newAmount, setNewAmount] = useState('');
 
   const loans = liabilities.filter(l => l.balance > 0);
 
-  const selectedLoan = loans.find(l => l.id === selectedLiabilityId) || (loans.length === 1 ? loans[0] : null);
+  // Aggregate: either all loans combined or a single selected loan
+  const selectedLoans = selectedMode === 'all' ? loans : loans.filter(l => l.id === selectedMode);
+  const selectedLoan = selectedLoans.length === 1 ? selectedLoans[0] : null;
+  const combinedBalance = selectedLoans.reduce((s, l) => s + (l.balance || 0), 0);
+  const combinedMonthlyPayment = selectedLoans.reduce((s, l) => s + (l.monthly_payment || 0), 0);
+  // Use weighted avg interest rate when combining
+  const combinedRate = combinedBalance > 0
+    ? selectedLoans.reduce((s, l) => s + (l.interest_rate || 0) * (l.balance || 0), 0) / combinedBalance
+    : 0;
 
   const calcMonthlyPayment = (balance, annualRate, months) => {
     const r = annualRate / 100 / 12;
@@ -22,10 +30,9 @@ export default function LoanRefinanceSimulator({ liabilities }) {
     return (balance * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
   };
 
-  const loanBalance = parseFloat(newAmount) || selectedLoan?.balance || 0;
-  const currentRate = selectedLoan?.interest_rate || 0;
-  const currentMonthlyPayment = selectedLoan?.monthly_payment || 0;
-  // Estimate remaining months from current payment
+  const loanBalance = parseFloat(newAmount) || combinedBalance || 0;
+  const currentRate = selectedLoan?.interest_rate || combinedRate;
+  const currentMonthlyPayment = combinedMonthlyPayment;
   const estimatedCurrentMonths = currentRate > 0 && currentMonthlyPayment > 0
     ? Math.round(Math.log(currentMonthlyPayment / (currentMonthlyPayment - loanBalance * currentRate / 100 / 12)) / Math.log(1 + currentRate / 100 / 12))
     : 0;
@@ -57,34 +64,35 @@ export default function LoanRefinanceSimulator({ liabilities }) {
       </button>
 
       {open && (
-        <div className="mt-3 p-4 bg-white rounded-xl border border-blue-200 space-y-4" dir="rtl">
-          {/* Select loan */}
-          {loans.length > 1 && (
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-600">בחר הלוואה למחזור</Label>
-              <select
-                value={selectedLiabilityId}
-                onChange={e => setSelectedLiabilityId(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option value="">-- בחר הלוואה --</option>
-                {loans.map(l => (
-                  <option key={l.id} value={l.id}>{l.name} – ₪{Number(l.balance).toLocaleString()}</option>
-                ))}
-              </select>
-            </div>
-          )}
+      <div className="mt-3 p-4 bg-white rounded-xl border border-blue-200 space-y-4" dir="rtl">
+        {/* Select loan(s) */}
+        {loans.length > 1 && (
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold text-slate-600">בחר הלוואה למחזור</Label>
+            <select
+              value={selectedMode}
+              onChange={e => { setSelectedMode(e.target.value); setNewAmount(''); }}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="all">כל ההלוואות ביחד (₪{loans.reduce((s,l)=>s+(l.balance||0),0).toLocaleString()})</option>
+              {loans.map(l => (
+                <option key={l.id} value={l.id}>{l.name} – ₪{Number(l.balance).toLocaleString()}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
-          {selectedLoan && (
-            <div className="bg-slate-50 rounded-xl p-3 text-sm">
-              <p className="font-semibold text-slate-700 mb-2">נתוני הלוואה נוכחית</p>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div><p className="text-xs text-slate-400">יתרת חוב</p><p className="font-bold text-slate-700">₪{Number(selectedLoan.balance).toLocaleString()}</p></div>
-                <div><p className="text-xs text-slate-400">ריבית</p><p className="font-bold text-slate-700">{selectedLoan.interest_rate}%</p></div>
-                <div><p className="text-xs text-slate-400">החזר חודשי</p><p className="font-bold text-slate-700">₪{Number(selectedLoan.monthly_payment).toLocaleString()}</p></div>
-              </div>
-            </div>
-          )}
+        {/* Current loan summary */}
+        <div className="bg-slate-50 rounded-xl p-3 text-sm">
+          <p className="font-semibold text-slate-700 mb-2">
+            {selectedMode === 'all' && loans.length > 1 ? `נתוני כל ההלוואות (${loans.length})` : 'נתוני הלוואה נוכחית'}
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div><p className="text-xs text-slate-400">יתרת חוב</p><p className="font-bold text-slate-700">₪{combinedBalance.toLocaleString()}</p></div>
+            <div><p className="text-xs text-slate-400">ריבית ממוצעת</p><p className="font-bold text-slate-700">{combinedRate.toFixed(2)}%</p></div>
+            <div><p className="text-xs text-slate-400">החזר חודשי</p><p className="font-bold text-slate-700">₪{combinedMonthlyPayment.toLocaleString()}</p></div>
+          </div>
+        </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">

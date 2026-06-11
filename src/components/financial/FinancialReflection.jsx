@@ -371,6 +371,7 @@ export default function FinancialReflection({ userId }) {
             🚀 תחזית עתיד
           </TabsTrigger>
         </TabsList>
+        {/* Remove duplicate chart when in forecast tab */}
 
         <TabsContent value="income" className="mt-4">
           <IncomeTable
@@ -402,7 +403,7 @@ export default function FinancialReflection({ userId }) {
         </TabsContent>
       </Tabs>
 
-      {/* Chart */}
+      {/* Chart - only on income/expenses tabs */}
       {(incomeNet > 0 || expenseTotalRound > 0) && activeTab !== 'forecast' && (
         <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80">
           <CardHeader>
