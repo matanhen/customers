@@ -88,7 +88,7 @@ export default function LoanRefinanceSimulator({ liabilities }) {
                   />
                   <span className="text-sm font-semibold text-slate-700">כל ההלוואות</span>
                   <span className="text-xs text-slate-400 mr-auto">
-                    ₪{loans.reduce((s, l) => s + (l.balance || 0), 0).toLocaleString()}
+                    ₪{loans.reduce((s, l) => s + (Number(l.balance) || 0), 0).toLocaleString()}
                   </span>
                 </label>
                 {loans.map(l => (
