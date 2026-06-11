@@ -29,10 +29,10 @@ export default function LoanRefinanceSimulator({ liabilities }) {
     setNewAmount('');
   };
 
-  const combinedBalance = selectedLoans.reduce((s, l) => s + (l.balance || 0), 0);
-  const combinedMonthlyPayment = selectedLoans.reduce((s, l) => s + (l.monthly_payment || 0), 0);
+  const combinedBalance = selectedLoans.reduce((s, l) => s + (Number(l.balance) || 0), 0);
+  const combinedMonthlyPayment = selectedLoans.reduce((s, l) => s + (Number(l.monthly_payment) || 0), 0);
   const combinedRate = combinedBalance > 0
-    ? selectedLoans.reduce((s, l) => s + (l.interest_rate || 0) * (l.balance || 0), 0) / combinedBalance
+    ? selectedLoans.reduce((s, l) => s + (Number(l.interest_rate) || 0) * (Number(l.balance) || 0), 0) / combinedBalance
     : 0;
 
   const calcMonthlyPayment = (balance, annualRate, months) => {
