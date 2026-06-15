@@ -47,9 +47,9 @@ export default function LoanRefinanceSimulator({ liabilities }) {
     ? Math.round(Math.log(currentMonthlyPayment / (currentMonthlyPayment - loanBalance * combinedRate / 100 / 12)) / Math.log(1 + combinedRate / 100 / 12))
     : 0;
 
-  const newRateNum = parseFloat(newRate) || 0;
+  const newRateNum = newRate !== '' ? parseFloat(newRate) : NaN;
   const newMonthsNum = parseInt(newMonths) || 0;
-  const newMonthlyPayment = newRateNum > 0 && newMonthsNum > 0 && loanBalance > 0
+  const newMonthlyPayment = !isNaN(newRateNum) && newMonthsNum > 0 && loanBalance > 0
     ? calcMonthlyPayment(loanBalance, newRateNum, newMonthsNum)
     : 0;
 

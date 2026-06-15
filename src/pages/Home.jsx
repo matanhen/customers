@@ -414,27 +414,66 @@ export default function Home() {
               <CardTitle className="text-[#105330] text-base font-bold">נכסים לעומת התחייבויות</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
-                <div className="text-center p-3 sm:p-4 rounded-2xl bg-emerald-50">
-                  <p className="text-xs text-gray-500 mb-1">סה"כ נכסים</p>
-                  <p className="text-sm sm:text-xl font-black text-emerald-700 break-all leading-tight">₪{(totalAssets + totalPension).toLocaleString()}</p>
+              {/* Summary KPIs */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="text-center p-3 rounded-2xl bg-emerald-50">
+                  <p className="text-xs text-gray-500 mb-1">נכסים</p>
+                  <p className="text-sm font-black text-emerald-700 break-all leading-tight">₪{(totalAssets + totalPension).toLocaleString()}</p>
                 </div>
-                <div className="text-center p-3 sm:p-4 rounded-2xl bg-red-50">
-                  <p className="text-xs text-gray-500 mb-1">סה"כ התחייבויות</p>
-                  <p className="text-sm sm:text-xl font-black text-red-600 break-all leading-tight">₪{totalDebts.toLocaleString()}</p>
+                <div className="text-center p-3 rounded-2xl bg-red-50">
+                  <p className="text-xs text-gray-500 mb-1">התחייבויות</p>
+                  <p className="text-sm font-black text-red-600 break-all leading-tight">₪{totalDebts.toLocaleString()}</p>
                 </div>
-                <div className={`text-center p-3 sm:p-4 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'}`}>
+                <div className={`text-center p-3 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'}`}>
                   <p className="text-xs text-gray-500 mb-1">שווי נקי</p>
-                  <p className={`text-sm sm:text-xl font-black break-all leading-tight ${netWorth >= 0 ? 'text-purple-700' : 'text-orange-600'}`}>
+                  <p className={`text-sm font-black break-all leading-tight ${netWorth >= 0 ? 'text-purple-700' : 'text-orange-600'}`}>
                     ₪{netWorth.toLocaleString()}
                   </p>
                 </div>
               </div>
+
+              {/* Visual Bar Chart */}
+              {(totalAssets + totalPension > 0 || totalDebts > 0) && (() => {
+                const totalAssetsVal = totalAssets + totalPension;
+                const maxVal = Math.max(totalAssetsVal, totalDebts, 1);
+                const assetPct = Math.round((totalAssetsVal / maxVal) * 100);
+                const liabPct = Math.round((totalDebts / maxVal) * 100);
+                return (
+                  <div className="space-y-3 mb-4">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-500">
+                        <span className="font-medium text-emerald-700">נכסים</span>
+                        <span>₪{totalAssetsVal.toLocaleString()}</span>
+                      </div>
+                      <div className="h-5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-[#105330] to-[#1a7a4a] transition-all duration-700"
+                          style={{ width: `${assetPct}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-500">
+                        <span className="font-medium text-red-600">התחייבויות</span>
+                        <span>₪{totalDebts.toLocaleString()}</span>
+                      </div>
+                      <div className="h-5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-700"
+                          style={{ width: `${liabPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Asset breakdown legend */}
               {assetBreakdown.length > 0 && (
-                <div className="flex gap-4 items-center">
+                <div className="flex gap-4 items-center border-t border-slate-100 pt-3">
                   <div className="flex-shrink-0">
-                    <PieChart width={110} height={110}>
-                      <Pie data={assetBreakdown} cx={50} cy={50} innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={2}>
+                    <PieChart width={90} height={90}>
+                      <Pie data={assetBreakdown} cx={42} cy={42} innerRadius={22} outerRadius={42} dataKey="value" strokeWidth={2}>
                         {assetBreakdown.map((_, i) => (
                           <Cell key={i} fill={ASSET_COLORS[i % ASSET_COLORS.length]} />
                         ))}

@@ -51,7 +51,9 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== 'application/pdf') { setError('יש להעלות קובץ PDF בלבד'); return; }
+    // On mobile (iOS/Android), the MIME type can vary — check by extension too
+    const isPDF = file.type === 'application/pdf' || file.type === 'application/x-pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isPDF) { setError('יש להעלות קובץ PDF בלבד'); return; }
     setError('');
     setStep('loading');
 
@@ -213,7 +215,7 @@ export default function PDFReflectionImport({ open, onOpenChange, onApply }) {
               <Upload className="w-10 h-10 text-[#105330]/60 mx-auto mb-3" />
               <p className="text-slate-700 font-medium">לחץ להעלאת קובץ PDF</p>
               <p className="text-slate-400 text-sm mt-1">פירוט אשראי, דף בנק או כל מסמך הוצאות</p>
-              <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
+              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf,application/x-pdf" className="hidden" onChange={handleFileChange} />
             </div>
             {error && (
               <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
