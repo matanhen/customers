@@ -191,6 +191,7 @@ export default function Home() {
   const balanceLiabilities = balancePlan?.liabilities?.items || [];
   const totalDebts = balanceLiabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
   const netWorth = totalAssets + totalPension - totalDebts;
+  const netWorthExPension = totalAssets - totalDebts;
 
   const hasData = incomeVsExpensesData.length > 0 || (totalAssets + totalPension) > 0 || totalDebts > 0;
 
@@ -415,17 +416,25 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               {/* Summary KPIs */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="text-center p-3 rounded-2xl bg-emerald-50">
-                  <p className="text-xs text-gray-500 mb-1">נכסים</p>
+                  <p className="text-xs text-gray-500 mb-1">נכסים (כולל פנסיוני)</p>
                   <p className="text-sm font-black text-emerald-700 break-all leading-tight">₪{(totalAssets + totalPension).toLocaleString()}</p>
                 </div>
                 <div className="text-center p-3 rounded-2xl bg-red-50">
                   <p className="text-xs text-gray-500 mb-1">התחייבויות</p>
                   <p className="text-sm font-black text-red-600 break-all leading-tight">₪{totalDebts.toLocaleString()}</p>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className={`text-center p-3 rounded-2xl ${netWorthExPension >= 0 ? 'bg-blue-50' : 'bg-orange-50'}`}>
+                  <p className="text-xs text-gray-500 mb-1">שווי נקי (ללא פנסיוני)</p>
+                  <p className={`text-sm font-black break-all leading-tight ${netWorthExPension >= 0 ? 'text-blue-700' : 'text-orange-600'}`}>
+                    ₪{netWorthExPension.toLocaleString()}
+                  </p>
+                </div>
                 <div className={`text-center p-3 rounded-2xl ${netWorth >= 0 ? 'bg-purple-50' : 'bg-orange-50'}`}>
-                  <p className="text-xs text-gray-500 mb-1">שווי נקי</p>
+                  <p className="text-xs text-gray-500 mb-1">שווי נקי (כולל פנסיוני)</p>
                   <p className={`text-sm font-black break-all leading-tight ${netWorth >= 0 ? 'text-purple-700' : 'text-orange-600'}`}>
                     ₪{netWorth.toLocaleString()}
                   </p>
