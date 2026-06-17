@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark, Lock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark, Lock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import LoanRefinanceSimulator from '../components/balance/LoanRefinanceSimulator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,29 @@ const LIABILITY_CATEGORIES = [
 
 const EMPTY_ASSET = { name: '', category: 'cash', value: '', monthly_income: '' };
 const EMPTY_LIABILITY = { name: '', category: 'mortgage', balance: '', monthly_payment: '', interest_rate: '' };
+
+function formatMonthLabel(yearMonth) {
+  const [y, m] = yearMonth.split('-');
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  return `${months[parseInt(m) - 1]} ${y}`;
+}
+
+function nextMonth(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m, 1); // m is 1-indexed but JS month is 0-indexed, so m becomes next month
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function prevMonth(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function currentMonthStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 function ItemRow({ item, onEdit, onDelete, isLiability }) {
   const [hovered, setHovered] = useState(false);
@@ -135,8 +158,9 @@ function ItemForm({ item, isLiability, onSave, onCancel }) {
 export default function Balance() {
   const [user, setUser] = useState(null);
   const [viewingClientId, setViewingClientId] = useState(null);
-  const [assetDialog, setAssetDialog] = useState(null); // null | 'add' | item
+  const [assetDialog, setAssetDialog] = useState(null);
   const [liabilityDialog, setLiabilityDialog] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthStr());
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -149,32 +173,46 @@ export default function Balance() {
 
   const userId = viewingClientId || user?.id;
 
-  const { data: pensionData = [] } = useQuery({
-    queryKey: ['pensionData', userId],
-    queryFn: () => base44.entities.PensionData.filter({ user_id: userId }),
-    enabled: !!userId,
-  });
-
-  const { data: planData } = useQuery({
-    queryKey: ['balance_plan', userId],
+  // Fetch balance record for selected month
+  const { data: monthData, isLoading: isBalanceLoading } = useQuery({
+    queryKey: ['monthlyBalance', userId, selectedMonth],
     queryFn: async () => {
       if (!userId) return null;
-      const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: 'balance_sheet' });
+      const results = await base44.entities.MonthlyBalance.filter({ user_id: userId, month: selectedMonth });
       return results[0] || null;
     },
     enabled: !!userId,
     staleTime: 0,
   });
 
-  // Use default assets for new users (planData is null = not loaded yet, undefined = no record)
-  const rawAssets = planData?.assets?.items;
+  // Fetch previous month data for auto-carry
+  const prevMonthStr = prevMonth(selectedMonth);
+  const { data: prevMonthData } = useQuery({
+    queryKey: ['monthlyBalance', userId, prevMonthStr],
+    queryFn: async () => {
+      if (!userId) return null;
+      const results = await base44.entities.MonthlyBalance.filter({ user_id: userId, month: prevMonthStr });
+      return results[0] || null;
+    },
+    enabled: !!userId && !monthData, // only fetch if current month has no data
+    staleTime: 0,
+  });
+
+  // Determine assets and liabilities: use current month data, or auto-carry from previous, or defaults
+  const carryFromPrev = !monthData && !isBalanceLoading && prevMonthData;
+  const rawAssets = monthData?.assets?.items || (carryFromPrev ? prevMonthData.assets?.items : undefined);
   const assets = rawAssets !== undefined ? rawAssets : DEFAULT_ASSETS;
-  const liabilities = planData?.liabilities?.items || [];
+  const liabilities = monthData?.liabilities?.items || (carryFromPrev ? prevMonthData.liabilities?.items : undefined) || [];
+
+  const { data: pensionData = [] } = useQuery({
+    queryKey: ['pensionData', userId],
+    queryFn: () => base44.entities.PensionData.filter({ user_id: userId }),
+    enabled: !!userId,
+  });
 
   const totalAssets = assets.reduce((s, a) => s + (Number(a.value) || 0), 0);
   const totalLiabilities = liabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
 
-  // Pension assets (read-only)
   const pensionTotal = pensionData.reduce((s, p) => s + (p.current_amount || 0), 0);
   const pensionByType = pensionData.reduce((acc, p) => {
     const label = p.fund_type === 'pension' ? 'פנסיה' : p.fund_type === 'keren_hishtalmut' ? 'קרן השתלמות' : 'קופת גמל';
@@ -187,13 +225,31 @@ export default function Balance() {
   const netWorth = totalAssets + pensionTotal - totalLiabilities;
   const totalMonthlyPayment = liabilities.reduce((s, l) => s + (Number(l.monthly_payment) || 0), 0);
 
+  // Auto-create record if data is carried from previous month
+  useEffect(() => {
+    if (carryFromPrev && userId && prevMonthData) {
+      base44.entities.MonthlyBalance.create({
+        user_id: userId,
+        month: selectedMonth,
+        assets: prevMonthData.assets,
+        liabilities: prevMonthData.liabilities,
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, selectedMonth] });
+      }).catch(() => {});
+    }
+  }, [carryFromPrev]);
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
-      const payload = { user_id: userId, plan_type: 'balance_sheet', ...data };
-      if (planData?.id) return base44.entities.FinancialPlan.update(planData.id, payload);
-      return base44.entities.FinancialPlan.create(payload);
+      const payload = { user_id: userId, month: selectedMonth, ...data };
+      if (monthData?.id) return base44.entities.MonthlyBalance.update(monthData.id, payload);
+      return base44.entities.MonthlyBalance.create(payload);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['balance_plan', userId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, selectedMonth] });
+      // Also invalidate prev month since it could now be a valid carry source
+      queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, nextMonth(selectedMonth)] });
+    },
   });
 
   const saveAsset = (form) => {
@@ -238,11 +294,41 @@ export default function Balance() {
   const assetsByCategory = groupByCategory(assets, ASSET_CATEGORIES);
   const liabilitiesByCategory = groupByCategory(liabilities, LIABILITY_CATEGORIES);
 
+  const isNewMonth = !monthData && !isBalanceLoading && !carryFromPrev;
+
   return (
     <div className="max-w-6xl mx-auto" dir="rtl">
-      <div className="mb-8">
+      <div className="mb-4">
         <h1 className="text-3xl font-bold text-[#105330]">מאזן – איפה הכסף</h1>
         <p className="text-[#105330]/70 text-sm mt-1">נכסים מול התחייבויות</p>
+
+        {/* Month Navigator */}
+        <div className="flex items-center justify-center gap-3 mt-4">
+          <button
+            onClick={() => setSelectedMonth(prevMonth(selectedMonth))}
+            className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-[#105330]/30 transition-all"
+          >
+            <ChevronRight className="w-5 h-5 text-[#105330]" />
+          </button>
+          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm min-w-[160px] justify-center">
+            <Calendar className="w-4 h-4 text-[#105330]/60" />
+            <span className="text-lg font-bold text-[#105330]">{formatMonthLabel(selectedMonth)}</span>
+            {carryFromPrev && <span className="text-xs text-amber-500">(העתקה אוטומטית)</span>}
+            {isNewMonth && <span className="text-xs text-slate-400">(חדש)</span>}
+          </div>
+          <button
+            onClick={() => setSelectedMonth(nextMonth(selectedMonth))}
+            className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-[#105330]/30 transition-all"
+          >
+            <ChevronLeft className="w-5 h-5 text-[#105330]" />
+          </button>
+          <button
+            onClick={() => setSelectedMonth(currentMonthStr())}
+            className="px-3 py-2 text-sm font-medium text-[#105330] bg-[#105330]/5 rounded-xl hover:bg-[#105330]/10 transition-all"
+          >
+            החודש
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}

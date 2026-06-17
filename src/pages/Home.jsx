@@ -98,6 +98,12 @@ export default function Home() {
     enabled: !!effectiveUserId,
   });
 
+  const { data: monthlyBalances } = useQuery({
+    queryKey: ['monthlyBalances', effectiveUserId],
+    queryFn: () => base44.entities.MonthlyBalance.filter({ user_id: effectiveUserId }),
+    enabled: !!effectiveUserId,
+  });
+
   const { data: balancePlan } = useQuery({
     queryKey: ['balance_plan', effectiveUserId],
     queryFn: async () => {
@@ -188,6 +194,24 @@ export default function Home() {
     ...(totalPension > 0 ? [{ name: 'פנסיוני וקרנות', value: totalPension }] : []),
   ].filter(e => e.value > 0);
 
+  // Monthly balance progress data (last 6 months)
+  const sortedBalances = (monthlyBalances || [])
+    .filter(b => b.month)
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .slice(-6);
+
+  const assetVsLiabilityData = sortedBalances.map(b => {
+    const aTotal = (b.assets?.items || []).reduce((s, a) => s + (Number(a.value) || 0), 0);
+    const lTotal = (b.liabilities?.items || []).reduce((s, l) => s + (Number(l.balance) || 0), 0);
+    return {
+      month: formatMonthLabel(b.month).split(' ')[0] || '',
+      fullMonth: b.month,
+      נכסים: aTotal,
+      התחייבויות: lTotal,
+      'שווי נקי': aTotal - lTotal,
+    };
+  });
+
   const balanceLiabilities = balancePlan?.liabilities?.items || [];
   const totalDebts = balanceLiabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
   const netWorth = totalAssets + totalPension - totalDebts;
@@ -202,6 +226,7 @@ export default function Home() {
     await queryClient.invalidateQueries({ queryKey: ['pensionData', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['balance_plan', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['financialGoals', effectiveUserId] });
+    await queryClient.invalidateQueries({ queryKey: ['monthlyBalances', effectiveUserId] });
     await queryClient.invalidateQueries({ queryKey: ['expenseMappings'] });
   }, [queryClient, effectiveUserId]);
 
@@ -415,6 +440,28 @@ export default function Home() {
               <CardTitle className="text-[#105330] text-base font-bold">נכסים לעומת התחייבויות</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Monthly Progress Bar Chart */}
+              {assetVsLiabilityData.length > 0 ? (
+                <div className="mb-4">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={assetVsLiabilityData} barGap={4}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `₪${(v/1000).toFixed(0)}K`} />
+                      <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="נכסים" fill="#105330" radius={[4,4,0,0]} />
+                      <Bar dataKey="התחייבויות" fill="#ef4444" radius={[4,4,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-xs text-center py-4">אין נתוני מאזן חודשי. הזן נתונים בדף "מאזן".</p>
+              )}
+
+              {/* Divider */}
+              {assetVsLiabilityData.length > 0 && <div className="border-t border-slate-100 mb-3" />}
+
               {/* Summary KPIs */}
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="text-center p-3 rounded-2xl bg-emerald-50">
@@ -441,7 +488,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Visual Bar Chart */}
+              {/* Visual Bar Chart (current snapshot) */}
               {(totalAssets + totalPension > 0 || totalDebts > 0) && (() => {
                 const totalAssetsVal = totalAssets + totalPension;
                 const maxVal = Math.max(totalAssetsVal, totalDebts, 1);

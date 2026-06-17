@@ -1,0 +1,79 @@
+{
+  "name": "MonthlyBalance",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05de\u05e9\u05ea\u05de\u05e9"
+    },
+    "month": {
+      "type": "string",
+      "description": "\u05d7\u05d5\u05d3\u05e9 \u05d5\u05e9\u05e0\u05d4 (YYYY-MM)"
+    },
+    "assets": {
+      "type": "object",
+      "description": "\u05e4\u05e8\u05d9\u05d8\u05d9 \u05e0\u05db\u05e1\u05d9\u05dd",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              },
+              "monthly_income": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "liabilities": {
+      "type": "object",
+      "description": "\u05e4\u05e8\u05d9\u05d8\u05d9 \u05d4\u05ea\u05d7\u05d9\u05d9\u05d1\u05d5\u05d9\u05d5\u05ea",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "balance": {
+                "type": "number"
+              },
+              "monthly_payment": {
+                "type": "number"
+              },
+              "interest_rate": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "user_id",
+    "month"
+  ]
+}
