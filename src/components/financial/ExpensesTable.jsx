@@ -8,7 +8,10 @@ import { EXPENSE_CATEGORIES } from './expenseCategories';
 const MONTHS = ['month1','month2','month3'];
 const MONTH_LABELS = ['חודש 1','חודש 2','חודש 3'];
 
-export default function ExpensesTable({ expenses = {}, onChange, disabled = false }) {
+export default function ExpensesTable({ expenses, onChange, disabled = false }) {
+  // Ensure expenses is always a valid object
+  const safeExpenses = (expenses && typeof expenses === 'object' && !Array.isArray(expenses)) ? expenses : {};
+  
   // All categories open by default
   const [expandedCategories, setExpandedCategories] = useState(
     () => Object.fromEntries(EXPENSE_CATEGORIES.map(cat => [cat.key, true]))
@@ -21,11 +24,11 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
 
   const updateCell = (catKey, itemName, month, value) => {
     const updated = {
-      ...expenses,
+      ...safeExpenses,
       [catKey]: {
-        ...(expenses[catKey] || {}),
+        ...(safeExpenses[catKey] || {}),
         [itemName]: {
-          ...(expenses[catKey]?.[itemName] || {}),
+          ...(safeExpenses[catKey]?.[itemName] || {}),
           [month]: parseFloat(value) || 0,
         },
       },
@@ -34,18 +37,18 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
   };
 
   const deleteItem = (catKey, itemName) => {
-    const catData = { ...(expenses[catKey] || {}) };
+    const catData = { ...(safeExpenses[catKey] || {}) };
     delete catData[itemName];
-    onChange({ ...expenses, [catKey]: catData });
+    onChange({ ...safeExpenses, [catKey]: catData });
   };
 
   const addCustomItem = (catKey) => {
     const name = (newItemName[catKey] || '').trim();
     if (!name) return;
     const updated = {
-      ...expenses,
+      ...safeExpenses,
       [catKey]: {
-        ...(expenses[catKey] || {}),
+        ...(safeExpenses[catKey] || {}),
         [name]: { month1: 0, month2: 0, month3: 0 },
       },
     };
@@ -55,13 +58,13 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
 
   // Safely get month data - handle cases where stored value is a plain number (legacy/corrupt)
   const getMonthData = (catKey, itemName) => {
-    const val = expenses[catKey]?.[itemName];
+    const val = safeExpenses[catKey]?.[itemName];
     if (!val || typeof val !== 'object') return {};
     return val;
   };
 
   const getCategoryTotal = (catKey) => {
-    const catData = expenses[catKey] || {};
+    const catData = safeExpenses[catKey] || {};
     return Math.round(
       Object.entries(catData).reduce((s, [itemName]) => {
         const monthData = getMonthData(catKey, itemName);
@@ -74,7 +77,7 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
 
   // All items for a category: all default items + custom items
   const getCategoryItems = (cat) => {
-    const catData = expenses[cat.key] || {};
+    const catData = safeExpenses[cat.key] || {};
     const customItems = Object.keys(catData).filter(item => !cat.items.includes(item));
     return [...cat.items, ...customItems];
   };
@@ -152,7 +155,7 @@ export default function ExpensesTable({ expenses = {}, onChange, disabled = fals
                             </tr>
                           );
                         })}
-                        {Object.keys(expenses[cat.key] || {})
+                        {Object.keys(safeExpenses[cat.key] || {})
                           .filter(item => !cat.items.includes(item))
                           .map(item => {
                             const monthData = getMonthData(cat.key, item);

@@ -118,14 +118,14 @@ export default function FinancialReflection({ userId }) {
       }
     }
 
-    if (reflection?.expenses && Object.keys(reflection.expenses).length > 0) {
+    if (reflection?.expenses && typeof reflection.expenses === 'object' && !Array.isArray(reflection.expenses) && Object.keys(reflection.expenses).length > 0) {
       setExpenses(reflection.expenses);
     } else if (reflection?.fixed_expenses || reflection?.variable_expenses) {
       const migrated = migrateLegacyExpenses(
         reflection.fixed_expenses || {},
         reflection.variable_expenses || {}
       );
-      setExpenses(migrated);
+      setExpenses(migrated || {});
     } else {
       // Seed default empty structure for new users
       setExpenses(getDefaultExpenses());
@@ -205,16 +205,20 @@ export default function FinancialReflection({ userId }) {
   });
 
   // Calculations - net income excludes pension rows (auto-filled)
-  const nonPensionRows = incomeRows.filter(r => r.id !== 'pension_male' && r.id !== 'pension_female');
+  const safeIncomeRows = Array.isArray(incomeRows) ? incomeRows : [];
+  const nonPensionRows = safeIncomeRows.filter(r => r?.id !== 'pension_male' && r?.id !== 'pension_female');
   const incomeNet = Math.round(nonPensionRows.reduce((s, r) => {
-    return s + MONTHS.reduce((a, m) => a + (r[m] || 0), 0) / 6;
+    return s + (r ? MONTHS.reduce((a, m) => a + (r[m] || 0), 0) / 6 : 0);
   }, 0));
   const incomeTotal = incomeNet + pensionMaleMonthly + pensionFemaleMonthly;
 
+  const safeExpenses = expenses && typeof expenses === 'object' && !Array.isArray(expenses) ? expenses : {};
   const expenseTotalRound = Math.round(
-    Object.values(expenses).reduce((s, catData) => {
-      return s + Object.values(catData || {}).reduce((cs, itemData) => {
-        return cs + ['month1','month2','month3'].reduce((a, m) => a + (itemData?.[m] || 0), 0) / 3;
+    Object.values(safeExpenses).reduce((s, catData) => {
+      if (!catData || typeof catData !== 'object') return s;
+      return s + Object.values(catData).reduce((cs, itemData) => {
+        if (!itemData || typeof itemData !== 'object') return cs;
+        return cs + ['month1','month2','month3'].reduce((a, m) => a + ((itemData[m] || 0)), 0) / 3;
       }, 0);
     }, 0)
   );
