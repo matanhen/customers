@@ -198,11 +198,44 @@ export default function Balance() {
     staleTime: 0,
   });
 
-  // Determine assets and liabilities: use current month data, or auto-carry from previous, or defaults
+  // Legacy fallback: if MonthlyBalance is empty, try old FinancialPlan data
+  const { data: legacyPlan } = useQuery({
+    queryKey: ['balance_plan', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: 'balance_sheet' });
+      return results[0] || null;
+    },
+    enabled: !!userId && !monthData && !isBalanceLoading,
+    staleTime: 0,
+  });
+
+  // One-time migration: if legacy data exists but no MonthlyBalance for current month
+  useEffect(() => {
+    if (legacyPlan && userId && !monthData && !isBalanceLoading && selectedMonth === currentMonthStr()) {
+      base44.entities.MonthlyBalance.create({
+        user_id: userId,
+        month: selectedMonth,
+        assets: legacyPlan.assets || { items: [] },
+        liabilities: legacyPlan.liabilities || { items: [] },
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, selectedMonth] });
+      }).catch(() => {});
+    }
+  }, [legacyPlan, userId, monthData, isBalanceLoading, selectedMonth]);
+
+  // Determine assets and liabilities: use current month data, or auto-carry from previous, or legacy, or defaults
   const carryFromPrev = !monthData && !isBalanceLoading && prevMonthData;
-  const rawAssets = monthData?.assets?.items || (carryFromPrev ? prevMonthData.assets?.items : undefined);
+  const legacyAssets = legacyPlan?.assets?.items;
+  const legacyLiabilities = legacyPlan?.liabilities?.items;
+  const rawAssets = monthData?.assets?.items
+    || (carryFromPrev ? prevMonthData.assets?.items : undefined)
+    || legacyAssets;
   const assets = rawAssets !== undefined ? rawAssets : DEFAULT_ASSETS;
-  const liabilities = monthData?.liabilities?.items || (carryFromPrev ? prevMonthData.liabilities?.items : undefined) || [];
+  const liabilities = monthData?.liabilities?.items
+    || (carryFromPrev ? prevMonthData.liabilities?.items : undefined)
+    || legacyLiabilities
+    || [];
 
   const { data: pensionData = [] } = useQuery({
     queryKey: ['pensionData', userId],
