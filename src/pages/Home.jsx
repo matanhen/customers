@@ -11,7 +11,7 @@ import AIChatAssistant from '../components/chat/AIChatAssistant';
 import { EXPENSE_CATEGORIES } from '../components/financial/expenseCategories';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
 
 const DONUT_COLORS = [
@@ -194,21 +194,44 @@ export default function Home() {
     ...(totalPension > 0 ? [{ name: 'פנסיוני וקרנות', value: totalPension }] : []),
   ].filter(e => e.value > 0);
 
-  // Monthly balance progress data (last 6 months)
-  const sortedBalances = (monthlyBalances || [])
-    .filter(b => b.month)
-    .sort((a, b) => a.month.localeCompare(b.month))
-    .slice(-6);
+  // Generate last N months (including current) for progression chart
+  function generateLastMonths(count) {
+    const months = [];
+    const now = new Date();
+    for (let i = count - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return months;
+  }
+  const netWorthMonths = generateLastMonths(4);
 
-  const assetVsLiabilityData = sortedBalances.map(b => {
-    const aTotal = (b.assets?.items || []).reduce((s, a) => s + (Number(a.value) || 0), 0);
-    const lTotal = (b.liabilities?.items || []).reduce((s, l) => s + (Number(l.balance) || 0), 0);
+  // Build monthly balance lookup (MonthlyBalance + legacy FinancialPlan fallback)
+  const balanceByMonth = {};
+  (monthlyBalances || []).forEach(b => {
+    if (b.month) balanceByMonth[b.month] = b;
+  });
+  // Legacy fallback: if a month is in the current month, use legacy plan if no MonthlyBalance
+  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  if (!balanceByMonth[currentMonthStr] && balancePlan) {
+    balanceByMonth[currentMonthStr] = {
+      month: currentMonthStr,
+      assets: { items: (balancePlan.assets?.items || []).map(a => ({ ...a, value: Number(a.value) || 0 })) },
+      liabilities: { items: (balancePlan.liabilities?.items || []).map(l => ({ ...l, balance: Number(l.balance) || 0 })) },
+    };
+  }
+
+  // Net worth progression data (last 4 months)
+  const netWorthProgressionData = netWorthMonths.map(m => {
+    const b = balanceByMonth[m];
+    const aTotal = b ? (b.assets?.items || []).reduce((s, a) => s + (Number(a.value) || 0), 0) : 0;
+    const lTotal = b ? (b.liabilities?.items || []).reduce((s, l) => s + (Number(l.balance) || 0), 0) : 0;
     return {
-      month: formatMonthLabel(b.month).split(' ')[0] || '',
-      fullMonth: b.month,
+      month: formatMonthLabel(m).split(' ')[0] || '',
+      fullMonth: m,
       נכסים: aTotal,
       התחייבויות: lTotal,
-      'שווי נקי': aTotal - lTotal,
+      'שווי נקי': aTotal + (pensionData || []).reduce((s, p) => s + (p.current_amount || 0), 0) - lTotal,
     };
   });
 
@@ -434,34 +457,64 @@ export default function Home() {
             </CardContent>
           </Card>
 
+          {/* Net Worth Progression */}
+          <Card className="border-0 shadow-lg overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-[#105330] via-[#c8a863] to-[#105330]" />
+            <CardHeader className="pb-2">
+              <CardTitle className="text-[#105330] text-base font-bold">שווי נקי</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {netWorthProgressionData.some(d => d.נכסים > 0 || d.התחייבויות > 0) ? (
+                <div className="space-y-4">
+                  {/* Assets & Liabilities Bar Chart */}
+                  <div>
+                    <p className="text-xs text-slate-400 mb-2">התקדמות נכסים והתחייבויות</p>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={netWorthProgressionData} barGap={4}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `₪${(v/1000).toFixed(0)}K`} />
+                        <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="נכסים" fill="#105330" radius={[4,4,0,0]} />
+                        <Bar dataKey="התחייבויות" fill="#ef4444" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Net Worth Line Chart */}
+                  <div className="border-t border-slate-100 pt-4">
+                    <p className="text-xs text-slate-400 mb-2">התקדמות שווי נקי</p>
+                    <ResponsiveContainer width="100%" height={140}>
+                      <LineChart data={netWorthProgressionData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `₪${(v/1000).toFixed(0)}K`} />
+                        <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
+                        <Line
+                          type="monotone"
+                          dataKey="שווי נקי"
+                          stroke="#c8a863"
+                          strokeWidth={3}
+                          dot={{ r: 5, fill: '#c8a863', stroke: '#fff', strokeWidth: 2 }}
+                          activeDot={{ r: 7 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm text-center py-8">אין נתוני מאזן עדיין. הזן נתונים בדף "מאזן".</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Assets vs Liabilities */}
           <Card className="border-0 shadow-lg">
             <CardHeader className="pb-2">
               <CardTitle className="text-[#105330] text-base font-bold">נכסים לעומת התחייבויות</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Monthly Progress Bar Chart */}
-              {assetVsLiabilityData.length > 0 ? (
-                <div className="mb-4">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={assetVsLiabilityData} barGap={4}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `₪${(v/1000).toFixed(0)}K`} />
-                      <Tooltip formatter={(v) => `₪${v.toLocaleString()}`} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="נכסים" fill="#105330" radius={[4,4,0,0]} />
-                      <Bar dataKey="התחייבויות" fill="#ef4444" radius={[4,4,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p className="text-gray-400 text-xs text-center py-4">אין נתוני מאזן חודשי. הזן נתונים בדף "מאזן".</p>
-              )}
-
-              {/* Divider */}
-              {assetVsLiabilityData.length > 0 && <div className="border-t border-slate-100 mb-3" />}
-
               {/* Summary KPIs */}
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="text-center p-3 rounded-2xl bg-emerald-50">
