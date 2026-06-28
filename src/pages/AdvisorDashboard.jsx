@@ -106,6 +106,12 @@ export default function AdvisorDashboard() {
   const isLoading = loadingAssignments || loadingUsers || loadingAllowed;
   const hasError = assignmentsError || usersError || allowedError;
 
+  // Build email -> assignment map for login dates (source of truth for all admins)
+  const assignmentByEmail = {};
+  for (const a of assignments) {
+    if (a.client_email) assignmentByEmail[a.client_email.toLowerCase()] = a;
+  }
+
   // Merge Users and AllowedUsers - create combined list
   const userEmails = new Set(allUsers.map(u => u.email));
   const allowedUsersNotInSystem = allowedUsers
@@ -118,7 +124,17 @@ export default function AdvisorDashboard() {
       created_date: au.created_date
     }));
 
-  const combinedUsers = [...allUsers, ...allowedUsersNotInSystem];
+  // Enrich all users with login dates from assignments (shared across all advisors/admins)
+  const enrichWithLoginDates = (user) => {
+    const a = assignmentByEmail[user.email?.toLowerCase()];
+    return {
+      ...user,
+      first_login_date: a?.first_login_date || null,
+      last_login_date: a?.last_login_date || user.last_login_date || null,
+    };
+  };
+
+  const combinedUsers = [...allUsers.map(enrichWithLoginDates), ...allowedUsersNotInSystem];
 
   // Helper: dedupe by email
   const dedupeByEmail = (arr) => {
@@ -275,7 +291,14 @@ export default function AdvisorDashboard() {
                 <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.full_name || 'ללא שם'}</h3>
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
                   <span className="flex items-center gap-1.5 truncate"><Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" /><span className="truncate">{client.email}</span></span>
-                  <span className="flex items-center gap-1.5">{client.last_login_date ? format(new Date(client.last_login_date), 'dd/MM/yyyy HH:mm') : 'לא נכנס עדיין'}</span>
+                  <span className="flex items-center gap-1.5">
+                    {client.first_login_date ? `כניסה ראשונה: ${format(new Date(client.first_login_date), 'dd/MM/yyyy HH:mm')}` : 'לא נכנס עדיין'}
+                  </span>
+                  {client.last_login_date && client.first_login_date && client.last_login_date !== client.first_login_date && (
+                    <span className="flex items-center gap-1.5">
+                      {`כניסה אחרונה: ${format(new Date(client.last_login_date), 'dd/MM/yyyy HH:mm')}`}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

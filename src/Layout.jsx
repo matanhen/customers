@@ -72,10 +72,19 @@ export default function Layout({ children }) {
       try {
         const lastUpdate = sessionStorage.getItem('lastLoginUpdate');
         if (!lastUpdate || Date.now() - parseInt(lastUpdate) > 60 * 60 * 1000) {
-          await base44.entities.User.update(currentUser.id, { 
-            last_login_date: new Date().toISOString() 
-          });
+          const now = new Date().toISOString();
+          await base44.entities.User.update(currentUser.id, { last_login_date: now });
           sessionStorage.setItem('lastLoginUpdate', Date.now().toString());
+
+          // Update ClientAdvisorAssignment login dates (visible to all admins/advisors)
+          try {
+            const assignments = await base44.entities.ClientAdvisorAssignment.filter({ client_email: currentUser.email });
+            for (const assignment of assignments) {
+              const updateData = { last_login_date: now };
+              if (!assignment.first_login_date) updateData.first_login_date = now;
+              await base44.entities.ClientAdvisorAssignment.update(assignment.id, updateData);
+            }
+          } catch (e) { /* non-critical */ }
         }
       } catch (e) { /* non-critical */ }
       
