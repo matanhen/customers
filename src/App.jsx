@@ -35,12 +35,15 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // Not authenticated - show landing page for email check
+  if (!isAuthenticated) {
+    return <Landing />;
+  }
+
   // Handle authentication errors
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      return <Landing />;
     }
   }
 
