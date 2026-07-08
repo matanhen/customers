@@ -302,15 +302,19 @@ export default function AdminDashboard() {
   );
 
   const handleChangeUserType = async (userId, allowedUserId, newType, userEmail) => {
-    // Update User entity
-    if (userId) {
-      await base44.entities.User.update(userId, { user_type: newType });
-    }
-    // Update AllowedUser by ID if known, otherwise find by email
-    if (allowedUserId) {
-      await base44.entities.AllowedUser.update(allowedUserId, { user_type: newType });
-    } else if (userEmail) {
-      try {
+    try {
+      // Update User entity - also sync the built-in "role" field so platform
+      // permissions (which rely on role, not user_type) stay in sync for admins
+      if (userId) {
+        await base44.entities.User.update(userId, {
+          user_type: newType,
+          role: newType === 'admin' ? 'admin' : 'user'
+        });
+      }
+      // Update AllowedUser by ID if known, otherwise find by email
+      if (allowedUserId) {
+        await base44.entities.AllowedUser.update(allowedUserId, { user_type: newType });
+      } else if (userEmail) {
         const found = await base44.entities.AllowedUser.filter({ email: userEmail });
         if (found.length > 0) {
           await base44.entities.AllowedUser.update(found[0].id, { user_type: newType });
@@ -318,12 +322,13 @@ export default function AdminDashboard() {
           // Create AllowedUser if doesn't exist
           await base44.entities.AllowedUser.create({ email: userEmail, user_type: newType });
         }
-      } catch (e) {
-        console.log('Could not update AllowedUser', e);
       }
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
+    } catch (e) {
+      console.error('Failed to change user type', e);
+      alert('שגיאה בעדכון התפקיד. ייתכן שאין לך הרשאות מספיקות.');
     }
-    queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-    queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
   };
 
   const handleAssignClient = async () => {
