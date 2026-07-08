@@ -48,6 +48,7 @@ export default function AdminDashboard() {
   const [editEmail, setEditEmail] = useState('');
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
+  const [newUserType, setNewUserType] = useState('client');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [userFilter, setUserFilter] = useState('all'); // all, clients, advisors, admins, unassigned
   const [selectedClients, setSelectedClients] = useState(new Set());
@@ -210,35 +211,43 @@ export default function AdminDashboard() {
 
   const createClientMutation = useMutation({
     mutationFn: async (data) => {
+      const userType = data.user_type || 'client';
+
       // Create AllowedUser
       await base44.entities.AllowedUser.create({
         email: data.email,
         full_name: data.full_name,
-        user_type: 'client',
+        user_type: userType,
       });
 
       // Invite the user so they appear in the system immediately
-      await base44.users.inviteUser(data.email, 'user');
+      await base44.users.inviteUser(data.email, userType === 'admin' ? 'admin' : 'user');
 
       // Wait briefly for the user to be created, then find them
       await new Promise(r => setTimeout(r, 1500));
       const systemUsers = await base44.entities.User.filter({ email: data.email });
       const newUserId = systemUsers[0]?.id || '';
 
-      // Update user_type to client
+      // Update user_type (and built-in role for admins) + name
       if (newUserId) {
-        await base44.entities.User.update(newUserId, { user_type: 'client', full_name: data.full_name });
+        await base44.entities.User.update(newUserId, {
+          user_type: userType,
+          full_name: data.full_name,
+          role: userType === 'admin' ? 'admin' : 'user'
+        });
       }
 
-      // Create assignment
-      const selectedAdvisorUser = advisors.find(a => a.id === data.advisor_id);
-      await base44.entities.ClientAdvisorAssignment.create({
-        client_id: newUserId,
-        client_email: data.email,
-        client_name: data.full_name,
-        advisor_id: data.advisor_id || user.id,
-        advisor_email: selectedAdvisorUser?.email || user.email
-      });
+      // Create assignment only for clients
+      if (userType === 'client') {
+        const selectedAdvisorUser = advisors.find(a => a.id === data.advisor_id);
+        await base44.entities.ClientAdvisorAssignment.create({
+          client_id: newUserId,
+          client_email: data.email,
+          client_name: data.full_name,
+          advisor_id: data.advisor_id || user.id,
+          advisor_email: selectedAdvisorUser?.email || user.email
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
@@ -249,6 +258,7 @@ export default function AdminDashboard() {
       setNewClientName('');
       setNewClientEmail('');
       setSelectedAdvisor('');
+      setNewUserType('client');
       setTimeout(() => {
         setAddClientSuccess(false);
         setShowAddClientDialog(false);
@@ -443,7 +453,7 @@ export default function AdminDashboard() {
             className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg"
           >
             <Users className="w-4 h-4 ml-2" />
-            הוסף לקוח חדש
+            הוסף משתמש חדש
           </Button>
         </div>
 
@@ -868,13 +878,26 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Client Dialog */}
+      {/* Add User Dialog */}
       <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
         <DialogContent className="sm:max-w-md border-0 shadow-2xl" dir="rtl">
           <DialogHeader>
-            <DialogTitle className="text-xl text-slate-800">הוספת לקוח חדש</DialogTitle>
+            <DialogTitle className="text-xl text-slate-800">הוספת משתמש חדש</DialogTitle>
           </DialogHeader>
           <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[#105330] font-semibold">תפקיד</Label>
+              <Select value={newUserType} onValueChange={setNewUserType}>
+                <SelectTrigger className="border-[#105330]/30 rounded-xl py-6">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client">לקוח</SelectItem>
+                  <SelectItem value="advisor">יועץ</SelectItem>
+                  <SelectItem value="admin">מנהל</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label className="text-[#105330] font-semibold">שם מלא</Label>
               <Input
@@ -894,24 +917,26 @@ export default function AdminDashboard() {
                 className="border-[#105330]/30 rounded-xl py-6"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-[#105330] font-semibold">שיוך ליועץ</Label>
-              <Select value={selectedAdvisor} onValueChange={setSelectedAdvisor}>
-                <SelectTrigger className="border-[#105330]/30 rounded-xl py-6">
-                  <SelectValue placeholder="בחר יועץ" />
-                </SelectTrigger>
-                <SelectContent>
-                  {advisors.map((advisor) => (
-                    <SelectItem key={advisor.id} value={advisor.id}>
-                      {advisor.full_name || advisor.email} {advisor.user_type === 'admin' && '(מנהל)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {newUserType === 'client' && (
+              <div className="space-y-2">
+                <Label className="text-[#105330] font-semibold">שיוך ליועץ</Label>
+                <Select value={selectedAdvisor} onValueChange={setSelectedAdvisor}>
+                  <SelectTrigger className="border-[#105330]/30 rounded-xl py-6">
+                    <SelectValue placeholder="בחר יועץ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {advisors.map((advisor) => (
+                      <SelectItem key={advisor.id} value={advisor.id}>
+                        {advisor.full_name || advisor.email} {advisor.user_type === 'admin' && '(מנהל)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {addClientSuccess && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-medium text-center">
-                ✓ הלקוח הצטרף בהצלחה
+                ✓ המשתמש נוסף בהצלחה
               </div>
             )}
           </div>
@@ -921,19 +946,20 @@ export default function AdminDashboard() {
             </Button>
             <Button 
               onClick={() => {
-                if (newClientName && newClientEmail && selectedAdvisor) {
+                const needsAdvisor = newUserType === 'client';
+                if (newClientName && newClientEmail && (!needsAdvisor || selectedAdvisor)) {
                   createClientMutation.mutate({
                     full_name: newClientName,
                     email: newClientEmail,
-                    user_type: 'client',
+                    user_type: newUserType,
                     advisor_id: selectedAdvisor
                   });
                 }
               }}
-              disabled={!newClientName || !newClientEmail || !selectedAdvisor || createClientMutation.isPending}
+              disabled={!newClientName || !newClientEmail || (newUserType === 'client' && !selectedAdvisor) || createClientMutation.isPending}
               className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl shadow-lg"
             >
-              {createClientMutation.isPending ? 'יוצר...' : 'הוסף לקוח'}
+              {createClientMutation.isPending ? 'יוצר...' : 'הוסף משתמש'}
             </Button>
           </DialogFooter>
         </DialogContent>
