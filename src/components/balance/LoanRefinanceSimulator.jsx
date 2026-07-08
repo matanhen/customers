@@ -142,7 +142,6 @@ export default function LoanRefinanceSimulator({ liabilities }) {
                     type="number"
                     value={newAmount}
                     onChange={e => setNewAmount(e.target.value)}
-                    placeholder={String(Math.round(combinedBalance) || 100000)}
                     dir="ltr"
                   />
                 </div>
@@ -153,7 +152,6 @@ export default function LoanRefinanceSimulator({ liabilities }) {
                     step="0.1"
                     value={newRate}
                     onChange={e => setNewRate(e.target.value)}
-                    placeholder="4.5"
                     dir="ltr"
                   />
                 </div>
@@ -163,7 +161,6 @@ export default function LoanRefinanceSimulator({ liabilities }) {
                     type="number"
                     value={newMonths}
                     onChange={e => setNewMonths(e.target.value)}
-                    placeholder="60"
                     dir="ltr"
                   />
                 </div>
