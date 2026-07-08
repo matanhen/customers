@@ -120,17 +120,17 @@ function ItemForm({ item, isLiability, onSave, onCancel }) {
           <div className="space-y-1">
             <Label>יתרת חוב</Label>
             <p className="text-xs text-slate-400">הסכום שנותר לשלם</p>
-            <Input type="number" value={form.balance} onChange={e => setForm({ ...form, balance: e.target.value })} placeholder="100000" dir="ltr" />
+            <Input type="number" value={form.balance} onChange={e => setForm({ ...form, balance: e.target.value })} dir="ltr" />
           </div>
           <div className="space-y-1">
             <Label>תשלום חודשי</Label>
             <p className="text-xs text-slate-400">כמה משלמים כל חודש</p>
-            <Input type="number" value={form.monthly_payment} onChange={e => setForm({ ...form, monthly_payment: e.target.value })} placeholder="3000" dir="ltr" />
+            <Input type="number" value={form.monthly_payment} onChange={e => setForm({ ...form, monthly_payment: e.target.value })} dir="ltr" />
           </div>
           <div className="space-y-1">
             <Label>ריבית שנתית (%)</Label>
             <p className="text-xs text-slate-400">אחוז הריבית השנתית</p>
-            <Input type="number" step="0.1" value={form.interest_rate} onChange={e => setForm({ ...form, interest_rate: e.target.value })} placeholder="5.5" dir="ltr" />
+            <Input type="number" step="0.1" value={form.interest_rate} onChange={e => setForm({ ...form, interest_rate: e.target.value })} dir="ltr" />
           </div>
         </>
       ) : (
@@ -138,17 +138,20 @@ function ItemForm({ item, isLiability, onSave, onCancel }) {
           <div className="space-y-1">
             <Label>שווי נוכחי</Label>
             <p className="text-xs text-slate-400">הערך הנוכחי של הנכס בשקלים</p>
-            <Input type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} placeholder="500000" dir="ltr" />
+            <Input type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} dir="ltr" />
           </div>
           <div className="space-y-1">
             <Label>תזרים חודשי (אופציונלי)</Label>
             <p className="text-xs text-slate-400">הכנסה חודשית מהנכס, לדוגמה שכירות</p>
-            <Input type="number" value={form.monthly_income} onChange={e => setForm({ ...form, monthly_income: e.target.value })} placeholder="0" dir="ltr" />
+            <Input type="number" value={form.monthly_income} onChange={e => setForm({ ...form, monthly_income: e.target.value })} dir="ltr" />
           </div>
         </>
       )}
       <div className="flex gap-2 pt-2">
-        <Button onClick={() => onSave(form)} className="flex-1 bg-[#105330] hover:bg-[#0d4027]">שמור</Button>
+        <Button onClick={() => onSave(isLiability
+          ? { ...form, balance: Number(form.balance) || 0, monthly_payment: Number(form.monthly_payment) || 0, interest_rate: Number(form.interest_rate) || 0 }
+          : { ...form, value: Number(form.value) || 0, monthly_income: Number(form.monthly_income) || 0 }
+        )} className="flex-1 bg-[#105330] hover:bg-[#0d4027]">שמור</Button>
         <Button onClick={onCancel} variant="outline" className="flex-1">ביטול</Button>
       </div>
     </div>
