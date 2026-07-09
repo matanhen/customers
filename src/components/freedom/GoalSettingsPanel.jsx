@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 export default function GoalSettingsPanel({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -175,10 +176,9 @@ export default function GoalSettingsPanel({ userId }) {
           {/* Passive Income Target */}
           <div className="space-y-2">
             <Label className="text-[#105330] font-semibold">הכנסה פאסיבית רצויה (חודשי)</Label>
-            <Input
-              type="number"
-              value={settings.passive_income_target || ''}
-              onChange={(e) => updateSettings({ ...settings, passive_income_target: parseFloat(e.target.value) || 0 })}
+            <FormattedNumberInput
+              value={settings.passive_income_target}
+              onChange={(val) => updateSettings({ ...settings, passive_income_target: val })}
               className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg"
             />
           </div>

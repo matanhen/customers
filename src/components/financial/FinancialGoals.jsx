@@ -26,6 +26,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 export default function FinancialGoals({ userId, monthlyDreamsSavings = 0 }) {
   const [showAddGoal, setShowAddGoal] = useState(false);
@@ -324,10 +325,9 @@ export default function FinancialGoals({ userId, monthlyDreamsSavings = 0 }) {
 
             <div className="space-y-2">
               <Label className="text-slate-600">סכום יעד</Label>
-              <Input
-                type="number"
-                value={newGoal.target_amount || ''}
-                onChange={(e) => setNewGoal({ ...newGoal, target_amount: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={newGoal.target_amount}
+                onChange={(val) => setNewGoal({ ...newGoal, target_amount: val })}
                 placeholder="הזן סכום"
                 className="border-slate-200"
               />
@@ -335,10 +335,9 @@ export default function FinancialGoals({ userId, monthlyDreamsSavings = 0 }) {
 
             <div className="space-y-2">
               <Label className="text-slate-600">סכום נוכחי</Label>
-              <Input
-                type="number"
-                value={newGoal.current_amount || ''}
-                onChange={(e) => setNewGoal({ ...newGoal, current_amount: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={newGoal.current_amount}
+                onChange={(val) => setNewGoal({ ...newGoal, current_amount: val })}
                 placeholder="הזן סכום נוכחי"
                 className="border-slate-200"
               />
@@ -387,20 +386,18 @@ export default function FinancialGoals({ userId, monthlyDreamsSavings = 0 }) {
 
               <div className="space-y-2">
                 <Label className="text-slate-600">סכום יעד</Label>
-                <Input
-                  type="number"
-                  value={editingGoal.target_amount || ''}
-                  onChange={(e) => setEditingGoal({ ...editingGoal, target_amount: parseFloat(e.target.value) || 0 })}
+                <FormattedNumberInput
+                  value={editingGoal.target_amount}
+                  onChange={(val) => setEditingGoal({ ...editingGoal, target_amount: val })}
                   className="border-slate-200"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-slate-600">סכום נוכחי</Label>
-                <Input
-                  type="number"
-                  value={editingGoal.current_amount || ''}
-                  onChange={(e) => setEditingGoal({ ...editingGoal, current_amount: parseFloat(e.target.value) || 0 })}
+                <FormattedNumberInput
+                  value={editingGoal.current_amount}
+                  onChange={(val) => setEditingGoal({ ...editingGoal, current_amount: val })}
                   className="border-slate-200"
                 />
               </div>

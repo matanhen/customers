@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 const calculateProjectedAmount = (data, yearsFromNow = null) => {
   const currentAge = data.current_age || 30;
@@ -159,19 +160,17 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
         </div>
         <div className="space-y-2">
           <Label className="text-sm font-semibold text-[#105330]">סכום נוכחי</Label>
-          <Input
-            type="number"
+          <FormattedNumberInput
             value={getNumericValue(formData.current_amount)}
-            onChange={(e) => handleChange('current_amount', e.target.value)}
+            onChange={(val) => handleChange('current_amount', String(val))}
             className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
           />
         </div>
         <div className="space-y-2">
           <Label className="text-sm font-semibold text-[#105330]">הפקדה חודשית</Label>
-          <Input
-            type="number"
+          <FormattedNumberInput
             value={getNumericValue(formData.monthly_deposit)}
-            onChange={(e) => handleChange('monthly_deposit', e.target.value)}
+            onChange={(val) => handleChange('monthly_deposit', String(val))}
             className="border-[#105330]/30 focus:border-[#105330] focus:ring-[#105330]/20 rounded-xl"
           />
         </div>

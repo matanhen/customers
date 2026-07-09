@@ -20,6 +20,7 @@ import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
 import ExpenseTrackingTable from './ExpenseTrackingTable';
 import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS } from './expenseCategories';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -313,10 +314,9 @@ export default function ExpenseTracking({ userId }) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
-            <Input
-              type="number"
-              value={trackingData.actual_income || ''}
-              onChange={e => setTrackingData({ ...trackingData, actual_income: parseFloat(e.target.value) || 0 })}
+            <FormattedNumberInput
+              value={trackingData.actual_income}
+              onChange={val => setTrackingData({ ...trackingData, actual_income: val })}
               onBlur={handleBlurSave}
               placeholder="הזן הכנסה בפועל"
               className="text-lg font-medium flex-1"
@@ -500,7 +500,7 @@ export default function ExpenseTracking({ userId }) {
             </div>
             <div className="space-y-2">
               <Label>סכום כולל של הרכישה (₪)</Label>
-              <Input type="number" value={creditForm.total_amount} onChange={e => setCreditForm(p => ({ ...p, total_amount: e.target.value }))} placeholder="0" dir="ltr" />
+              <FormattedNumberInput value={creditForm.total_amount} onChange={val => setCreditForm(p => ({ ...p, total_amount: val }))} placeholder="0" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -570,12 +570,10 @@ export default function ExpenseTracking({ userId }) {
             )}
             <div className="space-y-2">
               <Label>סכום להוסיף (₪)</Label>
-              <Input
-                type="number"
+              <FormattedNumberInput
                 value={manualForm.amount}
-                onChange={e => setManualForm(p => ({ ...p, amount: e.target.value }))}
+                onChange={val => setManualForm(p => ({ ...p, amount: val }))}
                 placeholder="0"
-                dir="ltr"
               />
               {manualForm.item && categoryExpenses[manualForm.catKey]?.[manualForm.item] > 0 && (
                 <p className="text-xs text-slate-500">

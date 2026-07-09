@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 const ASSET_CATEGORIES = [
   { key: 'cash', label: 'מזומנים', icon: Wallet },
@@ -120,12 +121,12 @@ function ItemForm({ item, isLiability, onSave, onCancel }) {
           <div className="space-y-1">
             <Label>יתרת חוב</Label>
             <p className="text-xs text-slate-400">הסכום שנותר לשלם</p>
-            <Input type="number" value={form.balance} onChange={e => setForm({ ...form, balance: e.target.value })} dir="ltr" />
+            <FormattedNumberInput value={form.balance} onChange={val => setForm({ ...form, balance: val })} />
           </div>
           <div className="space-y-1">
             <Label>תשלום חודשי</Label>
             <p className="text-xs text-slate-400">כמה משלמים כל חודש</p>
-            <Input type="number" value={form.monthly_payment} onChange={e => setForm({ ...form, monthly_payment: e.target.value })} dir="ltr" />
+            <FormattedNumberInput value={form.monthly_payment} onChange={val => setForm({ ...form, monthly_payment: val })} />
           </div>
           <div className="space-y-1">
             <Label>ריבית שנתית (%)</Label>
@@ -138,12 +139,12 @@ function ItemForm({ item, isLiability, onSave, onCancel }) {
           <div className="space-y-1">
             <Label>שווי נוכחי</Label>
             <p className="text-xs text-slate-400">הערך הנוכחי של הנכס בשקלים</p>
-            <Input type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} dir="ltr" />
+            <FormattedNumberInput value={form.value} onChange={val => setForm({ ...form, value: val })} />
           </div>
           <div className="space-y-1">
             <Label>תזרים חודשי (אופציונלי)</Label>
             <p className="text-xs text-slate-400">הכנסה חודשית מהנכס, לדוגמה שכירות</p>
-            <Input type="number" value={form.monthly_income} onChange={e => setForm({ ...form, monthly_income: e.target.value })} dir="ltr" />
+            <FormattedNumberInput value={form.monthly_income} onChange={val => setForm({ ...form, monthly_income: val })} />
           </div>
         </>
       )}

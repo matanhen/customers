@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import FinancialGoals from './FinancialGoals';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -354,10 +355,9 @@ export default function MonthlyPlanning({ userId }) {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <Input
-                type="number"
-                value={planData.expected_income || ''}
-                onChange={(e) => updatePlanData({ expected_income: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.expected_income}
+                onChange={(val) => updatePlanData({ expected_income: val })}
                 placeholder="הזן הכנסה צפויה"
                 className="text-lg font-medium"
               />
@@ -414,10 +414,9 @@ export default function MonthlyPlanning({ userId }) {
                 <div className="w-3 h-3 rounded-full bg-emerald-500" />
                 חסכונות
               </Label>
-              <Input
-                type="number"
-                value={planData.savings || ''}
-                onChange={(e) => updatePlanData({ savings: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.savings}
+                onChange={(val) => updatePlanData({ savings: val })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -431,10 +430,9 @@ export default function MonthlyPlanning({ userId }) {
                 <div className="w-3 h-3 rounded-full bg-blue-500" />
                 הוצאות קבועות
               </Label>
-              <Input
-                type="number"
-                value={planData.fixed_expenses || ''}
-                onChange={(e) => updatePlanData({ fixed_expenses: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.fixed_expenses}
+                onChange={(val) => updatePlanData({ fixed_expenses: val })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -448,10 +446,9 @@ export default function MonthlyPlanning({ userId }) {
                 <div className="w-3 h-3 rounded-full bg-purple-500" />
                 יתרת הוצאות
               </Label>
-              <Input
-                type="number"
-                value={planData.variable_expenses || ''}
-                onChange={(e) => updatePlanData({ variable_expenses: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.variable_expenses}
+                onChange={(val) => updatePlanData({ variable_expenses: val })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -481,10 +478,9 @@ export default function MonthlyPlanning({ userId }) {
                 <TrendingUp className="w-4 h-4 text-blue-600" />
                 השקעות
               </Label>
-              <Input
-                type="number"
-                value={planData.investments_allocation || ''}
-                onChange={(e) => updatePlanData({ investments_allocation: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.investments_allocation}
+                onChange={(val) => updatePlanData({ investments_allocation: val })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -498,10 +494,9 @@ export default function MonthlyPlanning({ userId }) {
                 <Target className="w-4 h-4 text-pink-600" />
                 חיסכון חלומות
               </Label>
-              <Input
-                type="number"
-                value={planData.dreams_savings || ''}
-                onChange={(e) => updatePlanData({ dreams_savings: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.dreams_savings}
+                onChange={(val) => updatePlanData({ dreams_savings: val })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -515,10 +510,9 @@ export default function MonthlyPlanning({ userId }) {
                 <Shield className="w-4 h-4 text-green-600" />
                 קרן ביטחון
               </Label>
-              <Input
-                type="number"
-                value={planData.emergency_fund_allocation || ''}
-                onChange={(e) => updatePlanData({ emergency_fund_allocation: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.emergency_fund_allocation}
+                onChange={(val) => updatePlanData({ emergency_fund_allocation: val })}
                 placeholder="סכום"
               />
               <p className="text-sm text-gray-500">
@@ -551,10 +545,9 @@ export default function MonthlyPlanning({ userId }) {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <Label>סכום נוכחי בקרן</Label>
-              <Input
-                type="number"
-                value={planData.emergency_fund_current || ''}
-                onChange={(e) => updatePlanData({ emergency_fund_current: parseFloat(e.target.value) || 0 })}
+              <FormattedNumberInput
+                value={planData.emergency_fund_current}
+                onChange={(val) => updatePlanData({ emergency_fund_current: val })}
                 placeholder="סכום נוכחי"
               />
             </div>

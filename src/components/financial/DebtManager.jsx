@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 export default function DebtManager({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -423,19 +424,17 @@ export default function DebtManager({ userId }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>סכום כולל</Label>
-                    <Input
-                      type="number"
-                      value={debtForm.total_amount || ''}
-                      onChange={(e) => setDebtForm({ ...debtForm, total_amount: parseFloat(e.target.value) || 0 })}
+                    <FormattedNumberInput
+                      value={debtForm.total_amount}
+                      onChange={(val) => setDebtForm({ ...debtForm, total_amount: val })}
                       placeholder="100000"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>יתרה נוכחית</Label>
-                    <Input
-                      type="number"
-                      value={debtForm.remaining_amount || ''}
-                      onChange={(e) => setDebtForm({ ...debtForm, remaining_amount: parseFloat(e.target.value) || 0 })}
+                    <FormattedNumberInput
+                      value={debtForm.remaining_amount}
+                      onChange={(val) => setDebtForm({ ...debtForm, remaining_amount: val })}
                       placeholder="80000"
                     />
                   </div>
@@ -443,19 +442,17 @@ export default function DebtManager({ userId }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>תשלום מינימום</Label>
-                    <Input
-                      type="number"
-                      value={debtForm.minimum_payment || ''}
-                      onChange={(e) => setDebtForm({ ...debtForm, minimum_payment: parseFloat(e.target.value) || 0 })}
+                    <FormattedNumberInput
+                      value={debtForm.minimum_payment}
+                      onChange={(val) => setDebtForm({ ...debtForm, minimum_payment: val })}
                       placeholder="2000"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>תשלום חודשי</Label>
-                    <Input
-                      type="number"
-                      value={debtForm.current_payment || ''}
-                      onChange={(e) => setDebtForm({ ...debtForm, current_payment: parseFloat(e.target.value) || 0 })}
+                    <FormattedNumberInput
+                      value={debtForm.current_payment}
+                      onChange={(val) => setDebtForm({ ...debtForm, current_payment: val })}
                       placeholder="2500"
                     />
                   </div>
@@ -671,10 +668,9 @@ export default function DebtManager({ userId }) {
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>סכום הלוואה חדשה</Label>
-                  <Input
-                    type="number"
-                    value={simulationForm.new_amount || ''}
-                    onChange={(e) => setSimulationForm({ ...simulationForm, new_amount: parseFloat(e.target.value) || 0 })}
+                  <FormattedNumberInput
+                    value={simulationForm.new_amount}
+                    onChange={(val) => setSimulationForm({ ...simulationForm, new_amount: val })}
                     placeholder="סכום"
                     className="text-lg font-bold"
                   />
