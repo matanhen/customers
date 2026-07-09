@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
       result = await base44.asServiceRole.entities[entityName].create({ ...data, user_id: clientUserId });
     }
 
-    return Response.json({ data: result });
+    return Response.json(result);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
