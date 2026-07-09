@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark, Lock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
@@ -240,11 +240,37 @@ export default function Balance() {
     || legacyLiabilities
     || [];
 
-  const { data: pensionData = [] } = useQuery({
-    queryKey: ['pensionData', userId],
-    queryFn: () => base44.entities.PensionData.filter({ user_id: userId }),
+  const isAdvisorOrAdmin = user?.user_type === 'advisor' || user?.user_type === 'admin';
+  const isViewingOther = !!user && user.id !== userId;
+  const viewingClientEmail = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
+  })();
+
+  const { data: rawPensionData = [] } = useQuery({
+    queryKey: ['pensionData', userId, user?.id, isViewingOther, isAdvisorOrAdmin],
+    queryFn: async () => {
+      if (!userId) return [];
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'PensionData' });
+        return response.data.data;
+      }
+      return base44.entities.PensionData.filter({ user_id: userId });
+    },
     enabled: !!userId,
   });
+
+  // Deduplicate by gender+fund_type, keeping the most recently updated record
+  const pensionData = useMemo(() => {
+    const map = new Map();
+    for (const p of rawPensionData) {
+      const key = `${p.gender}-${p.fund_type}`;
+      const existing = map.get(key);
+      if (!existing || new Date(p.updated_date || p.created_date || 0) > new Date(existing.updated_date || existing.created_date || 0)) {
+        map.set(key, p);
+      }
+    }
+    return Array.from(map.values());
+  }, [rawPensionData]);
 
   const totalAssets = assets.reduce((s, a) => s + (Number(a.value) || 0), 0);
   const totalLiabilities = liabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
