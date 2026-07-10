@@ -94,6 +94,28 @@ export function isVariableItem(itemName) {
   return !FIXED_EXPENSE_ITEMS.has(itemName);
 }
 
+// Weekly breakdown helpers - each tracking table entry can be either a legacy plain number
+// (treated as week1) or an object { week1, week2, week3, week4 }.
+export function getItemWeekAmount(entry, week) {
+  if (entry == null) return 0;
+  if (typeof entry === 'number') return week === 1 ? entry : 0;
+  return entry[`week${week}`] || 0;
+}
+
+export function setItemWeekAmount(entry, week, value) {
+  const base = typeof entry === 'number'
+    ? { week1: entry, week2: 0, week3: 0, week4: 0 }
+    : { week1: 0, week2: 0, week3: 0, week4: 0, ...(entry || {}) };
+  base[`week${week}`] = value;
+  return base;
+}
+
+export function getItemMonthTotal(entry) {
+  if (entry == null) return 0;
+  if (typeof entry === 'number') return entry;
+  return (entry.week1 || 0) + (entry.week2 || 0) + (entry.week3 || 0) + (entry.week4 || 0);
+}
+
 // Default expense structure for new users
 export function getDefaultExpenses() {
   const result = {};

@@ -19,9 +19,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
 import ExpenseTrackingTable from './ExpenseTrackingTable';
-import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, isVariableItem } from './expenseCategories';
+import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, isVariableItem, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
-import WeeklyVariableTracker from './WeeklyVariableTracker';
+import WeeklyVariableTracker, { getFinMonthAnchor } from './WeeklyVariableTracker';
 
 export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -31,6 +31,7 @@ export default function ExpenseTracking({ userId }) {
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [manualForm, setManualForm] = useState({ catKey: '', item: '', amount: '' });
   const [currentUser, setCurrentUser] = useState(null);
+  const [selectedWeek, setSelectedWeek] = useState(() => getFinMonthAnchor().currentWeek);
 
   // Credit payment form state
   const [creditForm, setCreditForm] = useState({
@@ -184,11 +185,11 @@ export default function ExpenseTracking({ userId }) {
   // The table gives { [catKey]: { [item]: amount } }
   // We need to flatten it to { [item]: amount } for fixed_expenses
   const handleExpenseTableChange = (categoryExpenses) => {
-    // Flatten all categories into a single fixed_expenses dict
+    // Flatten all categories into a single fixed_expenses dict (monthly totals, summed across all weeks)
     const flat = {};
     Object.values(categoryExpenses).forEach(catItems => {
-      Object.entries(catItems).forEach(([item, amount]) => {
-        flat[item] = (flat[item] || 0) + (amount || 0);
+      Object.entries(catItems).forEach(([item, entry]) => {
+        flat[item] = (flat[item] || 0) + getItemMonthTotal(entry);
       });
     });
     const newData = { ...trackingData, fixed_expenses: flat, _categoryExpenses: categoryExpenses };
@@ -251,7 +252,9 @@ export default function ExpenseTracking({ userId }) {
     const amount = parseFloat(manualForm.amount) || 0;
     const newCatExpenses = { ...categoryExpenses };
     if (!newCatExpenses[manualForm.catKey]) newCatExpenses[manualForm.catKey] = {};
-    newCatExpenses[manualForm.catKey][manualForm.item] = (newCatExpenses[manualForm.catKey][manualForm.item] || 0) + amount;
+    const currentEntry = newCatExpenses[manualForm.catKey][manualForm.item];
+    const currentWeekAmount = getItemWeekAmount(currentEntry, selectedWeek);
+    newCatExpenses[manualForm.catKey][manualForm.item] = setItemWeekAmount(currentEntry, selectedWeek, currentWeekAmount + amount);
     handleExpenseTableChange(newCatExpenses);
     setManualForm({ catKey: '', item: '', amount: '' });
     setShowManualDialog(false);
@@ -332,6 +335,8 @@ export default function ExpenseTracking({ userId }) {
         actualVariableSpent={actualVariableSpent}
         weeklySnapshots={trackingData.weekly_snapshots}
         onUpdateSnapshot={updateWeeklySnapshot}
+        selectedWeek={selectedWeek}
+        onWeekChange={setSelectedWeek}
       />
 
       {/* Actual Income */}
@@ -501,6 +506,7 @@ export default function ExpenseTracking({ userId }) {
       {/* Expense Table */}
       <ExpenseTrackingTable
         expenses={categoryExpenses}
+        selectedWeek={selectedWeek}
         onChange={handleExpenseTableChange}
       />
 
@@ -605,9 +611,9 @@ export default function ExpenseTracking({ userId }) {
                 onChange={val => setManualForm(p => ({ ...p, amount: val }))}
                 placeholder="0"
               />
-              {manualForm.item && categoryExpenses[manualForm.catKey]?.[manualForm.item] > 0 && (
+              {manualForm.item && getItemWeekAmount(categoryExpenses[manualForm.catKey]?.[manualForm.item], selectedWeek) > 0 && (
                 <p className="text-xs text-slate-500">
-                  סכום נוכחי: ₪{(categoryExpenses[manualForm.catKey][manualForm.item] || 0).toLocaleString()} — יתווסף לסכום הקיים
+                  סכום נוכחי בשבוע {selectedWeek}: ₪{getItemWeekAmount(categoryExpenses[manualForm.catKey]?.[manualForm.item], selectedWeek).toLocaleString()} — יתווסף לסכום הקיים
                 </p>
               )}
             </div>
@@ -633,7 +639,9 @@ export default function ExpenseTracking({ userId }) {
               if (cat.items.includes(item.category)) { catKey = cat.key; break; }
             }
             if (!newCatExpenses[catKey]) newCatExpenses[catKey] = {};
-            newCatExpenses[catKey][item.category] = (newCatExpenses[catKey][item.category] || 0) + item.amount;
+            const currentEntry = newCatExpenses[catKey][item.category];
+            const currentWeekAmount = getItemWeekAmount(currentEntry, selectedWeek);
+            newCatExpenses[catKey][item.category] = setItemWeekAmount(currentEntry, selectedWeek, currentWeekAmount + item.amount);
           });
           handleExpenseTableChange(newCatExpenses);
         }}
@@ -650,7 +658,9 @@ export default function ExpenseTracking({ userId }) {
               if (cat.items.includes(item.category)) { catKey = cat.key; break; }
             }
             if (!newCatExpenses[catKey]) newCatExpenses[catKey] = {};
-            newCatExpenses[catKey][item.category] = (newCatExpenses[catKey][item.category] || 0) + item.amount;
+            const currentEntry = newCatExpenses[catKey][item.category];
+            const currentWeekAmount = getItemWeekAmount(currentEntry, selectedWeek);
+            newCatExpenses[catKey][item.category] = setItemWeekAmount(currentEntry, selectedWeek, currentWeekAmount + item.amount);
           });
           handleExpenseTableChange(newCatExpenses);
         }}

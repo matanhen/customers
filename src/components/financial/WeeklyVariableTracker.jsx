@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { format, lastDayOfMonth } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { CalendarDays, ChevronRight, ChevronLeft } from 'lucide-react';
 
 // Financial weeks run 10th-to-10th: week1=10-16, week2=17-23, week3=24-end, week4=1-9 (next month)
-function getFinMonthAnchor() {
+export function getFinMonthAnchor() {
   const today = new Date();
   const day = today.getDate();
   const year = today.getFullYear();
@@ -46,9 +46,10 @@ export default function WeeklyVariableTracker({
   actualVariableSpent = 0,
   weeklySnapshots = {},
   onUpdateSnapshot,
+  selectedWeek,
+  onWeekChange,
 }) {
   const { finYear, finMonth, currentWeek: currentRealWeek } = getFinMonthAnchor();
-  const [selectedWeek, setSelectedWeek] = useState(currentRealWeek);
   const backfilledRef = useRef(false);
 
   // Ensure we have a baseline snapshot for every week up to the current real week.
@@ -82,8 +83,8 @@ export default function WeeklyVariableTracker({
   const weekProgress = weeklyBudget > 0 ? Math.min(100, Math.round((spentThisWeek / weeklyBudget) * 100)) : 0;
   const notReached = selectedWeek > currentRealWeek;
 
-  const goPrev = () => setSelectedWeek((w) => Math.max(1, w - 1));
-  const goNext = () => setSelectedWeek((w) => Math.min(4, w + 1));
+  const goPrev = () => onWeekChange && onWeekChange(Math.max(1, selectedWeek - 1));
+  const goNext = () => onWeekChange && onWeekChange(Math.min(4, selectedWeek + 1));
 
   if (!plannedVariable) {
     return (

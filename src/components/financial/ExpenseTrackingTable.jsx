@@ -3,14 +3,15 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { EXPENSE_CATEGORIES } from './expenseCategories';
+import { EXPENSE_CATEGORIES, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
 
 /**
- * Like ExpensesTable but for a single month (no month1/2/3 columns).
- * expenses = { [catKey]: { [itemName]: number } }
+ * Like ExpensesTable but for a single month, broken down into 4 financial weeks.
+ * expenses = { [catKey]: { [itemName]: number | { week1, week2, week3, week4 } } }
+ * selectedWeek: 1-4, which week's amounts are shown/edited
  * onChange(updatedExpenses)
  */
-export default function ExpenseTrackingTable({ expenses = {}, onChange, disabled = false }) {
+export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, onChange, disabled = false }) {
   const [expandedCategories, setExpandedCategories] = useState(
     () => Object.fromEntries(EXPENSE_CATEGORIES.map(cat => [cat.key, true]))
   );
@@ -21,11 +22,12 @@ export default function ExpenseTrackingTable({ expenses = {}, onChange, disabled
   };
 
   const updateCell = (catKey, itemName, value) => {
+    const currentEntry = (expenses[catKey] || {})[itemName];
     const updated = {
       ...expenses,
       [catKey]: {
         ...(expenses[catKey] || {}),
-        [itemName]: parseFloat(value) || 0,
+        [itemName]: setItemWeekAmount(currentEntry, selectedWeek, parseFloat(value) || 0),
       },
     };
     onChange(updated);
@@ -44,16 +46,17 @@ export default function ExpenseTrackingTable({ expenses = {}, onChange, disabled
       ...expenses,
       [catKey]: {
         ...(expenses[catKey] || {}),
-        [name]: 0,
+        [name]: { week1: 0, week2: 0, week3: 0, week4: 0 },
       },
     };
     onChange(updated);
     setNewItemName(prev => ({ ...prev, [catKey]: '' }));
   };
 
+  // Category/grand totals always reflect the FULL month (sum of all 4 weeks)
   const getCategoryTotal = (catKey) => {
     const catData = expenses[catKey] || {};
-    return Math.round(Object.values(catData).reduce((s, v) => s + (v || 0), 0));
+    return Math.round(Object.values(catData).reduce((s, entry) => s + getItemMonthTotal(entry), 0));
   };
 
   const grandTotal = EXPENSE_CATEGORIES.reduce((s, cat) => s + getCategoryTotal(cat.key), 0);
@@ -62,9 +65,12 @@ export default function ExpenseTrackingTable({ expenses = {}, onChange, disabled
     <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 w-full overflow-hidden" dir="rtl">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-slate-800 text-base sm:text-lg">טבלת מעקב הוצאות</CardTitle>
+          <div>
+            <CardTitle className="text-slate-800 text-base sm:text-lg">טבלת מעקב הוצאות</CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">עריכה עבור שבוע {selectedWeek} - הסכומים מוצגים כסה"כ חודשי</p>
+          </div>
           <div className="bg-rose-50 border border-rose-200 rounded-lg px-3 py-1 text-rose-700 font-bold text-sm">
-            סה"כ: ₪{grandTotal.toLocaleString()}
+            סה"כ לחודש: ₪{grandTotal.toLocaleString()}
           </div>
         </div>
       </CardHeader>
@@ -97,7 +103,7 @@ export default function ExpenseTrackingTable({ expenses = {}, onChange, disabled
                       <thead>
                         <tr className="text-slate-500 text-xs">
                           <th className="text-right pb-2 font-medium pr-2">סעיף</th>
-                          <th className="pb-2 font-medium text-center w-32">סכום (₪)</th>
+                          <th className="pb-2 font-medium text-center w-32">שבוע {selectedWeek} (₪)</th>
                           {!disabled && <th className="w-8"></th>}
                         </tr>
                       </thead>
@@ -108,7 +114,7 @@ export default function ExpenseTrackingTable({ expenses = {}, onChange, disabled
                             <td className="py-1 px-1">
                               <Input
                                 type="number"
-                                value={catData[item] || ''}
+                                value={getItemWeekAmount(catData[item], selectedWeek) || ''}
                                 onChange={e => updateCell(cat.key, item, e.target.value)}
                                 className="h-7 text-xs text-center border-slate-200 px-1"
                                 placeholder="0"
@@ -125,7 +131,7 @@ export default function ExpenseTrackingTable({ expenses = {}, onChange, disabled
                             <td className="py-1 px-1">
                               <Input
                                 type="number"
-                                value={catData[item] || ''}
+                                value={getItemWeekAmount(catData[item], selectedWeek) || ''}
                                 onChange={e => updateCell(cat.key, item, e.target.value)}
                                 className="h-7 text-xs text-center border-blue-200 px-1"
                                 placeholder="0"
