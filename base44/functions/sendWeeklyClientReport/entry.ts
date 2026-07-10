@@ -10,6 +10,11 @@ function getCurrentWeekNumber(day) {
   return 4;
 }
 
+function formatDateTime(iso) {
+  if (!iso) return null;
+  return String(iso).slice(0, 19);
+}
+
 function getItemWeekAmount(entry, week) {
   if (entry == null) return 0;
   if (typeof entry === 'number') return week === 1 ? entry : 0;
@@ -77,8 +82,8 @@ Deno.serve(async (req) => {
         email: client.email,
         workbook_total_questions: totalQuestions,
         workbook_answered_questions: answeredCount,
-        first_login_date: assignment.first_login_date || null,
-        last_login_date: assignment.last_login_date || null,
+        first_login_date: formatDateTime(assignment.first_login_date),
+        last_login_date: formatDateTime(assignment.last_login_date),
         planned_income: plan.expected_income || 0,
         planned_savings: plan.savings || 0,
         planned_fixed_expenses: plan.fixed_expenses || 0,
