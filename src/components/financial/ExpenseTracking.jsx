@@ -19,8 +19,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
 import ExpenseTrackingTable from './ExpenseTrackingTable';
-import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS } from './expenseCategories';
+import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, isVariableItem } from './expenseCategories';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import WeeklyVariableTracker from './WeeklyVariableTracker';
 
 export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -45,7 +46,9 @@ export default function ExpenseTracking({ userId }) {
     variable_expenses: {},
     custom_expenses: [],
     credit_payments: [],
-    freedom_transfer_done: false
+    freedom_transfer_done: false,
+    weekly_snapshot_week: null,
+    weekly_snapshot_amount: 0
   });
 
   const queryClient = useQueryClient();
@@ -115,7 +118,9 @@ export default function ExpenseTracking({ userId }) {
         variable_expenses: currentTracking.variable_expenses || {},
         custom_expenses: currentTracking.custom_expenses || [],
         credit_payments: currentTracking.credit_payments || [],
-        freedom_transfer_done: currentTracking.freedom_transfer_done || false
+        freedom_transfer_done: currentTracking.freedom_transfer_done || false,
+        weekly_snapshot_week: currentTracking.weekly_snapshot_week || null,
+        weekly_snapshot_amount: currentTracking.weekly_snapshot_amount || 0
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     } else if (!trackingLoading && allTracking !== undefined) {
@@ -137,7 +142,9 @@ export default function ExpenseTracking({ userId }) {
         variable_expenses: {},
         custom_expenses: [],
         credit_payments: carriedPayments,
-        freedom_transfer_done: false
+        freedom_transfer_done: false,
+        weekly_snapshot_week: null,
+        weekly_snapshot_amount: 0
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     }
@@ -273,6 +280,24 @@ export default function ExpenseTracking({ userId }) {
   const expectedVariableSpent = weeklyVariableBudget * currentWeek;
   const isOnTrack = totalActual <= expectedVariableSpent + (plannedTotal - plannedVariable);
 
+  // Actual variable (discretionary) spend from the tracking table, for the weekly tracker
+  const actualVariableSpent = (() => {
+    let total = 0;
+    Object.entries(trackingData.fixed_expenses || {}).forEach(([item, amount]) => {
+      if (isVariableItem(item)) total += (amount || 0);
+    });
+    (trackingData.custom_expenses || []).forEach(exp => {
+      if (exp.type === 'variable') total += (exp.amount || 0);
+    });
+    return total;
+  })();
+
+  const updateWeeklySnapshot = (week, amount) => {
+    const newData = { ...trackingData, weekly_snapshot_week: week, weekly_snapshot_amount: amount };
+    setTrackingData(newData);
+    saveNow(newData);
+  };
+
   const getRecommendations = () => {
     if (plannedTotal === 0) return [];
     if (!isOnTrack) {
@@ -303,6 +328,15 @@ export default function ExpenseTracking({ userId }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Weekly Variable Expense Tracker */}
+      <WeeklyVariableTracker
+        plannedVariable={plannedVariable}
+        actualVariableSpent={actualVariableSpent}
+        weeklySnapshotWeek={trackingData.weekly_snapshot_week}
+        weeklySnapshotAmount={trackingData.weekly_snapshot_amount}
+        onUpdateSnapshot={updateWeeklySnapshot}
+      />
 
       {/* Actual Income */}
       <Card className="border-2 border-green-300 bg-green-50/50">

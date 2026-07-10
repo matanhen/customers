@@ -1,12 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation } from '@tanstack/react-query';
 import { format, lastDayOfMonth } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { CalendarDays } from 'lucide-react';
-import { isVariableItem } from './expenseCategories';
 
 // Financial weeks run 10th-to-10th: week1=10-16, week2=17-23, week3=24-end, week4=1-9 (next month)
 function getFinancialWeekInfo() {
@@ -22,7 +19,6 @@ function getFinancialWeekInfo() {
   else { week = 4; finYear = month === 0 ? year - 1 : year; finMonth = month === 0 ? 11 : month - 1; }
 
   const finMonthDate = new Date(finYear, finMonth, 1);
-  const financialMonthKey = format(finMonthDate, 'yyyy-MM');
   const monthLabel = format(finMonthDate, 'MMMM', { locale: he });
 
   let rangeLabel = '';
@@ -34,71 +30,35 @@ function getFinancialWeekInfo() {
     rangeLabel = `1-9 ב${nextMonthLabel}`;
   }
 
-  return { week, financialMonthKey, rangeLabel };
+  return { week, rangeLabel };
 }
 
-export default function WeeklyVariableTracker({ userId, monthlyPlans = [], currentUser, isViewingOther, isAdvisorOrAdmin, viewingClientEmail }) {
-  const { week, financialMonthKey, rangeLabel } = getFinancialWeekInfo();
-  const processedRef = useRef(null);
-
-  const plan = monthlyPlans.find(p => p.month === financialMonthKey);
-  const plannedVariable = plan?.variable_expenses || 0;
+/**
+ * Weekly progress for variable (discretionary) expenses, driven by the same data
+ * that powers the monthly Expense Tracking table.
+ * plannedVariable: the "יתרת הוצאות" budget from the Monthly Plan.
+ * actualVariableSpent: sum of variable items entered so far this month in the tracking table.
+ * weeklySnapshotWeek/weeklySnapshotAmount: persisted baseline for the current week.
+ * onUpdateSnapshot(week, amount): called once when a new week starts, to persist the new baseline.
+ */
+export default function WeeklyVariableTracker({
+  plannedVariable = 0,
+  actualVariableSpent = 0,
+  weeklySnapshotWeek,
+  weeklySnapshotAmount,
+  onUpdateSnapshot,
+}) {
+  const { week, rangeLabel } = getFinancialWeekInfo();
+  const processedWeekRef = useRef(null);
   const weeklyBudget = plannedVariable / 4;
 
-  const { data: trackingList = [] } = useQuery({
-    queryKey: ['weeklyExpenseTracking', userId, financialMonthKey, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
-    queryFn: async () => {
-      if (isViewingOther && isAdvisorOrAdmin) {
-        const response = await base44.functions.invoke('getClientData', {
-          clientUserId: userId,
-          clientEmail: viewingClientEmail,
-          entityName: 'ExpenseTracking'
-        });
-        return (response.data.data || []).filter(t => t.month === financialMonthKey);
-      }
-      return base44.entities.ExpenseTracking.filter({ user_id: userId, month: financialMonthKey });
-    },
-    enabled: !!userId && !!currentUser && !!plan,
-    staleTime: 0,
-  });
-
-  const tracking = trackingList[0];
-
-  const actualVariableSpent = (() => {
-    if (!tracking) return 0;
-    let total = 0;
-    Object.entries(tracking.fixed_expenses || {}).forEach(([item, amount]) => {
-      if (isVariableItem(item)) total += (amount || 0);
-    });
-    (tracking.custom_expenses || []).forEach(exp => {
-      if (exp.type === 'variable') total += (exp.amount || 0);
-    });
-    return total;
-  })();
-
-  const snapshotMutation = useMutation({
-    mutationFn: async (data) => {
-      if (isViewingOther && isAdvisorOrAdmin) {
-        return base44.functions.invoke('saveClientData', {
-          entityName: 'ExpenseTracking',
-          clientUserId: userId,
-          data: { ...data, user_id: userId, month: financialMonthKey },
-          recordId: tracking?.id || null,
-        });
-      }
-      return base44.entities.ExpenseTracking.update(tracking.id, data);
-    },
-  });
-
   useEffect(() => {
-    if (!tracking) return;
-    const key = `${tracking.id}_${week}`;
-    if (processedRef.current === key) return;
-    if (tracking.weekly_snapshot_week === week) { processedRef.current = key; return; }
-    processedRef.current = key;
-    snapshotMutation.mutate({ weekly_snapshot_week: week, weekly_snapshot_amount: actualVariableSpent });
+    if (weeklySnapshotWeek === week) return;
+    if (processedWeekRef.current === week) return;
+    processedWeekRef.current = week;
+    onUpdateSnapshot && onUpdateSnapshot(week, actualVariableSpent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tracking?.id, week]);
+  }, [week, weeklySnapshotWeek]);
 
   if (!plannedVariable) {
     return (
@@ -119,7 +79,7 @@ export default function WeeklyVariableTracker({ userId, monthlyPlans = [], curre
     );
   }
 
-  const baseline = tracking?.weekly_snapshot_week === week ? (tracking.weekly_snapshot_amount || 0) : actualVariableSpent;
+  const baseline = weeklySnapshotWeek === week ? (weeklySnapshotAmount || 0) : actualVariableSpent;
   const spentThisWeek = Math.max(0, actualVariableSpent - baseline);
   const remainingThisWeek = weeklyBudget - spentThisWeek;
   const weekProgress = weeklyBudget > 0 ? Math.min(100, Math.round((spentThisWeek / weeklyBudget) * 100)) : 0;
