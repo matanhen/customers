@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const WEBHOOK_URL = 'https://hook.eu2.make.com/kmalvuxee9ycmpxjhqj268d8i1wgh58x';
+const WEBHOOK_URL = 'https://hook.eu2.make.com/v5qurfu32a27dc8lhefhvkr9xjbdm5fy';
 
 // Financial weeks run 10th-to-16th / 17th-23rd / 24th-end / 1st-9th (next month)
 function getCurrentWeekNumber(day) {
@@ -42,11 +42,12 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (const client of clients) {
-      const [answersRecords, assignments, plans, trackings] = await Promise.all([
+      const [answersRecords, assignments, plans, trackings, balances] = await Promise.all([
         base44.asServiceRole.entities.WorkbookAnswers.filter({ user_id: client.id }),
         base44.asServiceRole.entities.ClientAdvisorAssignment.filter({ client_email: client.email }),
         base44.asServiceRole.entities.MonthlyPlan.filter({ user_id: client.id, month: currentMonth }),
         base44.asServiceRole.entities.ExpenseTracking.filter({ user_id: client.id, month: currentMonth }),
+        base44.asServiceRole.entities.MonthlyBalance.filter({ user_id: client.id, month: currentMonth }),
       ]);
 
       const answers = answersRecords[0]?.answers || {};
@@ -55,6 +56,11 @@ Deno.serve(async (req) => {
       const assignment = assignments[0] || {};
       const plan = plans[0] || {};
       const tracking = trackings[0] || {};
+      const balance = balances[0] || {};
+
+      const totalAssets = (balance.assets?.items || []).reduce((s, item) => s + (item.value || 0), 0);
+      const totalLiabilities = (balance.liabilities?.items || []).reduce((s, item) => s + (item.balance || 0), 0);
+      const netWorth = totalAssets - totalLiabilities;
 
       const plannedVariable = plan.variable_expenses || 0;
       const weeklyBudgetTotal = plannedVariable / 4;
@@ -80,6 +86,9 @@ Deno.serve(async (req) => {
         weekly_budget_total: Math.round(weeklyBudgetTotal),
         weekly_expenses_total: Math.round(weeklyExpensesTotal),
         current_week_number: currentWeekNumber,
+        total_assets: Math.round(totalAssets),
+        total_liabilities: Math.round(totalLiabilities),
+        net_worth: Math.round(netWorth),
       };
 
       const res = await fetch(WEBHOOK_URL, {
