@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import FinancialGoals from './FinancialGoals';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import WeeklyVariableTracker from './WeeklyVariableTracker';
 
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -311,6 +312,16 @@ export default function MonthlyPlanning({ userId }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Weekly Variable Expense Tracker */}
+      <WeeklyVariableTracker
+        userId={userId}
+        monthlyPlans={monthlyPlans}
+        currentUser={currentUser}
+        isViewingOther={isViewingOther}
+        isAdvisorOrAdmin={isAdvisorOrAdmin}
+        viewingClientEmail={viewingClientEmail}
+      />
 
       {/* Notes */}
       <Card className="border-2 border-amber-200 bg-amber-50/30">

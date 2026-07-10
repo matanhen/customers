@@ -82,6 +82,18 @@ export function getAllExpenseItems() {
 // Flat list of all item names
 export const ALL_EXPENSE_ITEMS = EXPENSE_CATEGORIES.flatMap(cat => cat.items);
 
+// Items considered "fixed" (recurring/committed) expenses - everything else counts as variable
+export const FIXED_EXPENSE_ITEMS = new Set([
+  'משכנתא', 'שכירות', 'ארנונה', 'חשמל', 'מים', 'גז', 'טלויזיה ואינטרנט', 'טלפון נייד',
+  'ועד בית', 'ביטוח משכנתא', 'ביטוחי רכב', 'טסט', 'ביטוחי חיים', 'ביטוחי בריאות',
+  'קופת חולים', 'חינוך', 'החזר הלוואות', 'הוראות קבע', 'עמלות וריביות בנקים', 'ביטוח לאומי',
+]);
+
+// Whether an expense item name should count as a "variable" (discretionary) expense
+export function isVariableItem(itemName) {
+  return !FIXED_EXPENSE_ITEMS.has(itemName);
+}
+
 // Default expense structure for new users
 export function getDefaultExpenses() {
   const result = {};
