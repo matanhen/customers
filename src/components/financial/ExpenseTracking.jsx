@@ -47,8 +47,7 @@ export default function ExpenseTracking({ userId }) {
     custom_expenses: [],
     credit_payments: [],
     freedom_transfer_done: false,
-    weekly_snapshot_week: null,
-    weekly_snapshot_amount: 0
+    weekly_snapshots: {}
   });
 
   const queryClient = useQueryClient();
@@ -119,8 +118,7 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: currentTracking.custom_expenses || [],
         credit_payments: currentTracking.credit_payments || [],
         freedom_transfer_done: currentTracking.freedom_transfer_done || false,
-        weekly_snapshot_week: currentTracking.weekly_snapshot_week || null,
-        weekly_snapshot_amount: currentTracking.weekly_snapshot_amount || 0
+        weekly_snapshots: currentTracking.weekly_snapshots || {}
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     } else if (!trackingLoading && allTracking !== undefined) {
@@ -143,8 +141,7 @@ export default function ExpenseTracking({ userId }) {
         custom_expenses: [],
         credit_payments: carriedPayments,
         freedom_transfer_done: false,
-        weekly_snapshot_week: null,
-        weekly_snapshot_amount: 0
+        weekly_snapshots: {}
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     }
@@ -292,8 +289,8 @@ export default function ExpenseTracking({ userId }) {
     return total;
   })();
 
-  const updateWeeklySnapshot = (week, amount) => {
-    const newData = { ...trackingData, weekly_snapshot_week: week, weekly_snapshot_amount: amount };
+  const updateWeeklySnapshot = (newWeeklySnapshots) => {
+    const newData = { ...trackingData, weekly_snapshots: newWeeklySnapshots };
     setTrackingData(newData);
     saveNow(newData);
   };
@@ -333,8 +330,7 @@ export default function ExpenseTracking({ userId }) {
       <WeeklyVariableTracker
         plannedVariable={plannedVariable}
         actualVariableSpent={actualVariableSpent}
-        weeklySnapshotWeek={trackingData.weekly_snapshot_week}
-        weeklySnapshotAmount={trackingData.weekly_snapshot_amount}
+        weeklySnapshots={trackingData.weekly_snapshots}
         onUpdateSnapshot={updateWeeklySnapshot}
       />
 
