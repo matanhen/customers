@@ -100,7 +100,24 @@ export default function WeeklyVariableTracker({ userId, monthlyPlans = [], curre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracking?.id, week]);
 
-  if (!plan || !plannedVariable) return null;
+  if (!plannedVariable) {
+    return (
+      <Card className="border-2 border-teal-300 bg-teal-50/40">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg text-teal-700">
+            <CalendarDays className="w-5 h-5 text-teal-600" />
+            מעקב שבועי - הוצאות משתנות
+          </CardTitle>
+          <p className="text-sm text-gray-500">שבוע {week} ({rangeLabel})</p>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500">
+            יש להזין את "יתרת הוצאות" בתכנון החודשי כדי לראות כאן את המעקב השבועי.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const baseline = tracking?.weekly_snapshot_week === week ? (tracking.weekly_snapshot_amount || 0) : actualVariableSpent;
   const spentThisWeek = Math.max(0, actualVariableSpent - baseline);
