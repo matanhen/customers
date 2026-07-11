@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, Cell } from 'recharts';
+import { isVariableItem } from './expenseCategories';
 
 export default function BeforeAfterComparison({ userId }) {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -62,25 +63,48 @@ export default function BeforeAfterComparison({ userId }) {
   const calculateReflectionAverage = () => {
     if (!reflection) return { income: 0, fixedExpenses: 0, variableExpenses: 0 };
 
-    const incomes = reflection.incomes || {};
-    const incomeSum = ['month1','month2','month3','month4','month5','month6'].reduce((s, m) => s + (incomes[m] || 0), 0);
-    const incomeAvg = Math.round(incomeSum / 6);
+    const MONTHS6 = ['month1','month2','month3','month4','month5','month6'];
+
+    // Income - matches FinancialReflection.jsx: income_rows minus pension rows, 6-month average
+    let incomeAvg = 0;
+    if (Array.isArray(reflection.income_rows) && reflection.income_rows.length > 0) {
+      const nonPensionRows = reflection.income_rows.filter(r => r?.id !== 'pension_male' && r?.id !== 'pension_female');
+      const incomeSum = nonPensionRows.reduce((s, r) => s + (r ? MONTHS6.reduce((a, m) => a + (r[m] || 0), 0) / 6 : 0), 0);
+      incomeAvg = Math.round(incomeSum);
+    } else if (reflection.incomes) {
+      const incomes = reflection.incomes || {};
+      const incomeSum = MONTHS6.reduce((s, m) => s + (incomes[m] || 0), 0);
+      incomeAvg = Math.round(incomeSum / 6);
+    }
 
     let fixedTotal = 0;
     let variableTotal = 0;
 
-    if (reflection.fixed_expenses) {
-      Object.values(reflection.fixed_expenses).forEach(category => {
-        const sum = ['month1','month2','month3'].reduce((s, m) => s + (category?.[m] || 0), 0);
-        fixedTotal += sum / 3;
+    // Expenses - matches FinancialReflection.jsx: expenses[category][item] over 3 months
+    if (reflection.expenses && typeof reflection.expenses === 'object' && !Array.isArray(reflection.expenses) && Object.keys(reflection.expenses).length > 0) {
+      Object.values(reflection.expenses).forEach(catData => {
+        if (!catData || typeof catData !== 'object') return;
+        Object.entries(catData).forEach(([itemName, monthData]) => {
+          if (!monthData || typeof monthData !== 'object') return;
+          const sum = ['month1','month2','month3'].reduce((s, m) => s + (monthData?.[m] || 0), 0) / 3;
+          if (isVariableItem(itemName)) variableTotal += sum;
+          else fixedTotal += sum;
+        });
       });
-    }
+    } else {
+      if (reflection.fixed_expenses) {
+        Object.values(reflection.fixed_expenses).forEach(category => {
+          const sum = ['month1','month2','month3'].reduce((s, m) => s + (category?.[m] || 0), 0);
+          fixedTotal += sum / 3;
+        });
+      }
 
-    if (reflection.variable_expenses) {
-      Object.values(reflection.variable_expenses).forEach(category => {
-        const sum = ['month1','month2','month3'].reduce((s, m) => s + (category?.[m] || 0), 0);
-        variableTotal += sum / 3;
-      });
+      if (reflection.variable_expenses) {
+        Object.values(reflection.variable_expenses).forEach(category => {
+          const sum = ['month1','month2','month3'].reduce((s, m) => s + (category?.[m] || 0), 0);
+          variableTotal += sum / 3;
+        });
+      }
     }
 
     return {
