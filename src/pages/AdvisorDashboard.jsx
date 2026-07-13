@@ -18,13 +18,17 @@ import { format } from 'date-fns';
 
 const IDAN_EMAIL = 'idanhen012@gmail.com';
 const NIV_EMAIL = 'nivdavid7@gmail.com';
+const NICK_EMAIL = 'nzk.finance@gmail.com';
+const ITAY_EMAIL = 'itayb78@gmail.com';
 
 export default function AdvisorDashboard() {
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'idan' | 'niv'
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'idan' | 'niv' | 'nick' | 'itay'
   const [searchAll, setSearchAll] = useState('');
   const [searchIdan, setSearchIdan] = useState('');
   const [searchNiv, setSearchNiv] = useState('');
+  const [searchNick, setSearchNick] = useState('');
+  const [searchItay, setSearchItay] = useState('');
   const [showAddClient, setShowAddClient] = useState(false);
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientName, setNewClientName] = useState('');
@@ -152,6 +156,8 @@ export default function AdvisorDashboard() {
   // Find advisor user objects by email
   const idanAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === IDAN_EMAIL);
   const nivAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === NIV_EMAIL);
+  const nickAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === NICK_EMAIL);
+  const itayAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === ITAY_EMAIL);
 
   // Clients assigned to idan
   const idanAssignments = assignments.filter(a => a.advisor_id === idanAdvisor?.id || a.advisor_email?.toLowerCase() === IDAN_EMAIL);
@@ -164,6 +170,22 @@ export default function AdvisorDashboard() {
   // Clients assigned to niv
   const nivAssignments = assignments.filter(a => a.advisor_id === nivAdvisor?.id || a.advisor_email?.toLowerCase() === NIV_EMAIL);
   const nivClients = dedupeByEmail(nivAssignments.map(a => {
+    let c = combinedUsers.find(u => u.id === a.client_id);
+    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
+    return c;
+  }).filter(Boolean));
+
+  // Clients assigned to nick
+  const nickAssignments = assignments.filter(a => a.advisor_id === nickAdvisor?.id || a.advisor_email?.toLowerCase() === NICK_EMAIL);
+  const nickClients = dedupeByEmail(nickAssignments.map(a => {
+    let c = combinedUsers.find(u => u.id === a.client_id);
+    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
+    return c;
+  }).filter(Boolean));
+
+  // Clients assigned to itay
+  const itayAssignments = assignments.filter(a => a.advisor_id === itayAdvisor?.id || a.advisor_email?.toLowerCase() === ITAY_EMAIL);
+  const itayClients = dedupeByEmail(itayAssignments.map(a => {
     let c = combinedUsers.find(u => u.id === a.client_id);
     if (!c) c = combinedUsers.find(u => u.email === a.client_email);
     return c;
@@ -187,6 +209,8 @@ export default function AdvisorDashboard() {
   const filteredAll = filterList(clients, searchAll);
   const filteredIdan = filterList(idanClients, searchIdan);
   const filteredNiv = filterList(nivClients, searchNiv);
+  const filteredNick = filterList(nickClients, searchNick);
+  const filteredItay = filterList(itayClients, searchItay);
 
   const handleViewClient = async (client) => {
     // Try to get the real User ID via backend function (advisors can't filter User entity directly)
@@ -333,7 +357,7 @@ export default function AdvisorDashboard() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <Card className="border-0 shadow-xl shadow-[#105330]/20 bg-gradient-to-br from-[#105330]/5 to-[#c8a863]/5 overflow-hidden">
           <div className="h-1.5 bg-gradient-to-r from-[#105330] to-[#c8a863]" />
           <CardContent className="p-5">
@@ -376,6 +400,34 @@ export default function AdvisorDashboard() {
             </div>
           </CardContent>
         </Card>
+        <Card className="border-0 shadow-xl shadow-amber-100/50 bg-gradient-to-br from-amber-50 to-yellow-50 overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-amber-500 to-yellow-500" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 shadow-lg">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-amber-600 font-medium">לקוחות ניק</p>
+                {isLoading ? <Skeleton className="h-9 w-16 mt-1" /> : <p className="text-3xl font-bold text-slate-800">{nickClients.length}</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-xl shadow-rose-100/50 bg-gradient-to-br from-rose-50 to-pink-50 overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-rose-500 to-pink-500" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-rose-600 font-medium">לקוחות איתי</p>
+                {isLoading ? <Skeleton className="h-9 w-16 mt-1" /> : <p className="text-3xl font-bold text-slate-800">{itayClients.length}</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Add Client Button */}
@@ -391,6 +443,8 @@ export default function AdvisorDashboard() {
           { key: 'all', label: `כל הלקוחות (${allClients.length})` },
           { key: 'idan', label: `לקוחות - עידן חן (${idanClients.length})` },
           { key: 'niv', label: `לקוחות - ניב דוד (${nivClients.length})` },
+          { key: 'nick', label: `לקוחות - ניק (${nickClients.length})` },
+          { key: 'itay', label: `לקוחות - איתי (${itayClients.length})` },
         ].map(tab => (
           <button
             key={tab.key}
@@ -437,6 +491,28 @@ export default function AdvisorDashboard() {
               <Input placeholder="חיפוש לפי שם או אימייל..." value={searchNiv} onChange={e => setSearchNiv(e.target.value)} className="pr-12 py-6 text-lg border-slate-200 focus:border-indigo-400 rounded-xl" />
             </div>
             {renderClientList(filteredNiv, 'אין לקוחות משויכים לניב דוד')}
+          </CardContent>
+        </Card>
+      )}
+      {activeTab === 'nick' && (
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="relative mb-5">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Input placeholder="חיפוש לפי שם או אימייל..." value={searchNick} onChange={e => setSearchNick(e.target.value)} className="pr-12 py-6 text-lg border-slate-200 focus:border-indigo-400 rounded-xl" />
+            </div>
+            {renderClientList(filteredNick, 'אין לקוחות משויכים לניק')}
+          </CardContent>
+        </Card>
+      )}
+      {activeTab === 'itay' && (
+        <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="relative mb-5">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Input placeholder="חיפוש לפי שם או אימייל..." value={searchItay} onChange={e => setSearchItay(e.target.value)} className="pr-12 py-6 text-lg border-slate-200 focus:border-indigo-400 rounded-xl" />
+            </div>
+            {renderClientList(filteredItay, 'אין לקוחות משויכים לאיתי')}
           </CardContent>
         </Card>
       )}

@@ -44,24 +44,38 @@ Deno.serve(async (req) => {
     const workbookContents = await base44.asServiceRole.entities.WorkbookContent.list();
     const totalQuestions = workbookContents.reduce((sum, section) => sum + ((section.questions || []).length), 0);
 
+    // Fetch all needed data in bulk (a handful of calls total) instead of per-client queries,
+    // to avoid hitting entity API rate limits when there are many clients.
+    const [allAnswers, allAssignments, allPlans, allTrackings, allBalances] = await Promise.all([
+      base44.asServiceRole.entities.WorkbookAnswers.list(),
+      base44.asServiceRole.entities.ClientAdvisorAssignment.list(),
+      base44.asServiceRole.entities.MonthlyPlan.filter({ month: currentMonth }),
+      base44.asServiceRole.entities.ExpenseTracking.filter({ month: currentMonth }),
+      base44.asServiceRole.entities.MonthlyBalance.filter({ month: currentMonth }),
+    ]);
+
+    const answersByUserId = {};
+    allAnswers.forEach(a => { if (a.user_id) answersByUserId[a.user_id] = a; });
+    const assignmentByEmail = {};
+    allAssignments.forEach(a => { if (a.client_email) assignmentByEmail[a.client_email.toLowerCase()] = a; });
+    const planByUserId = {};
+    allPlans.forEach(p => { if (p.user_id) planByUserId[p.user_id] = p; });
+    const trackingByUserId = {};
+    allTrackings.forEach(t => { if (t.user_id) trackingByUserId[t.user_id] = t; });
+    const balanceByUserId = {};
+    allBalances.forEach(b => { if (b.user_id) balanceByUserId[b.user_id] = b; });
+
     const results = [];
 
     for (const client of clients) {
-      const [answersRecords, assignments, plans, trackings, balances] = await Promise.all([
-        base44.asServiceRole.entities.WorkbookAnswers.filter({ user_id: client.id }),
-        base44.asServiceRole.entities.ClientAdvisorAssignment.filter({ client_email: client.email }),
-        base44.asServiceRole.entities.MonthlyPlan.filter({ user_id: client.id, month: currentMonth }),
-        base44.asServiceRole.entities.ExpenseTracking.filter({ user_id: client.id, month: currentMonth }),
-        base44.asServiceRole.entities.MonthlyBalance.filter({ user_id: client.id, month: currentMonth }),
-      ]);
-
-      const answers = answersRecords[0]?.answers || {};
+      const answersRecord = answersByUserId[client.id];
+      const answers = answersRecord?.answers || {};
       const answeredCount = Object.values(answers).filter(v => v !== undefined && v !== null && v !== '').length;
 
-      const assignment = assignments[0] || {};
-      const plan = plans[0] || {};
-      const tracking = trackings[0] || {};
-      const balance = balances[0] || {};
+      const assignment = assignmentByEmail[(client.email || '').toLowerCase()] || {};
+      const plan = planByUserId[client.id] || {};
+      const tracking = trackingByUserId[client.id] || {};
+      const balance = balanceByUserId[client.id] || {};
 
       const totalAssets = (balance.assets?.items || []).reduce((s, item) => s + (item.value || 0), 0);
       const totalLiabilities = (balance.liabilities?.items || []).reduce((s, item) => s + (item.balance || 0), 0);
