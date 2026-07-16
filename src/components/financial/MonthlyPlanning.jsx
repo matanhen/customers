@@ -323,7 +323,13 @@ export default function MonthlyPlanning({ userId }) {
         <CardContent>
           <Textarea
             value={notesInput}
-            onChange={e => setNotesInput(e.target.value)}
+            onChange={e => {
+              const v = e.target.value;
+              setNotesInput(v);
+              // Route through updatePlanData so notes get the same debounced auto-save +
+              // unmount/beforeunload flush that other fields use.
+              updatePlanData({ notes: v });
+            }}
             placeholder="רשום כאן הערות חופשיות לחודש זה..."
             className="min-h-[80px] text-sm resize-none border-amber-200 focus:border-amber-400"
             dir="rtl"

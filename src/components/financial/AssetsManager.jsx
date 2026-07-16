@@ -150,6 +150,7 @@ export default function AssetsManager({ userId }) {
     };
     assetsRef.current = next;
     setAssets({ ...next });
+    scheduleAutoSave();
   };
 
   const handleBlurSave = async () => {
@@ -157,10 +158,42 @@ export default function AssetsManager({ userId }) {
     isSavingRef.current = true;
     try {
       await saveMutation.mutateAsync(assetsRef.current);
+      isDirtyRef.current = false;
     } finally {
       isSavingRef.current = false;
     }
   };
+
+  // Debounced auto-save + unmount/beforeunload flush so any value typed is never lost
+  const autoSaveTimerRef = useRef(null);
+  const isDirtyRef = useRef(false);
+  const saveMutationRef = useRef(saveMutation);
+  useEffect(() => { saveMutationRef.current = saveMutation; }, [saveMutation]);
+
+  const scheduleAutoSave = () => {
+    if (!readyRef.current) return;
+    isDirtyRef.current = true;
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      isDirtyRef.current = false;
+      if (!isSavingRef.current) saveMutationRef.current.mutate(assetsRef.current);
+    }, 1200);
+  };
+
+  useEffect(() => {
+    const flush = () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      if (readyRef.current && isDirtyRef.current && !isSavingRef.current) {
+        isDirtyRef.current = false;
+        saveMutationRef.current.mutate(assetsRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      flush();
+    };
+  }, []);
 
   const toggleSection = (key) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));

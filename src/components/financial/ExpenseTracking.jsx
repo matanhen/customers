@@ -181,6 +181,34 @@ export default function ExpenseTracking({ userId }) {
 
   const handleBlurSave = () => saveNowRef.current(trackingDataRef.current);
 
+  // Income field auto-save (debounced + flushed on unmount) — previously only saved on blur,
+  // which lost data if the user navigated away mid-typing without blurring.
+  const incomeSaveTimer = useRef(null);
+  const pendingIncomeSaveRef = useRef(null);
+  const updateActualIncome = (newVal) => {
+    const newData = { ...trackingDataRef.current, actual_income: newVal };
+    setTrackingData(newData);
+    pendingIncomeSaveRef.current = newData;
+    clearTimeout(incomeSaveTimer.current);
+    incomeSaveTimer.current = setTimeout(() => {
+      const data = pendingIncomeSaveRef.current;
+      pendingIncomeSaveRef.current = null;
+      if (data) saveNowRef.current(data);
+    }, 600);
+  };
+
+  // Flush any pending income save when this component unmounts
+  useEffect(() => {
+    return () => {
+      if (incomeSaveTimer.current) clearTimeout(incomeSaveTimer.current);
+      if (pendingIncomeSaveRef.current) {
+        const data = pendingIncomeSaveRef.current;
+        pendingIncomeSaveRef.current = null;
+        saveNowRef.current(data);
+      }
+    };
+  }, []);
+
   // Handle table changes (flat expenses from ExpenseTrackingTable)
   // The table gives { [catKey]: { [item]: amount } }
   // We need to flatten it to { [item]: amount } for fixed_expenses
@@ -351,7 +379,7 @@ export default function ExpenseTracking({ userId }) {
           <div className="flex items-center gap-4">
             <FormattedNumberInput
               value={trackingData.actual_income}
-              onChange={val => setTrackingData({ ...trackingData, actual_income: val })}
+              onChange={val => updateActualIncome(val)}
               onBlur={handleBlurSave}
               placeholder="הזן הכנסה בפועל"
               className="text-lg font-medium flex-1"

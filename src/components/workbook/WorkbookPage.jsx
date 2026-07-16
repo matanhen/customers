@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -376,8 +376,34 @@ export default function WorkbookPage({ userId, viewerEmail }) {
     }
   };
 
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const answersIdRef = useRef(answersId);
+  answersIdRef.current = answersId;
+  const autoSaveTimerRef = useRef(null);
+  const pendingSaveRef = useRef(false);
+
+  const persistAnswers = async (args, id) => {
+    const data = { user_id: userId, answers: args };
+    if (id) {
+      await base44.entities.WorkbookAnswers.update(id, data);
+    } else {
+      const created = await base44.entities.WorkbookAnswers.create(data);
+      setAnswersId(created.id);
+      answersIdRef.current = created.id;
+    }
+  };
+
   const handleAnswer = (key, value) => {
     setAnswers(prev => ({ ...prev, [key]: value }));
+    // Debounced auto-save so every typed answer is persisted automatically
+    pendingSaveRef.current = true;
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      pendingSaveRef.current = false;
+      persistAnswers(answersRef.current, answersIdRef.current).catch(() => {});
+      setSavedAt(new Date());
+    }, 1500);
   };
 
   const handleSave = async () => {
@@ -392,6 +418,21 @@ export default function WorkbookPage({ userId, viewerEmail }) {
     setSaving(false);
     setSavedAt(new Date());
   };
+
+  // Flush any pending debounced save on page navigation / app close
+  useEffect(() => {
+    const flush = () => {
+      if (!pendingSaveRef.current) return;
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      pendingSaveRef.current = false;
+      persistAnswers(answersRef.current, answersIdRef.current).catch(() => {});
+    };
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      flush();
+    };
+  }, [userId]);
 
   const toggleSection = (key) => {
     setExpanded(prev => ({ ...prev, [key]: !prev[key] }));

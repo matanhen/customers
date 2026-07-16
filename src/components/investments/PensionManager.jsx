@@ -69,6 +69,9 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
   const [selectedYears, setSelectedYears] = useState('10');
   const autoSaveTimer = useRef(null);
   const isDirty = useRef(false);
+  const pendingSaveRef = useRef(null);
+  const onSaveRef = useRef(onSave);
+  useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
 
   // Only sync from parent when not actively editing
   useEffect(() => {
@@ -88,17 +91,39 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
     const newData = { ...formData, [field]: rawValue === '' ? '' : (isAgeField ? (isNaN(parseInt(rawValue)) ? 0 : parseInt(rawValue)) : rawValue) };
     setFormData(newData);
     isDirty.current = true;
+    // Track pending save so it can be flushed immediately on unmount / tab switch
+    pendingSaveRef.current = { field, rawValue, fullData: newData };
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       isDirty.current = false;
-      // When saving, parse all numeric fields properly
+      const pending = pendingSaveRef.current;
+      pendingSaveRef.current = null;
+      if (!pending) return;
+      const isAge = pending.field === 'current_age' || pending.field === 'retirement_age' || pending.field === 'stop_deposits_age';
       const dataToSave = {
-        ...newData,
-        [field]: isAgeField ? (parseInt(rawValue) || 0) : (parseFloat(rawValue) || 0),
+        ...pending.fullData,
+        [pending.field]: isAge ? (parseInt(pending.rawValue) || 0) : (parseFloat(pending.rawValue) || 0),
       };
-      onSave({ gender, fundType, data: dataToSave });
+      onSaveRef.current({ gender, fundType, data: dataToSave });
     }, 1500);
   };
+
+  // Flush any pending debounced save when this form unmounts
+  // (switching tabs between gender / fund type, navigating to another page, closing the app)
+  useEffect(() => {
+    return () => {
+      clearTimeout(autoSaveTimer.current);
+      const pending = pendingSaveRef.current;
+      if (!pending) return;
+      pendingSaveRef.current = null;
+      const isAge = pending.field === 'current_age' || pending.field === 'retirement_age' || pending.field === 'stop_deposits_age';
+      const dataToSave = {
+        ...pending.fullData,
+        [pending.field]: isAge ? (parseInt(pending.rawValue) || 0) : (parseFloat(pending.rawValue) || 0),
+      };
+      onSaveRef.current({ gender, fundType, data: dataToSave });
+    };
+  }, [gender, fundType]);
 
   const getNumericValue = (val) => {
     if (val === '' || val === undefined || val === null) return '';

@@ -61,6 +61,7 @@ export default function GoalSettingsPanel({ userId }) {
   const kerenAmount = selectedKeren?.current_amount || 0;
 
   const autoSaveTimer = useRef(null);
+  const pendingSaveRef = useRef(null);
 
   useEffect(() => {
     if (goalSettings) {
@@ -75,8 +76,10 @@ export default function GoalSettingsPanel({ userId }) {
   }, [goalSettings]);
 
   const triggerAutoSave = (newSettings) => {
+    pendingSaveRef.current = newSettings;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
+      pendingSaveRef.current = null;
       saveMutation.mutate(newSettings);
     }, 1000);
   };
@@ -107,6 +110,22 @@ export default function GoalSettingsPanel({ userId }) {
       queryClient.invalidateQueries({ queryKey: ['goalSettings', userId, currentUser?.id] });
     },
   });
+
+  // Keep latest saveMutation reference so cleanup can trigger it after unmount
+  const saveMutationRef = useRef(saveMutation);
+  useEffect(() => { saveMutationRef.current = saveMutation; }, [saveMutation]);
+
+  // Flush any pending debounced save when the panel unmounts (page navigation / app close)
+  useEffect(() => {
+    return () => {
+      clearTimeout(autoSaveTimer.current);
+      if (pendingSaveRef.current) {
+        const data = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        saveMutationRef.current.mutate(data);
+      }
+    };
+  }, []);
 
   return (
     <Card className="border-0 shadow-2xl bg-gradient-to-br from-[#105330]/5 via-white to-[#c8a863]/5 overflow-hidden transition-all duration-500 hover:shadow-3xl">
