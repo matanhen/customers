@@ -5,29 +5,48 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { CalendarDays, ChevronRight, ChevronLeft } from 'lucide-react';
 
-// Financial weeks run 10th-to-10th: week1=10-16, week2=17-23, week3=24-end, week4=1-9 (next month)
-export function getFinMonthAnchor() {
+// Financial month cycle can start on the 10th (default) or the 1st.
+// cycle=10: week1=10-16, week2=17-23, week3=24-end, week4=1-9 (NEXT month)
+// cycle=1:  week1=1-7,   week2=8-15,  week3=16-23, week4=24-end (SAME month)
+export function getFinMonthAnchor(cycleStart = 10) {
   const today = new Date();
   const day = today.getDate();
   const year = today.getFullYear();
   const month = today.getMonth();
   let currentWeek, finYear, finMonth;
 
-  if (day >= 10 && day <= 16) { currentWeek = 1; finYear = year; finMonth = month; }
-  else if (day >= 17 && day <= 23) { currentWeek = 2; finYear = year; finMonth = month; }
-  else if (day >= 24) { currentWeek = 3; finYear = year; finMonth = month; }
-  else { currentWeek = 4; finYear = month === 0 ? year - 1 : year; finMonth = month === 0 ? 11 : month - 1; }
+  if (cycleStart === 1) {
+    if (day >= 1 && day <= 7) { currentWeek = 1; finYear = year; finMonth = month; }
+    else if (day >= 8 && day <= 15) { currentWeek = 2; finYear = year; finMonth = month; }
+    else if (day >= 16 && day <= 23) { currentWeek = 3; finYear = year; finMonth = month; }
+    else { currentWeek = 4; finYear = year; finMonth = month; }
+  } else {
+    // default 10-cycle (existing behavior)
+    if (day >= 10 && day <= 16) { currentWeek = 1; finYear = year; finMonth = month; }
+    else if (day >= 17 && day <= 23) { currentWeek = 2; finYear = year; finMonth = month; }
+    else if (day >= 24) { currentWeek = 3; finYear = year; finMonth = month; }
+    else { currentWeek = 4; finYear = month === 0 ? year - 1 : year; finMonth = month === 0 ? 11 : month - 1; }
+  }
 
   return { finYear, finMonth, currentWeek };
 }
 
-function getRangeLabel(week, finYear, finMonth) {
+function getRangeLabel(week, finYear, finMonth, cycleStart = 10) {
   const finMonthDate = new Date(finYear, finMonth, 1);
   const monthLabel = format(finMonthDate, 'MMMM', { locale: he });
+  const lastDay = format(lastDayOfMonth(finMonthDate), 'd');
 
+  if (cycleStart === 1) {
+    if (week === 1) return `1-7 ב${monthLabel}`;
+    if (week === 2) return `8-15 ב${monthLabel}`;
+    if (week === 3) return `16-23 ב${monthLabel}`;
+    return `24-${lastDay} ב${monthLabel}`;
+  }
+
+  // default 10-cycle
   if (week === 1) return `10-16 ב${monthLabel}`;
   if (week === 2) return `17-23 ב${monthLabel}`;
-  if (week === 3) return `24-${format(lastDayOfMonth(finMonthDate), 'd')} ב${monthLabel}`;
+  if (week === 3) return `24-${lastDay} ב${monthLabel}`;
   const nextMonthLabel = format(new Date(finYear, finMonth + 1, 1), 'MMMM', { locale: he });
   return `1-9 ב${nextMonthLabel}`;
 }
@@ -40,6 +59,7 @@ function getRangeLabel(week, finYear, finMonth) {
  * weeklySnapshots: { week1, week2, week3, week4 } - cumulative actualVariableSpent baseline captured
  *   at the moment each week started, so previous weeks' amounts can be reconstructed.
  * onUpdateSnapshot(newWeeklySnapshots): called to persist backfilled/updated snapshots.
+ * cycleStart: 10 (default, weeks run 10→9) or 1 (weeks run 1→31).
  */
 export default function WeeklyVariableTracker({
   plannedVariable = 0,
@@ -48,8 +68,9 @@ export default function WeeklyVariableTracker({
   onUpdateSnapshot,
   selectedWeek,
   onWeekChange,
+  cycleStart = 10,
 }) {
-  const { finYear, finMonth, currentWeek: currentRealWeek } = getFinMonthAnchor();
+  const { finYear, finMonth, currentWeek: currentRealWeek } = getFinMonthAnchor(cycleStart);
   const backfilledRef = useRef(false);
 
   // Ensure we have a baseline snapshot for every week up to the current real week.
@@ -70,7 +91,7 @@ export default function WeeklyVariableTracker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentRealWeek]);
 
-  const rangeLabel = getRangeLabel(selectedWeek, finYear, finMonth);
+  const rangeLabel = getRangeLabel(selectedWeek, finYear, finMonth, cycleStart);
   const weeklyBudget = plannedVariable / 4;
 
   const start = weeklySnapshots[`week${selectedWeek}`] ?? (selectedWeek === 1 ? 0 : undefined);

@@ -2,8 +2,16 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const WEBHOOK_URL = 'https://hook.eu2.make.com/v5qurfu32a27dc8lhefhvkr9xjbdm5fy';
 
-// Financial weeks run 10th-to-16th / 17th-23rd / 24th-end / 1st-9th (next month)
-function getCurrentWeekNumber(day) {
+// Financial weeks depend on the user's chosen cycle start day.
+// cycleStart=10 (default): week1=10-16, week2=17-23, week3=24-end, week4=1-9 (next month)
+// cycleStart=1:            week1=1-7,   week2=8-15,  week3=16-23, week4=24-end (same month)
+function getCurrentWeekNumber(day, cycleStart = 10) {
+  if (cycleStart === 1) {
+    if (day >= 1 && day <= 7) return 1;
+    if (day >= 8 && day <= 15) return 2;
+    if (day >= 16 && day <= 23) return 3;
+    return 4;
+  }
   if (day >= 10 && day <= 16) return 1;
   if (day >= 17 && day <= 23) return 2;
   if (day >= 24) return 3;
@@ -84,11 +92,14 @@ Deno.serve(async (req) => {
       const plannedVariable = plan.variable_expenses || 0;
       const weeklyBudgetTotal = plannedVariable / 4;
 
+      const clientCycleStart = client.cycle_start_day || 10;
+      const clientCurrentWeek = getCurrentWeekNumber(parseInt(day), clientCycleStart);
+
       const categoryExpenses = tracking._categoryExpenses || {};
       let weeklyExpensesTotal = 0;
       Object.values(categoryExpenses).forEach((items) => {
         Object.values(items || {}).forEach((entry) => {
-          weeklyExpensesTotal += getItemWeekAmount(entry, currentWeekNumber);
+          weeklyExpensesTotal += getItemWeekAmount(entry, clientCurrentWeek);
         });
       });
 
@@ -104,7 +115,8 @@ Deno.serve(async (req) => {
         planned_variable_expenses: plannedVariable,
         weekly_budget_total: Math.round(weeklyBudgetTotal),
         weekly_expenses_total: Math.round(weeklyExpensesTotal),
-        current_week_number: currentWeekNumber,
+        current_week_number: clientCurrentWeek,
+        cycle_start_day: clientCycleStart,
         total_assets: Math.round(totalAssets),
         total_liabilities: Math.round(totalLiabilities),
         net_worth: Math.round(netWorth),

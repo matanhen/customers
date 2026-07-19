@@ -101,6 +101,32 @@ export default function ExpenseTracking({ userId }) {
     refetchOnWindowFocus: false,
   });
 
+  // Fetch the cycle_start_day preference of the user whose data is being shown
+  // (self, or the viewed client when an advisor/admin is viewing a client)
+  const { data: targetUser } = useQuery({
+    queryKey: ['targetUser', userId, String(isViewingOther), viewingClientEmail],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        try {
+          const response = await base44.functions.invoke('getClientData', {
+            clientUserId: userId,
+            clientEmail: viewingClientEmail,
+            entityName: 'User',
+          });
+          return Array.isArray(response.data) ? response.data[0] : null;
+        } catch (e) {
+          return null;
+        }
+      }
+      return currentUser;
+    },
+    enabled: !!userId && !!currentUser,
+  });
+
+  // 10 = default cycle (weeks: 10-16, 17-23, 24-end, 1-9 next month)
+  // 1  = alternative cycle (weeks: 1-7, 8-15, 16-23, 24-end - same calendar month)
+  const cycleStart = targetUser?.cycle_start_day || 10;
+
   const currentTracking = allTracking.find(t => t.month === currentMonth);
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);
 
@@ -155,6 +181,42 @@ export default function ExpenseTracking({ userId }) {
 
   const trackingDataRef = useRef(trackingData);
   trackingDataRef.current = trackingData;
+
+  // Keep the selected week anchored to the user's chosen cycle start day.
+  // When the preference loads (or changes via the toggle), reset the displayed
+  // week to the real current week of that cycle.
+  useEffect(() => {
+    if (targetUser !== undefined) {
+      setSelectedWeek(getFinMonthAnchor(cycleStart).currentWeek);
+    }
+  }, [cycleStart, targetUser]);
+
+  const handleCycleStartChange = async (newVal) => {
+    const numVal = parseInt(newVal, 10);
+    if (numVal !== 1 && numVal !== 10) return;
+    try {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        await base44.functions.invoke('saveClientData', {
+          entityName: 'User',
+          clientUserId: userId,
+          data: { cycle_start_day: numVal },
+          recordId: userId,
+        });
+        queryClient.invalidateQueries({ queryKey: ['targetUser', userId, String(isViewingOther), viewingClientEmail] });
+      } else {
+        await base44.entities.User.update(userId, { cycle_start_day: numVal });
+        // Refresh local currentUser + write fresh data straight into the targetUser
+        // cache so the new cycle_start_day takes effect immediately.
+        try {
+          const fresh = await base44.auth.me();
+          setCurrentUser(fresh);
+          queryClient.setQueryData(['targetUser', userId, String(false), null], fresh);
+        } catch (e) { /* non-critical */ }
+      }
+    } catch (e) {
+      console.error('Failed to update cycle preference', e);
+    }
+  };
 
   const saveNow = useCallback(async (data) => {
     if (!dataLoadedRef.current) return;
@@ -357,6 +419,24 @@ export default function ExpenseTracking({ userId }) {
         </CardContent>
       </Card>
 
+      {/* Monthly cycle start day toggle — user/admin can switch between cycle of the 10th (default) or the 1st */}
+      <div className="flex items-center justify-end gap-2">
+        <Label className="text-sm text-slate-600 whitespace-nowrap">תחילת מעקב חודשי:</Label>
+        <Select
+          value={String(cycleStart)}
+          onValueChange={(v) => handleCycleStartChange(v)}
+          disabled={targetUser === undefined}
+        >
+          <SelectTrigger className="w-36 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">ה-10 בחודש</SelectItem>
+            <SelectItem value="1">ה-1 בחודש</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Weekly Variable Expense Tracker */}
       <WeeklyVariableTracker
         plannedVariable={plannedVariable}
@@ -365,6 +445,7 @@ export default function ExpenseTracking({ userId }) {
         onUpdateSnapshot={updateWeeklySnapshot}
         selectedWeek={selectedWeek}
         onWeekChange={setSelectedWeek}
+        cycleStart={cycleStart}
       />
 
       {/* Actual Income */}
