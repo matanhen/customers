@@ -1,59 +1,65 @@
 import React, { useEffect, useRef } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 
-/**
- * TradingView "Market Overview" widget showing live FX, Bitcoin and TA-125 quotes.
- * Renders TradingView's external embed script; the JSON config drives the widget.
- */
-export default function TradingViewRatesWidget() {
+const SYMBOLS = [
+  { symbol: 'FX_IDC:USDILS', label: 'שער הדולר', sub: 'USD/ILS' },
+  { symbol: 'FX_IDC:EURILS', label: 'שער האירו', sub: 'EUR/ILS' },
+  { symbol: 'BINANCE:BTCUSD', label: 'ביטקוין', sub: 'BTC/USD' },
+  { symbol: 'TASE:TA125',    label: 'ת"א 125',  sub: 'תל אביב 125' },
+];
+
+function MiniSymbolWidget({ symbol, label, sub }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
-    // Avoid duplicate widgets if the effect re-runs
     el.innerHTML = '';
 
-    const widgetHolder = document.createElement('div');
-    widgetHolder.className = 'tradingview-widget-container__widget';
-    el.appendChild(widgetHolder);
+    const holder = document.createElement('div');
+    holder.className = 'tradingview-widget-container__widget';
+    el.appendChild(holder);
 
     const script = document.createElement('script');
     script.src =
-      'https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js';
+      'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
     script.type = 'text/javascript';
     script.async = true;
     script.innerHTML = JSON.stringify({
-      colorTheme: 'light',
-      dateRange: '12M',
-      showChart: false,
-      locale: 'he_IL',
+      symbol,
       width: '100%',
-      height: 320,
+      height: 160,
+      locale: 'he_IL',
+      dateRange: '1M',
+      colorTheme: 'light',
+      isTransparent: true,
+      autosize: false,
       largeChartUrl: '',
-      isTransparent: false,
-      showSymbolLogo: true,
-      showFloatingTooltip: false,
-      tabs: [
-        {
-          title: 'שערים ומדדים מובילים',
-          symbols: [
-            { s: 'FX_IDC:USDILS', d: 'שער הדולר (USD/ILS)' },
-            { s: 'FX_IDC:EURILS', d: 'שער האירו (EUR/ILS)' },
-            { s: 'BINANCE:BTCUSD', d: 'ביטקוין (BTC/USD)' },
-            { s: 'TASE:TA125', d: 'מדד תל אביב 125' },
-          ],
-        },
-      ],
+      chartOnly: false,
+      noTimeScale: true,
     });
     el.appendChild(script);
-  }, []);
+  }, [symbol]);
 
   return (
-    <div
-      ref={containerRef}
-      className="tradingview-widget-container"
-      style={{ maxWidth: 450, margin: '20px auto', fontFamily: 'sans-serif' }}
-    />
+    <Card className="border-0 shadow-lg overflow-hidden h-full">
+      <div className="px-3 pt-2.5 pb-1 flex items-center justify-between">
+        <span className="text-sm font-bold text-[#105330]">{label}</span>
+        <span className="text-[10px] text-[#c8a863] font-medium">{sub}</span>
+      </div>
+      <CardContent className="pt-0 pb-2 px-1">
+        <div ref={containerRef} className="tradingview-widget-container" />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function TradingViewRatesWidget() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
+      {SYMBOLS.map((sym) => (
+        <MiniSymbolWidget key={sym.symbol} {...sym} />
+      ))}
+    </div>
   );
 }
