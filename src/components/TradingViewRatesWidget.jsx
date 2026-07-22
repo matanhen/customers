@@ -30,48 +30,30 @@ function MiniSymbolWidget({ symbol, label, sub }) {
     el.appendChild(holder);
 
     const script = document.createElement('script');
+    script.src =
+      'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
     script.type = 'text/javascript';
     script.async = true;
-
-    if (isMobile) {
-      // On mobile show just the live price (no chart) — compact "Single Ticker" widget.
-      script.src =
-        'https://s3.tradingview.com/external-embedding/embed-widget-single-ticker.js';
-      script.innerHTML = JSON.stringify({
-        symbols: [[symbol, `${symbol}|1d`]],
-        colorTheme: 'light',
-        isTransparent: true,
-        displayMode: 'regular',
-        width: '100%',
-        height: 80,
-        locale: 'he_IL',
-      });
-    } else {
-      // On desktop keep the mini overview with chart and symbol info.
-      script.src =
-        'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
-      script.innerHTML = JSON.stringify({
-        symbol,
-        width: '100%',
-        height: 160,
-        locale: 'he_IL',
-        dateRange: '1M',
-        colorTheme: 'light',
-        isTransparent: true,
-        autosize: false,
-        largeChartUrl: '',
-        chartOnly: false,
-        noTimeScale: true,
-      });
-    }
+    script.innerHTML = JSON.stringify({
+      symbol,
+      width: '100%',
+      // Enough height to render both the symbol/price overlay and the chart
+      height: isMobile ? 140 : 160,
+      locale: 'he_IL',
+      dateRange: '1M',
+      colorTheme: 'light',
+      isTransparent: true,
+      autosize: false,
+      largeChartUrl: '',
+      chartOnly: false,
+      noTimeScale: true,
+    });
     el.appendChild(script);
   }, [symbol, isMobile]);
 
   return (
     <Card className="border-0 shadow-lg overflow-hidden h-full">
-      <div
-        className="flex items-center justify-between md:px-3 md:pt-2.5 md:pb-1 px-1.5 pt-1 pb-0.5"
-      >
+      <div className="flex items-center justify-between md:px-3 md:pt-2.5 md:pb-1 px-2 pt-1.5 pb-1">
         <span className="text-[11px] md:text-sm font-bold text-[#105330] truncate">
           {label}
         </span>
@@ -79,7 +61,7 @@ function MiniSymbolWidget({ symbol, label, sub }) {
           {sub}
         </span>
       </div>
-      <CardContent className="pt-0 pb-1 md:pb-2 px-0.5 md:px-1">
+      <CardContent className="pt-0 pb-1.5 md:pb-2 px-1 md:px-1">
         <div ref={containerRef} className="tradingview-widget-container" />
       </CardContent>
     </Card>
