@@ -30,24 +30,40 @@ function MiniSymbolWidget({ symbol, label, sub }) {
     el.appendChild(holder);
 
     const script = document.createElement('script');
-    script.src =
-      'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
     script.type = 'text/javascript';
     script.async = true;
-    script.innerHTML = JSON.stringify({
-      symbol,
-      width: '100%',
-      // Smaller (and chart-free) widget on mobile to keep cards compact
-      height: isMobile ? 70 : 160,
-      locale: 'he_IL',
-      dateRange: '1M',
-      colorTheme: 'light',
-      isTransparent: true,
-      autosize: false,
-      largeChartUrl: '',
-      chartOnly: isMobile,
-      noTimeScale: true,
-    });
+
+    if (isMobile) {
+      // On mobile show just the live price (no chart) — compact "Single Ticker" widget.
+      script.src =
+        'https://s3.tradingview.com/external-embedding/embed-widget-single-ticker.js';
+      script.innerHTML = JSON.stringify({
+        symbols: [[symbol, `${symbol}|1d`]],
+        colorTheme: 'light',
+        isTransparent: true,
+        displayMode: 'regular',
+        width: '100%',
+        height: 80,
+        locale: 'he_IL',
+      });
+    } else {
+      // On desktop keep the mini overview with chart and symbol info.
+      script.src =
+        'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+      script.innerHTML = JSON.stringify({
+        symbol,
+        width: '100%',
+        height: 160,
+        locale: 'he_IL',
+        dateRange: '1M',
+        colorTheme: 'light',
+        isTransparent: true,
+        autosize: false,
+        largeChartUrl: '',
+        chartOnly: false,
+        noTimeScale: true,
+      });
+    }
     el.appendChild(script);
   }, [symbol, isMobile]);
 
