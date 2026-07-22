@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Target } from 'lucide-react';
 import PullToRefresh from '../components/PullToRefresh';
-import { Link } from 'react-router-dom';
+import TradingViewRatesWidget from '@/components/TradingViewRatesWidget';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -287,18 +287,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* System Button - compact */}
+      {/* Live market quotes (FX, Bitcoin, TA-125) */}
       <div className="mb-4">
-        <Link to="/Systems">
-          <div className="relative rounded-xl overflow-hidden cursor-pointer group inline-flex">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#c8a863] via-[#d4b87a] to-[#c8a863] group-hover:brightness-105 transition-all duration-300" />
-            <div className="relative px-4 py-2 flex items-center gap-2">
-              <span className="text-lg">🚀</span>
-              <span className="text-sm font-bold text-[#105330]">תגלה מה הצעד הבא שלך</span>
-              <span className="text-[#105330]/40 text-sm">←</span>
-            </div>
-          </div>
-        </Link>
+        <TradingViewRatesWidget />
       </div>
 
       {!hasData ? (
