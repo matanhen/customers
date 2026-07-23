@@ -7,9 +7,9 @@ import { getManagedFundsData } from '../../shared/managedFundFetcher.ts';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { categories, fetchedAt } = await getManagedFundsData(base44, true);
-    const fundCount = categories.reduce(
-      (acc, c) => acc + (Array.isArray(c.funds) ? c.funds.length : 0),
+    const { fund_types, fetchedAt } = await getManagedFundsData(base44, true);
+    const fundCount = fund_types.reduce(
+      (acc, ft) => acc + (Array.isArray(ft.routes) ? ft.routes.reduce((a, r) => a + (Array.isArray(r.funds) ? r.funds.length : 0), 0) : 0),
       0
     );
     return Response.json({

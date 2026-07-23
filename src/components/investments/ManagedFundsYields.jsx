@@ -1,145 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Activity, PieChart } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { Loader2, RefreshCw, Calendar, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-// The data is stored in the ManagedFundData entity, refreshed monthly via
-// automation on the 30th. The frontend fetches once on mount; no daily polling needed.
+const FUND_TYPE_SELECTOR = [
+  { key: 'keren_hishtalmut', label: 'קרנות השתלמות' },
+  { key: 'gemel_lehashkaa',  label: 'קופת גמל להשקעה' },
+  { key: 'kupot_gemel',      label: 'קופות גמל' },
+  { key: 'keren_pensia',    label: 'קרנות פנסיה' },
+];
 
-function formatPercent(n) {
+function formatPct(n) {
   if (n === null || n === undefined || isNaN(n)) return '—';
-  const sign = n > 0 ? '+' : '';
-  return `${sign}${n.toFixed(2)}%`;
+  const sign = n >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(n).toFixed(2)}%`;
 }
 
-function returnColorClass(n) {
-  if (n === null || n === undefined || isNaN(n)) return 'text-slate-500';
-  if (n > 0) return 'text-green-700 font-semibold';
-  if (n < 0) return 'text-red-600 font-semibold';
-  return 'text-slate-700 font-medium';
+function cellColorClass(n) {
+  if (n === null || n === undefined || isNaN(n)) return 'text-slate-400';
+  return n >= 0 ? 'text-green-600' : 'text-red-600';
 }
 
-function CategoryTable({ category }) {
-  const [sortKey, setSortKey] = useState('ytd_return_percent');
-  const [sortDir, setSortDir] = useState('desc');
-
-  const columns = [
-    { key: 'name',                     label: 'שם הקופה',           sortable: false },
-    { key: 'fund_house',               label: 'גוף מנהל',            sortable: false },
-    { key: 'ytd_return_percent',       label: 'תשואה מתחילת שנה', sortable: true  },
-    { key: 'one_year_return_percent',  label: 'תשואה 1 שנה',       sortable: true  },
-    { key: 'three_year_return_percent',label: 'תשואה 3 שנים',      sortable: true  },
-    { key: 'five_year_return_percent', label: 'תשואה 5 שנים',      sortable: true  },
-    { key: 'management_fee_percent',   label: 'דמי ניהול %',       sortable: true  },
-  ];
-
-  const funds = Array.isArray(category.funds) ? category.funds : [];
-
-  const numVal = (f, key) => {
-    const v = f[key];
-    const n = typeof v === 'number' ? v : parseFloat(v);
-    return isNaN(n) ? null : n;
-  };
-
-  const toggleSort = (key) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
-    } else {
-      setSortKey(key);
-      setSortDir('desc');
-    }
-  };
-
-  const sortedFunds = [...funds].sort((a, b) => {
-    const av = numVal(a, sortKey);
-    const bv = numVal(b, sortKey);
-    if (av === null && bv === null) return 0;
-    if (av === null) return 1;
-    if (bv === null) return -1;
-    return sortDir === 'desc' ? bv - av : av - bv;
-  });
-
-  if (funds.length === 0) {
+function FundTable({ route }) {
+  if (!route.funds || !route.funds.length) {
     return (
-      <div className="rounded-2xl border border-[#105330]/10 bg-white p-6 text-center">
-        <p className="text-[#105330]/60 font-medium">אין נתונים זמינים כעת עבור {category.label}.</p>
-        <p className="text-sm text-[#105330]/50 mt-1">הנתונים מתעדכנים אוטומטית מ-mygemel. נסה לרענן מאוחר יותר.</p>
+      <div className="bg-white rounded-2xl shadow-sm border border-[#105330]/10 p-4">
+        <h3 className="font-bold text-[#105330] mb-2">{route.label}</h3>
+        <p className="text-sm text-[#105330]/60">אין נתונים זמינים למסלול זה</p>
       </div>
     );
   }
 
+  const columns =
+    route.columns && route.columns.length === 5
+      ? route.columns
+      : ['שם', 'חודש', 'שנה', '3 שנים', '5 שנים'];
+
   return (
-    <>
-      {/* Mobile sort selector */}
-      <div className="md:hidden mb-3 flex items-center gap-2">
-        <span className="text-sm font-semibold text-[#105330] shrink-0">מיון:</span>
-        <select
-          value={sortKey}
-          onChange={(e) => { setSortKey(e.target.value); setSortDir('desc'); }}
-          className="flex-1 rounded-xl border-[#105330]/20 bg-white px-3 py-2 text-sm shadow-sm"
-        >
-          {columns.filter((c) => c.sortable).map((col) => (
-            <option key={col.key} value={col.key}>{col.label}</option>
-          ))}
-        </select>
-        <button
-          onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
-          className="px-3 py-2 rounded-xl bg-[#105330]/10 text-[#105330] text-sm font-bold"
-          aria-label="הפוך כיוון מיון"
-        >
-          {sortDir === 'desc' ? '↓' : '↑'}
-        </button>
+    <div className="rounded-2xl border border-[#105330]/10 shadow-sm overflow-hidden bg-white">
+      <div className="bg-gradient-to-l from-[#f97316] to-[#ea580c] px-4 py-2.5">
+        <h3 className="font-bold text-white text-sm md:text-base">{route.label}</h3>
+      </div>
+      <div className="text-xs text-[#105330]/60 px-4 py-1.5 bg-[#f97316]/5 border-b border-[#f97316]/15">
+        על בסיס תשואה מצטברת לפני דמי ניהול • מקור: mygemel.net
       </div>
 
       {/* Desktop table */}
-      <div className="hidden md:block overflow-x-auto rounded-2xl border border-[#105330]/10 shadow-lg">
-        <table className="w-full text-sm whitespace-nowrap">
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gradient-to-l from-[#105330] to-[#1a7a4a] text-white">
-              {columns.map((col) => (
+            <tr className="bg-[#105330]/5">
+              <th className="px-3 py-2 text-right font-semibold text-[#105330] w-10">#</th>
+              {columns.map((c, i) => (
                 <th
-                  key={col.key}
-                  onClick={col.sortable ? () => toggleSort(col.key) : undefined}
-                  className={`px-3 py-3 font-semibold text-center ${col.sortable ? 'cursor-pointer hover:bg-white/10 transition-colors select-none' : ''}`}
+                  key={i}
+                  className={`px-3 py-2 font-semibold text-[#105330] ${i === 0 ? 'text-right' : 'text-center'}`}
                 >
-                  <span className="inline-flex items-center gap-1 justify-center">
-                    <span>{col.label}</span>
-                    {col.sortable &&
-                      (sortKey === col.key ? (
-                        sortDir === 'desc' ? (
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        ) : (
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        )
-                      ) : (
-                        <ChevronsUpDown className="w-3 h-3 opacity-50" />
-                      ))}
-                  </span>
+                  {c}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {sortedFunds.map((f, idx) => (
+            {route.funds.map((fund, idx) => (
               <tr
-                key={`${f.name}-${idx}`}
-                className={`border-b border-[#105330]/10 hover:bg-[#c8a863]/10 transition-colors ${idx % 2 === 1 ? 'bg-[#105330]/[0.03]' : 'bg-white'}`}
+                key={idx}
+                className={`border-b border-[#105330]/5 ${idx % 2 === 1 ? 'bg-[#105330]/[0.02]' : 'bg-white'}`}
               >
-                <td className="px-3 py-2.5 font-semibold text-[#105330] text-right">{f.name || '—'}</td>
-                <td className="px-3 py-2.5 text-slate-700 text-center">{f.fund_house || '—'}</td>
-                <td className={`px-3 py-2.5 text-center ${returnColorClass(numVal(f, 'ytd_return_percent'))}`}>
-                  {formatPercent(numVal(f, 'ytd_return_percent'))}
+                <td className="px-3 py-2 text-slate-500 text-center">{fund.rank || idx + 1}</td>
+                <td className="px-3 py-2 text-right font-medium text-[#105330]">{fund.name}</td>
+                <td className={`px-3 py-2 text-center dir-ltr font-mono font-medium ${cellColorClass(fund.ytd)}`}>
+                  {formatPct(fund.ytd)}
                 </td>
-                <td className={`px-3 py-2.5 text-center ${returnColorClass(numVal(f, 'one_year_return_percent'))}`}>
-                  {formatPercent(numVal(f, 'one_year_return_percent'))}
+                <td className={`px-3 py-2 text-center dir-ltr font-mono font-medium ${cellColorClass(fund.year)}`}>
+                  {formatPct(fund.year)}
                 </td>
-                <td className={`px-3 py-2.5 text-center ${returnColorClass(numVal(f, 'three_year_return_percent'))}`}>
-                  {formatPercent(numVal(f, 'three_year_return_percent'))}
+                <td className={`px-3 py-2 text-center dir-ltr font-mono font-medium ${cellColorClass(fund.three_year)}`}>
+                  {formatPct(fund.three_year)}
                 </td>
-                <td className={`px-3 py-2.5 text-center ${returnColorClass(numVal(f, 'five_year_return_percent'))}`}>
-                  {formatPercent(numVal(f, 'five_year_return_percent'))}
-                </td>
-                <td className="px-3 py-2.5 text-slate-700 text-center dir-ltr">
-                  {numVal(f, 'management_fee_percent') !== null ? `${numVal(f, 'management_fee_percent').toFixed(2)}%` : '—'}
+                <td className={`px-3 py-2 text-center dir-ltr font-mono font-medium ${cellColorClass(fund.five_year)}`}>
+                  {formatPct(fund.five_year)}
                 </td>
               </tr>
             ))}
@@ -148,156 +88,192 @@ function CategoryTable({ category }) {
       </div>
 
       {/* Mobile cards */}
-      <div className="md:hidden space-y-3">
-        {sortedFunds.map((f, idx) => (
-          <div
-            key={`${f.name}-${idx}`}
-            className={`rounded-2xl border border-[#105330]/15 shadow-sm p-4 ${idx % 2 === 1 ? 'bg-[#105330]/[0.03]' : 'bg-white'}`}
-          >
-            <div className="font-semibold text-[#105330] text-base leading-snug">{f.name || '—'}</div>
-            {f.fund_house && (
-              <div className="text-xs text-slate-500 mb-3">{f.fund_house}</div>
-            )}
-            <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 text-sm">
-              <div className="text-slate-500">תשואה מתחילת שנה</div>
-              <div className={`text-left ${returnColorClass(numVal(f, 'ytd_return_percent'))}`}>
-                {formatPercent(numVal(f, 'ytd_return_percent'))}
+      <div className="md:hidden divide-y divide-[#105330]/10">
+        {route.funds.map((fund, idx) => (
+          <div key={idx} className={`p-3 ${idx % 2 === 1 ? 'bg-[#105330]/[0.02]' : 'bg-white'}`}>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <span className="text-xs text-slate-400 shrink-0">#{fund.rank || idx + 1}</span>
+              <span className="font-medium text-[#105330] flex-1 text-right text-sm leading-snug">
+                {fund.name}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-x-1 text-xs">
+              <div className="text-slate-500">{columns[1]}</div>
+              <div className="text-slate-500">{columns[2]}</div>
+              <div className="text-slate-500">{columns[3]}</div>
+              <div className="text-slate-500">{columns[4]}</div>
+              <div className={`dir-ltr font-mono font-bold ${cellColorClass(fund.ytd)}`}>
+                {formatPct(fund.ytd)}
               </div>
-              <div className="text-slate-500">תשואה 1 שנה</div>
-              <div className={`text-left ${returnColorClass(numVal(f, 'one_year_return_percent'))}`}>
-                {formatPercent(numVal(f, 'one_year_return_percent'))}
+              <div className={`dir-ltr font-mono font-bold ${cellColorClass(fund.year)}`}>
+                {formatPct(fund.year)}
               </div>
-              <div className="text-slate-500">תשואה 3 שנים</div>
-              <div className={`text-left ${returnColorClass(numVal(f, 'three_year_return_percent'))}`}>
-                {formatPercent(numVal(f, 'three_year_return_percent'))}
+              <div className={`dir-ltr font-mono font-bold ${cellColorClass(fund.three_year)}`}>
+                {formatPct(fund.three_year)}
               </div>
-              <div className="text-slate-500">תשואה 5 שנים</div>
-              <div className={`text-left ${returnColorClass(numVal(f, 'five_year_return_percent'))}`}>
-                {formatPercent(numVal(f, 'five_year_return_percent'))}
-              </div>
-              <div className="text-slate-500">דמי ניהול</div>
-              <div className="text-slate-800 font-medium text-left dir-ltr">
-                {numVal(f, 'management_fee_percent') !== null ? `${numVal(f, 'management_fee_percent').toFixed(2)}%` : '—'}
+              <div className={`dir-ltr font-mono font-bold ${cellColorClass(fund.five_year)}`}>
+                {formatPct(fund.five_year)}
               </div>
             </div>
           </div>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
 export default function ManagedFundsYields() {
-  const [categories, setCategories] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [lastFetchAt, setLastFetchAt] = useState(null);
+  const [selectedFundType, setSelectedFundType] = useState('keren_hishtalmut');
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchedAt, setFetchedAt] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    const refresh = async () => {
+    const load = async () => {
       try {
-        if (!cancelled) {
-          if (!categories) setLoading(true);
-          else setRefreshing(true);
-        }
+        if (!cancelled) setLoading(true);
         const response = await base44.functions.invoke('fetchManagedFunds', {});
         if (cancelled) return;
-        if (response?.data?.categories) {
-          setCategories(response.data.categories);
-          setLastFetchAt(response.data.fetchedAt || new Date().toISOString());
-          if (!cancelled) setError('');
+        if (response?.data?.fund_types && response.data.fund_types.length > 0) {
+          setData(response.data);
+          setFetchedAt(response.data.fetchedAt);
+          setError('');
+        } else {
+          setData(null);
+          setError('נתונים אינם זמינים כעת. נסה רענון ידני.');
         }
       } catch (e) {
-        if (!cancelled) setError('נכשל בטעינת נתונים מ-mygemel');
+        if (!cancelled) setError('נכשל בטעינת נתונים מ-mygemel.net');
         console.error('Managed funds fetch failed', e);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setRefreshing(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
 
-    refresh();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    load();
+    return () => { cancelled = true; };
   }, []);
 
+  const handleManualRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError('');
+      const response = await base44.functions.invoke('fetchManagedFunds', { force: true });
+      if (response?.data?.fund_types && response.data.fund_types.length > 0) {
+        setData(response.data);
+        setFetchedAt(response.data.fetchedAt);
+      } else {
+        setError('הרענון לא הצליח לשלוף נתונים. נסה שוב מאוחר יותר.');
+      }
+    } catch (e) {
+      console.error('Manual refresh failed', e);
+      setError('נכשל רענון');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const selectedFundTypeData =
+    data && data.fund_types
+      ? data.fund_types.find((ft) => ft.key === selectedFundType)
+      : null;
+
+  const sourceUrl = selectedFundTypeData?.source_url;
+  const formattedFetchedAt = fetchedAt
+    ? new Date(fetchedAt).toLocaleString('he-IL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
   return (
-    <div className="space-y-6" dir="rtl">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#7a4a10] to-[#b06a1a] flex items-center justify-center shadow-lg">
-            <PieChart className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-[#105330]">תשואות קופות מנוהלות</h2>
-            <p className="text-[#105330]/70 text-sm">השוואת תשואות בין קרנות השתלמות, קופות גמל וקרנות פנסיה — מקור: mygemel.co.il</p>
-          </div>
-          <button
-            onClick={() => {
-              setRefreshing(true);
-              base44.functions.invoke('fetchManagedFunds', {})
-                .then((r) => {
-                  if (r?.data?.categories) {
-                    setCategories(r.data.categories);
-                    setLastFetchAt(r.data.fetchedAt || new Date().toISOString());
-                    setError('');
-                  }
-                })
-                .catch((e) => setError('נכשל בעדכון'))
-                .finally(() => setRefreshing(false));
-            }}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#105330]/10 text-[#105330] text-sm font-semibold hover:bg-[#105330]/15 disabled:opacity-50"
-          >
-            {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
-            רענן
-          </button>
-        </div>
-        {lastFetchAt && !loading && (
-          <div className="flex items-center gap-2 text-xs text-[#105330]/70">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            עדכון אחרון: {new Date(lastFetchAt).toLocaleString('he-IL')}
-          </div>
-        )}
+    <div dir="rtl" className="space-y-4">
+      {/* Header note */}
+      <p className="text-sm text-[#105330]/70 leading-relaxed">
+        השוואת מסלולים בקופות גמל, קרנות השתלמות ופנסיה. הנתונים מתעדכנים אוטומטית פעם בחודש
+        (ב-30 לחודש) ישירות מאתר mygemel.net.
+      </p>
+
+      {/* Fund type selector */}
+      <div className="flex flex-wrap gap-2">
+        {FUND_TYPE_SELECTOR.map((ft) => {
+          const active = ft.key === selectedFundType;
+          return (
+            <button
+              key={ft.key}
+              onClick={() => setSelectedFundType(ft.key)}
+              className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-sm
+                ${active
+                  ? 'bg-gradient-to-l from-[#f97316] to-[#ea580c] text-white shadow-md'
+                  : 'bg-white text-[#105330] border border-[#105330]/15 hover:bg-[#f97316]/10'}`}
+            >
+              {ft.label}
+            </button>
+          );
+        })}
       </div>
 
-      {loading && !categories && (
-        <div className="text-center py-16 bg-white rounded-2xl border border-[#105330]/10">
-          <Loader2 className="w-12 h-12 animate-spin text-[#105330]/40 mx-auto mb-3" />
-          <p className="text-[#105330] font-medium">טוען נתונים מ-mygemel...</p>
-          <p className="text-sm text-[#105330]/60 mt-1">הטעינה הראשונית יכולה לקחת עד דקה</p>
+      {/* Last updated + manual refresh button */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm text-[#105330]/70">
+          <Calendar className="w-4 h-4" />
+          <span>עדכון אחרון: {formattedFetchedAt}</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleManualRefresh}
+          disabled={refreshing}
+          className="border-[#f97316]/30 text-[#ea580c] hover:bg-[#f97316]/10"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'מרענן מ-mygamel.net...' : 'רענון ידני'}
+        </Button>
+      </div>
+
+      {/* Loading state */}
+      {loading && (
+        <div className="flex items-center gap-3 p-8 text-[#105330]">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          טוען נתונים מ-mygemel.net...
         </div>
       )}
 
+      {/* Error state */}
       {error && !loading && (
-        <div className="text-center py-12 bg-red-50 rounded-2xl border border-red-200">
-          <p className="text-red-700 font-medium text-lg">{error}</p>
-          <p className="text-sm text-red-600 mt-1">נסו לרענן מאוחר יותר</p>
+        <div className="p-4 bg-[#105330]/5 border border-[#105330]/15 rounded-2xl text-[#105330]/80">
+          {error}
         </div>
       )}
 
-      {categories && (
-        <div className="space-y-8">
-          {categories.map((cat) => (
-            <div key={cat.key} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-[#105330]">{cat.label}</h3>
-                {cat.funds && cat.funds.length > 0 && (
-                  <span className="text-xs text-[#105330]/60 bg-[#105330]/5 px-2 py-1 rounded-full">
-                    {cat.funds.length} קופות
-                  </span>
-                )}
-              </div>
-              <CategoryTable category={cat} />
-            </div>
+      {/* Empty state */}
+      {!loading && !error && (!selectedFundTypeData || !selectedFundTypeData.routes || selectedFundTypeData.routes.length === 0) && (
+        <div className="p-8 text-center text-[#105330]/60">אין נתונים זמינים {selectedFundTypeData?.error ? `(${selectedFundTypeData.error})` : ''}</div>
+      )}
+
+      {/* Fund type content */}
+      {selectedFundTypeData && selectedFundTypeData.routes && selectedFundTypeData.routes.length > 0 && !loading && (
+        <div className="space-y-6">
+          {sourceUrl && (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-[#105330]/60 hover:text-[#105330] transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              צפייה במקור ב-mygamel.net
+            </a>
+          )}
+          {selectedFundTypeData.routes.map((route) => (
+            <FundTable key={route.key} route={route} />
           ))}
         </div>
       )}
