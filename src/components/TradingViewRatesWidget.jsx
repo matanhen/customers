@@ -8,6 +8,44 @@ const SYMBOLS = [
   { symbol: 'TASE:TA125',    label: 'ת"א 125',  sub: 'תל אביב 125' },
 ];
 
+function RatesTickerTape() {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.innerHTML = '';
+
+    const holder = document.createElement('div');
+    holder.className = 'tradingview-widget-container__widget';
+    el.appendChild(holder);
+
+    const script = document.createElement('script');
+    script.src =
+      'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      symbols: [
+        { proName: 'FX_IDC:USDILS', title: 'שער הדולר' },
+        { proName: 'FX_IDC:EURILS', title: 'שער האירו' },
+        { proName: 'BINANCE:BTCUSD', title: 'ביטקוין' },
+        { proName: 'TASE:TA125', title: 'ת"א 125' },
+      ],
+      showSymbolLogo: true,
+      colorTheme: 'light',
+      isTransparent: true,
+      displayMode: 'adaptive',
+      locale: 'he_IL',
+    });
+    el.appendChild(script);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="tradingview-widget-container rounded-xl overflow-hidden border border-[#105330]/10 bg-white" />
+  );
+}
+
 function MiniSymbolWidget({ symbol, label, sub }) {
   const containerRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -70,10 +108,14 @@ function MiniSymbolWidget({ symbol, label, sub }) {
 
 export default function TradingViewRatesWidget() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 md:gap-3 mb-2">
-      {SYMBOLS.map((sym) => (
-        <MiniSymbolWidget key={sym.symbol} {...sym} />
-      ))}
+    <div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 md:gap-3 mb-2">
+        {SYMBOLS.map((sym) => (
+          <MiniSymbolWidget key={sym.symbol} {...sym} />
+        ))}
+      </div>
+      {/* Explicit change strip — current price, daily change in absolute number, and % */}
+      <RatesTickerTape />
     </div>
   );
 }
