@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Activity, PieChart } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
-const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // returns are published end-of-day, refresh every 10 min
+// The data is stored in the ManagedFundData entity, refreshed monthly via
+// automation on the 30th. The frontend fetches once on mount; no daily polling needed.
 
 function formatPercent(n) {
   if (n === null || n === undefined || isNaN(n)) return '—';
@@ -195,7 +196,6 @@ export default function ManagedFundsYields() {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId = null;
 
     const refresh = async () => {
       try {
@@ -222,11 +222,9 @@ export default function ManagedFundsYields() {
     };
 
     refresh();
-    intervalId = setInterval(refresh, REFRESH_INTERVAL_MS);
 
     return () => {
       cancelled = true;
-      if (intervalId) clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

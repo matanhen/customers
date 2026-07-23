@@ -21,7 +21,7 @@ const SECTIONS = [
     label: 'סימולטור מס',
     icon: ReceiptText,
     description: 'חיסכון במס באמצעות מימוש הפסדים',
-    color: 'from-[#1a5c8a] to-[#2a7abf]',
+    color: 'from-[#a16207] to-[#854d0e]',
   },
   {
     key: 'funds',
@@ -41,8 +41,8 @@ const SECTIONS = [
     key: 'managed_funds',
     label: 'תשואות קופות מנוהלות',
     icon: PieChart,
-    description: 'השוואת קופות גמל, קרנות השתלמות ופנסיה מ-mygemel',
-    color: 'from-[#6b4d20] to-[#a07533]',
+    description: 'השוואת מסלולים בקופות גמל, קרנות השתלמות ופנסיה',
+    color: 'from-[#f97316] to-[#ea580c]',
   },
   {
     key: 'compound',
