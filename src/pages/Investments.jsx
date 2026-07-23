@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { TrendingUp, Calculator, ReceiptText, Coins, ArrowRight } from 'lucide-react';
+import { TrendingUp, Calculator, ReceiptText, Coins, ArrowRight, BarChart3 } from 'lucide-react';
 import PortfolioManager from '../components/investments/PortfolioManager';
 import CompoundInterestCalculator from '../components/investments/CompoundInterestCalculator';
 import TaxSimulator from '../components/investments/TaxSimulator';
 import MonetaryFunds from '../components/investments/MonetaryFunds';
+import IndicesAndETFs from '../components/investments/IndicesAndETFs';
 
 const SECTIONS = [
   {
@@ -27,6 +28,13 @@ const SECTIONS = [
     icon: Coins,
     description: 'רשימת קרנות כספיות ומחשבון מיסוי',
     color: 'from-[#7a4a10] to-[#b06a1a]',
+  },
+  {
+    key: 'indices_etf',
+    label: 'מדדים וקרנות סל',
+    icon: BarChart3,
+    description: 'טבלת מדדים פיננסיים וקרנות סל',
+    color: 'from-[#0066a0] to-[#00b4ff]',
   },
   {
     key: 'compound',
@@ -72,6 +80,8 @@ export default function Investments() {
         return <TaxSimulator />;
       case 'funds':
         return <MonetaryFunds />;
+      case 'indices_etf':
+        return <IndicesAndETFs />;
       case 'compound':
         return <CompoundInterestCalculator />;
       default:

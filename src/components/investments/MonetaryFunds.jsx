@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Coins, Info, Search, Calendar, Wallet, TrendingUp, ReceiptText } from 'lucide-react';
+import { Loader2, Coins, Info, Search, Calendar, Wallet, TrendingUp, ReceiptText, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import { base44 } from '@/api/base44Client';
 
@@ -62,21 +62,76 @@ function formatShekel(n, decimals = 0) {
 }
 
 function FundsTable({ funds }) {
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
+
+  const columns = [
+    { key: 'paper',     label: 'מס׳ נייר',        sortable: true  },
+    { key: 'name',      label: 'שם הקרן',         sortable: false },
+    { key: 'mgmt2026',  label: 'דמי ניהול 2026',  sortable: true  },
+    { key: 'yield2026', label: 'תשואה 2026',     sortable: true  },
+    { key: 'yield2025', label: 'תשואה 2025',     sortable: true  },
+    { key: 'mgmt2025',  label: 'דמי ניהול 2025',  sortable: true  },
+  ];
+
+  function parseNumeric(v) {
+    if (typeof v !== 'string' || v === '—') return NaN;
+    const m = v.match(/-?\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : NaN;
+  }
+
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
+
+  const sortedFunds = useMemo(() => {
+    if (!sortKey) return funds;
+    const arr = funds.slice();
+    arr.sort((a, b) => {
+      const av = parseNumeric(a[sortKey]);
+      const bv = parseNumeric(b[sortKey]);
+      const va = isNaN(av) ? -Infinity : av;
+      const vb = isNaN(bv) ? -Infinity : bv;
+      return sortDir === 'desc' ? vb - va : va - vb;
+    });
+    return arr;
+  }, [funds, sortKey, sortDir]);
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-[#105330]/10 shadow-lg">
       <table className="w-full text-sm whitespace-nowrap">
         <thead>
-          <tr className="bg-gradient-to-l from-[#105330] to-[#1a7a4a] text-white text-right">
-            <th className="px-4 py-3 font-semibold">מס׳ נייר</th>
-            <th className="px-4 py-3 font-semibold">שם הקרן</th>
-            <th className="px-4 py-3 font-semibold">דמי ניהול 2026</th>
-            <th className="px-4 py-3 font-semibold">תשואה 2026</th>
-            <th className="px-4 py-3 font-semibold">תשואה 2025</th>
-            <th className="px-4 py-3 font-semibold">דמי ניהול 2025</th>
+          <tr className="bg-gradient-to-l from-[#105330] to-[#1a7a4a] text-white">
+            {columns.map((col) => (
+              <th
+                key={col.key}
+                onClick={col.sortable ? () => toggleSort(col.key) : undefined}
+                className={`px-4 py-3 font-semibold text-center ${col.sortable ? 'cursor-pointer hover:bg-white/10 transition-colors select-none' : ''}`}
+              >
+                <span className="inline-flex items-center gap-1 justify-center">
+                  <span>{col.label}</span>
+                  {col.sortable &&
+                    (sortKey === col.key ? (
+                      sortDir === 'desc' ? (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      )
+                    ) : (
+                      <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                    ))}
+                </span>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {funds.map((f, idx) => (
+          {sortedFunds.map((f, idx) => (
             <tr
               key={f.paper}
               className={`border-b border-[#105330]/10 hover:bg-[#c8a863]/10 transition-colors ${idx % 2 === 1 ? 'bg-[#105330]/[0.03]' : 'bg-white'}`}
@@ -226,7 +281,6 @@ function TaxCalculator() {
             <FormattedNumberInput
               value={depositAmount}
               onChange={setDepositAmount}
-              placeholder="0"
               className="bg-white/95 border-white/15 rounded-xl font-semibold"
             />
           </div>
@@ -238,7 +292,6 @@ function TaxCalculator() {
             <FormattedNumberInput
               value={currentAmount}
               onChange={setCurrentAmount}
-              placeholder="0"
               className="bg-white/95 border-white/15 rounded-xl font-semibold"
             />
           </div>
