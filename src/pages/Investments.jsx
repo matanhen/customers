@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { TrendingUp, Calculator, ReceiptText, Coins, ArrowRight, BarChart3 } from 'lucide-react';
+import { TrendingUp, Calculator, ReceiptText, Coins, ArrowRight, BarChart3, PieChart } from 'lucide-react';
 import PortfolioManager from '../components/investments/PortfolioManager';
 import CompoundInterestCalculator from '../components/investments/CompoundInterestCalculator';
 import TaxSimulator from '../components/investments/TaxSimulator';
 import MonetaryFunds from '../components/investments/MonetaryFunds';
 import IndicesAndETFs from '../components/investments/IndicesAndETFs';
+import ManagedFundsYields from '../components/investments/ManagedFundsYields';
 
 const SECTIONS = [
   {
@@ -35,6 +36,13 @@ const SECTIONS = [
     icon: BarChart3,
     description: 'טבלת מדדים פיננסיים וקרנות סל',
     color: 'from-[#0066a0] to-[#00b4ff]',
+  },
+  {
+    key: 'managed_funds',
+    label: 'תשואות קופות מנוהלות',
+    icon: PieChart,
+    description: 'השוואת קופות גמל, קרנות השתלמות ופנסיה מ-mygemel',
+    color: 'from-[#6b4d20] to-[#a07533]',
   },
   {
     key: 'compound',
@@ -82,6 +90,8 @@ export default function Investments() {
         return <MonetaryFunds />;
       case 'indices_etf':
         return <IndicesAndETFs />;
+      case 'managed_funds':
+        return <ManagedFundsYields />;
       case 'compound':
         return <CompoundInterestCalculator />;
       default:

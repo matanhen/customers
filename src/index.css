@@ -200,3 +200,17 @@ button:focus-visible {
     color-scheme: light only;
   }
 }
+
+/* === Live ETF quote flashing (price update during open market) === */
+@keyframes flash-up {
+  0%   { background-color: rgba(22, 163, 74, 0.45); }
+  50%  { background-color: rgba(22, 163, 74, 0.22); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-down {
+  0%   { background-color: rgba(220, 38, 38, 0.45); }
+  50%  { background-color: rgba(220, 38, 38, 0.22); }
+  100% { background-color: transparent; }
+}
+.animate-flash-up   { animation: flash-up 1.2s ease-out; }
+.animate-flash-down { animation: flash-down 1.2s ease-out; }
