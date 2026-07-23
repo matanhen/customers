@@ -1,17 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { TrendingUp, Calculator, ReceiptText, Coins } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TrendingUp, Calculator, ReceiptText, Coins, ArrowRight } from 'lucide-react';
 import PortfolioManager from '../components/investments/PortfolioManager';
 import CompoundInterestCalculator from '../components/investments/CompoundInterestCalculator';
 import TaxSimulator from '../components/investments/TaxSimulator';
 import MonetaryFunds from '../components/investments/MonetaryFunds';
 
+const SECTIONS = [
+  {
+    key: 'portfolio',
+    label: 'תיק השקעות',
+    icon: TrendingUp,
+    description: 'ניהול תיק ניירות ערך ומעקב תשואות',
+    color: 'from-[#105330] to-[#1a7a4a]',
+  },
+  {
+    key: 'tax',
+    label: 'סימולטור מס',
+    icon: ReceiptText,
+    description: 'חיסכון במס באמצעות מימוש הפסדים',
+    color: 'from-[#1a5c8a] to-[#2a7abf]',
+  },
+  {
+    key: 'funds',
+    label: 'קרנות כספיות',
+    icon: Coins,
+    description: 'רשימת קרנות כספיות ומחשבון מיסוי',
+    color: 'from-[#7a4a10] to-[#b06a1a]',
+  },
+  {
+    key: 'compound',
+    label: 'ריבית דריבית',
+    icon: Calculator,
+    description: 'סימולציית צמיחת הון לאורך זמן',
+    color: 'from-[#5b2a83] to-[#9a4fd4]',
+  },
+];
+
 export default function Investments() {
   const [user, setUser] = useState(null);
   const [viewingClientId, setViewingClientId] = useState(null);
-  const [activeTab, setActiveTab] = useState('portfolio');
-  // 'pension' tab removed - now lives under Financial Reflection > Assets
+  const [activeSection, setActiveSection] = useState(null);
 
   useEffect(() => {
     loadUser();
@@ -33,61 +62,74 @@ export default function Investments() {
 
   const effectiveUserId = viewingClientId || user?.id;
 
+  const handleBack = () => setActiveSection(null);
+
+  const renderSection = () => {
+    switch (activeSection) {
+      case 'portfolio':
+        return <PortfolioManager userId={effectiveUserId} />;
+      case 'tax':
+        return <TaxSimulator />;
+      case 'funds':
+        return <MonetaryFunds />;
+      case 'compound':
+        return <CompoundInterestCalculator />;
+      default:
+        return null;
+    }
+  };
+
+  // Landing: section cards selection
+  if (!activeSection) {
+    return (
+      <div className="max-w-6xl mx-auto" dir="rtl">
+        <div className="mb-10">
+          <h1 className="text-3xl font-bold text-[#105330] mb-2">השקעות</h1>
+          <p className="text-[#105330]/70">בחר קטגוריה להתחלה</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {SECTIONS.map((section) => {
+            const Icon = section.icon;
+            return (
+              <button
+                key={section.key}
+                onClick={() => setActiveSection(section.key)}
+                className={`bg-gradient-to-br ${section.color} text-white rounded-2xl p-8 text-right shadow-xl hover:scale-105 transition-transform duration-200 flex flex-col gap-4 min-h-[160px]`}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <Icon className="w-8 h-8" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold mb-1">{section.label}</h2>
+                  <p className="text-white/75 text-sm">{section.description}</p>
+                </div>
+                <div className="flex items-center gap-1 text-white/80 text-sm mt-auto">
+                  <span>כניסה</span>
+                  <ArrowRight className="w-4 h-4 rotate-180" />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Selected section
+  const currentSection = SECTIONS.find((s) => s.key === activeSection);
   return (
     <div className="max-w-6xl mx-auto" dir="rtl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#105330] mb-2">השקעות</h1>
-        <p className="text-[#105330]/70">ניהול תיק השקעות, סימולטור מס, קרנות כספיות ומחשבון ריבית דריבית</p>
+      <div className="mb-6 flex items-center gap-3">
+        <button
+          onClick={handleBack}
+          className="text-[#105330]/60 hover:text-[#105330] flex items-center gap-1 text-sm font-medium"
+        >
+          <ArrowRight className="w-4 h-4" />
+          חזרה
+        </button>
+        <h1 className="text-2xl font-bold text-[#105330]">{currentSection?.label}</h1>
       </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-2 lg:grid-cols-4 w-full max-w-3xl bg-[#105330]/10 p-1.5 rounded-xl gap-1">
-          <TabsTrigger
-            value="portfolio"
-            className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-xs sm:text-sm"
-          >
-            <TrendingUp className="w-4 h-4 ml-1.5" />
-            תיק השקעות
-          </TabsTrigger>
-          <TabsTrigger
-            value="tax"
-            className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-xs sm:text-sm"
-          >
-            <ReceiptText className="w-4 h-4 ml-1.5" />
-            סימולטור מס
-          </TabsTrigger>
-          <TabsTrigger
-            value="funds"
-            className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-xs sm:text-sm"
-          >
-            <Coins className="w-4 h-4 ml-1.5" />
-            קרנות כספיות
-          </TabsTrigger>
-          <TabsTrigger
-            value="compound"
-            className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-xs sm:text-sm"
-          >
-            <Calculator className="w-4 h-4 ml-1.5" />
-            ריבית דריבית
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="portfolio" className="mt-0">
-          <PortfolioManager userId={effectiveUserId} />
-        </TabsContent>
-
-        <TabsContent value="tax" className="mt-0">
-          <TaxSimulator />
-        </TabsContent>
-
-        <TabsContent value="funds" className="mt-0">
-          <MonetaryFunds />
-        </TabsContent>
-
-        <TabsContent value="compound" className="mt-0">
-          <CompoundInterestCalculator />
-        </TabsContent>
-      </Tabs>
+      {renderSection()}
     </div>
   );
 }
