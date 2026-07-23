@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Target } from 'lucide-react';
 import PullToRefresh from '../components/PullToRefresh';
 import TradingViewRatesWidget from '@/components/TradingViewRatesWidget';
+import MacroRatesWidget from '@/components/MacroRatesWidget';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -291,6 +292,9 @@ export default function Home() {
       <div className="mb-4">
         <TradingViewRatesWidget />
       </div>
+
+      {/* Monthly macroeconomic indicators (BoI rate, prime, inflation) — refreshed once a month */}
+      <MacroRatesWidget />
 
       {!hasData ? (
         <Card className="border-0 shadow-lg text-center py-16">
