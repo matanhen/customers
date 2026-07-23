@@ -21,7 +21,7 @@ const SECTIONS = [
     label: 'סימולטור מס',
     icon: ReceiptText,
     description: 'חיסכון במס באמצעות מימוש הפסדים',
-    color: 'from-[#a16207] to-[#854d0e]',
+    color: 'from-[#374151] to-[#1f2937]',
   },
   {
     key: 'funds',

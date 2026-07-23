@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Loader2, RefreshCw, Calendar, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2, Calendar, ExternalLink } from 'lucide-react';
 
 const FUND_TYPE_SELECTOR = [
   { key: 'keren_hishtalmut', label: 'קרנות השתלמות' },
   { key: 'gemel_lehashkaa',  label: 'קופת גמל להשקעה' },
   { key: 'kupot_gemel',      label: 'קופות גמל' },
   { key: 'keren_pensia',    label: 'קרנות פנסיה' },
+  { key: 'polisot_hisachon', label: 'פוליסות חיסכון' },
 ];
 
 function formatPct(n) {
@@ -40,9 +40,6 @@ function FundTable({ route }) {
     <div className="rounded-2xl border border-[#105330]/10 shadow-sm overflow-hidden bg-white">
       <div className="bg-gradient-to-l from-[#f97316] to-[#ea580c] px-4 py-2.5">
         <h3 className="font-bold text-white text-sm md:text-base">{route.label}</h3>
-      </div>
-      <div className="text-xs text-[#105330]/60 px-4 py-1.5 bg-[#f97316]/5 border-b border-[#f97316]/15">
-        על בסיס תשואה מצטברת לפני דמי ניהול • מקור: mygemel.net
       </div>
 
       {/* Desktop table */}
@@ -127,7 +124,6 @@ export default function ManagedFundsYields() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedFundType, setSelectedFundType] = useState('keren_hishtalmut');
-  const [refreshing, setRefreshing] = useState(false);
   const [fetchedAt, setFetchedAt] = useState(null);
 
   useEffect(() => {
@@ -157,25 +153,6 @@ export default function ManagedFundsYields() {
     load();
     return () => { cancelled = true; };
   }, []);
-
-  const handleManualRefresh = async () => {
-    try {
-      setRefreshing(true);
-      setError('');
-      const response = await base44.functions.invoke('fetchManagedFunds', { force: true });
-      if (response?.data?.fund_types && response.data.fund_types.length > 0) {
-        setData(response.data);
-        setFetchedAt(response.data.fetchedAt);
-      } else {
-        setError('הרענון לא הצליח לשלוף נתונים. נסה שוב מאוחר יותר.');
-      }
-    } catch (e) {
-      console.error('Manual refresh failed', e);
-      setError('נכשל רענון');
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const selectedFundTypeData =
     data && data.fund_types
@@ -220,22 +197,10 @@ export default function ManagedFundsYields() {
         })}
       </div>
 
-      {/* Last updated + manual refresh button */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 text-sm text-[#105330]/70">
-          <Calendar className="w-4 h-4" />
-          <span>עדכון אחרון: {formattedFetchedAt}</span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleManualRefresh}
-          disabled={refreshing}
-          className="border-[#f97316]/30 text-[#ea580c] hover:bg-[#f97316]/10"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? 'מרענן מ-mygamel.net...' : 'רענון ידני'}
-        </Button>
+      {/* Last updated */}
+      <div className="flex items-center gap-2 text-sm text-[#105330]/70">
+        <Calendar className="w-4 h-4" />
+        <span>עדכון אחרון: {formattedFetchedAt}</span>
       </div>
 
       {/* Loading state */}

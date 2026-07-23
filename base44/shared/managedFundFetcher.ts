@@ -13,6 +13,7 @@ export const FUND_TYPES = [
   { key: 'gemel_lehashkaa',  label: 'קופת גמל להשקעה', url: 'https://www.mygemel.net/קופת-גמל-להשקעה' },
   { key: 'kupot_gemel',      label: 'קופות גמל',       url: 'https://www.mygemel.net/קופות-גמל' },
   { key: 'keren_pensia',    label: 'קרנות פנסיה',      url: 'https://www.mygemel.net/פנסיה' },
+  { key: 'polisot_hisachon', label: 'פוליסות חיסכון', url: 'https://www.mygemel.net/פוליסות-חיסכון' },
 ];
 
 export function currentMonthKey(d = new Date()) {
