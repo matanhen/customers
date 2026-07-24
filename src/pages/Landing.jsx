@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,22 @@ export default function Landing() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+
+  // Fetch admin-uploaded logo (public endpoint, no auth required)
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const result = await base44.functions.invoke('getSiteLogo', {});
+        if (result?.data?.logo_url) {
+          setLogoUrl(result.data.logo_url);
+        }
+      } catch (e) {
+        // ignore — landing still works without logo
+      }
+    };
+    loadLogo();
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim()) return;
@@ -36,11 +52,14 @@ export default function Landing() {
           <div className="h-2 bg-gradient-to-r from-[#105330] to-[#1a7a4a]" />
           <div className="p-10">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#105330] to-[#1a7a4a] flex items-center justify-center mx-auto mb-5 shadow-lg">
-                <span className="text-white text-2xl font-bold">צ</span>
-              </div>
-              <p className="text-xs font-semibold text-[#c8a863] uppercase tracking-widest mb-2">מערכת פרימיום לניהול כסף</p>
-              <h1 className="text-3xl font-bold text-slate-800 mb-1">צעירים מתעשרים</h1>
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="לוגו"
+                  className="w-20 h-20 object-contain rounded-2xl mx-auto mb-5 shadow-sm"
+                />
+              )}
+              <p className="text-lg font-bold text-[#c8a863] uppercase tracking-widest mb-2">מערכת פרימיום לניהול כסף</p>
               <p className="text-slate-500 text-sm">ברוכים הבאים</p>
             </div>
 

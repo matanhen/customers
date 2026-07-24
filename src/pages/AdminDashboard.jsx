@@ -34,6 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
+import LogoUploader from '@/components/admin/LogoUploader';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -458,6 +459,9 @@ export default function AdminDashboard() {
         </div>
 
       </div>
+
+      {/* Logo Uploader */}
+      <LogoUploader />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
