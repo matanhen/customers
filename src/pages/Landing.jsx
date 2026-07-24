@@ -59,7 +59,7 @@ export default function Landing() {
                   className="w-20 h-20 object-contain rounded-2xl mx-auto mb-5 shadow-sm"
                 />
               )}
-              <p className="text-lg font-bold text-[#c8a863] uppercase tracking-widest mb-2">מערכת פרימיום לניהול כסף</p>
+              <p className="text-lg font-bold text-[#105330] uppercase tracking-widest mb-2">מערכת פרימיום לניהול כסף</p>
               <p className="text-slate-500 text-sm">ברוכים הבאים</p>
             </div>
 

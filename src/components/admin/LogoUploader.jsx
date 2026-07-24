@@ -85,7 +85,7 @@ export default function LogoUploader() {
               <img
                 src={logoUrl}
                 alt="לוגו"
-                className="w-24 h-24 object-contain rounded-2xl border border-slate-200 bg-slate-50"
+                className="w-48 h-48 object-contain"
               />
             ) : (
               <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400">
