@@ -221,22 +221,35 @@ export default function ExpenseTracking({ userId }) {
   const saveNow = useCallback(async (data) => {
     if (!dataLoadedRef.current) return;
     const month = format(currentDate, 'yyyy-MM');
+    // Strip UI-only fields before sending to server (unknown fields can cause save to fail)
+    const { _categoryExpenses, ...serverData } = data;
+    let savedRecord;
     if (isViewingOther && isAdvisorOrAdmin) {
       const response = await base44.functions.invoke('saveClientData', {
         entityName: 'ExpenseTracking',
         clientUserId: userId,
-        data: { ...data, user_id: userId, month },
+        data: { ...serverData, user_id: userId, month },
         recordId: currentTrackingIdRef.current || null,
       });
       if (response.data?.id) currentTrackingIdRef.current = response.data.id;
+      savedRecord = response.data;
     } else if (currentTrackingIdRef.current) {
-      await base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, data);
+      savedRecord = await base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, serverData);
     } else {
-      const created = await base44.entities.ExpenseTracking.create({ ...data, user_id: userId, month });
-      currentTrackingIdRef.current = created.id;
+      savedRecord = await base44.entities.ExpenseTracking.create({ ...serverData, user_id: userId, month });
+      currentTrackingIdRef.current = savedRecord.id;
     }
-    queryClient.invalidateQueries({ queryKey: ['expenseTracking', userId] });
-  }, [userId, currentDate, queryClient, isViewingOther, isAdvisorOrAdmin]);
+    // Mark this record as loaded so the data-loading useEffect doesn't overwrite local edits
+    if (savedRecord?.id) lastLoadedTrackingIdRef.current = savedRecord.id;
+    // Update cache WITHOUT triggering a refetch (prevents useEffect from overwriting user edits)
+    const trackingQueryKey = ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin];
+    queryClient.setQueryData(trackingQueryKey, (old = []) => {
+      if (!savedRecord?.id) return old;
+      const exists = old.find(t => t.id === savedRecord.id);
+      if (exists) return old.map(t => t.id === savedRecord.id ? { ...t, ...savedRecord } : t);
+      return [...old, savedRecord];
+    });
+  }, [userId, currentDate, queryClient, isViewingOther, isAdvisorOrAdmin, currentUser]);
 
   const saveNowRef = useRef(saveNow);
   saveNowRef.current = saveNow;

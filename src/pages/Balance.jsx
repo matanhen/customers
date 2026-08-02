@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark, Lock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
@@ -166,6 +166,7 @@ export default function Balance() {
   const [liabilityDialog, setLiabilityDialog] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr());
   const queryClient = useQueryClient();
+  const balanceIdRef = useRef(null);
 
   useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
@@ -216,14 +217,15 @@ export default function Balance() {
 
   // One-time migration: if legacy data exists but no MonthlyBalance for current month
   useEffect(() => {
-    if (legacyPlan && userId && !monthData && !isBalanceLoading && selectedMonth === currentMonthStr()) {
+    if (legacyPlan && userId && !monthData && !isBalanceLoading && selectedMonth === currentMonthStr() && !balanceIdRef.current) {
       base44.entities.MonthlyBalance.create({
         user_id: userId,
         month: selectedMonth,
         assets: legacyPlan.assets || { items: [] },
         liabilities: legacyPlan.liabilities || { items: [] },
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, selectedMonth] });
+      }).then((created) => {
+        balanceIdRef.current = created.id;
+        queryClient.setQueryData(['monthlyBalance', userId, selectedMonth], created);
       }).catch(() => {});
     }
   }, [legacyPlan, userId, monthData, isBalanceLoading, selectedMonth]);
@@ -240,6 +242,14 @@ export default function Balance() {
     || (carryFromPrev ? prevMonthData.liabilities?.items : undefined)
     || legacyLiabilities
     || [];
+
+  // Track the record ID in a ref so saveMutation doesn't create duplicates
+  useEffect(() => {
+    balanceIdRef.current = null;
+  }, [selectedMonth]);
+  useEffect(() => {
+    if (monthData?.id) balanceIdRef.current = monthData.id;
+  }, [monthData?.id]);
 
   const isAdvisorOrAdmin = user?.user_type === 'advisor' || user?.user_type === 'admin';
   const isViewingOther = !!user && user.id !== userId;
@@ -290,14 +300,15 @@ export default function Balance() {
 
   // Auto-create record if data is carried from previous month
   useEffect(() => {
-    if (carryFromPrev && userId && prevMonthData) {
+    if (carryFromPrev && userId && prevMonthData && !balanceIdRef.current) {
       base44.entities.MonthlyBalance.create({
         user_id: userId,
         month: selectedMonth,
         assets: prevMonthData.assets,
         liabilities: prevMonthData.liabilities,
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, selectedMonth] });
+      }).then((created) => {
+        balanceIdRef.current = created.id;
+        queryClient.setQueryData(['monthlyBalance', userId, selectedMonth], created);
       }).catch(() => {});
     }
   }, [carryFromPrev]);
@@ -305,12 +316,23 @@ export default function Balance() {
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       const payload = { user_id: userId, month: selectedMonth, ...data };
-      if (monthData?.id) return base44.entities.MonthlyBalance.update(monthData.id, payload);
-      return base44.entities.MonthlyBalance.create(payload);
+      if (balanceIdRef.current) {
+        return base44.entities.MonthlyBalance.update(balanceIdRef.current, payload);
+      }
+      const created = await base44.entities.MonthlyBalance.create(payload);
+      balanceIdRef.current = created.id;
+      return created;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, selectedMonth] });
-      // Also invalidate prev month since it could now be a valid carry source
+    onSuccess: (result) => {
+      // Update cache WITHOUT refetching (prevents stale-data races)
+      queryClient.setQueryData(['monthlyBalance', userId, selectedMonth], (old) => ({
+        ...(old || {}),
+        ...result,
+        id: balanceIdRef.current,
+        user_id: userId,
+        month: selectedMonth,
+      }));
+      // Invalidate next month so it can carry from this month if needed
       queryClient.invalidateQueries({ queryKey: ['monthlyBalance', userId, nextMonth(selectedMonth)] });
     },
   });
@@ -320,12 +342,29 @@ export default function Balance() {
     const newItems = isEdit
       ? assets.map(a => a.id === assetDialog.id ? { ...form, id: assetDialog.id } : a)
       : [...assets, { ...form, id: `a_${Date.now()}` }];
+    // Optimistically update cache so the next action sees the latest data
+    queryClient.setQueryData(['monthlyBalance', userId, selectedMonth], (old) => ({
+      ...(old || {}),
+      id: balanceIdRef.current || old?.id,
+      user_id: userId,
+      month: selectedMonth,
+      assets: { items: newItems },
+      liabilities: { items: liabilities },
+    }));
     saveMutation.mutate({ assets: { items: newItems }, liabilities: { items: liabilities } });
     setAssetDialog(null);
   };
 
   const deleteAsset = (id) => {
     const newItems = assets.filter(a => a.id !== id);
+    queryClient.setQueryData(['monthlyBalance', userId, selectedMonth], (old) => ({
+      ...(old || {}),
+      id: balanceIdRef.current || old?.id,
+      user_id: userId,
+      month: selectedMonth,
+      assets: { items: newItems },
+      liabilities: { items: liabilities },
+    }));
     saveMutation.mutate({ assets: { items: newItems }, liabilities: { items: liabilities } });
   };
 
@@ -334,12 +373,28 @@ export default function Balance() {
     const newItems = isEdit
       ? liabilities.map(l => l.id === liabilityDialog.id ? { ...form, id: liabilityDialog.id } : l)
       : [...liabilities, { ...form, id: `l_${Date.now()}` }];
+    queryClient.setQueryData(['monthlyBalance', userId, selectedMonth], (old) => ({
+      ...(old || {}),
+      id: balanceIdRef.current || old?.id,
+      user_id: userId,
+      month: selectedMonth,
+      assets: { items: assets },
+      liabilities: { items: newItems },
+    }));
     saveMutation.mutate({ assets: { items: assets }, liabilities: { items: newItems } });
     setLiabilityDialog(null);
   };
 
   const deleteLiability = (id) => {
     const newItems = liabilities.filter(l => l.id !== id);
+    queryClient.setQueryData(['monthlyBalance', userId, selectedMonth], (old) => ({
+      ...(old || {}),
+      id: balanceIdRef.current || old?.id,
+      user_id: userId,
+      month: selectedMonth,
+      assets: { items: assets },
+      liabilities: { items: newItems },
+    }));
     saveMutation.mutate({ assets: { items: assets }, liabilities: { items: newItems } });
   };
 
