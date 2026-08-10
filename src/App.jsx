@@ -15,6 +15,8 @@ import Pension from './pages/Pension';
 // Removed Appointments related imports
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ErrorBoundary from '@/lib/ErrorBoundary';
+import RouteAwareErrorBoundary from '@/lib/RouteAwareErrorBoundary';
+import GlobalErrorHandler from '@/lib/GlobalErrorHandler';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -79,9 +81,10 @@ function App() {
         <QueryClientProvider client={queryClientInstance}>
           <Router>
             <NavigationTracker />
-            <ErrorBoundary>
+            <GlobalErrorHandler />
+            <RouteAwareErrorBoundary>
               <AuthenticatedApp />
-            </ErrorBoundary>
+            </RouteAwareErrorBoundary>
           </Router>
           <Toaster />
           <VisualEditAgent />

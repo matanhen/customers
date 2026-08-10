@@ -1,4 +1,5 @@
 import React from 'react';
+import { base44 } from '@/api/base44Client';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,6 +13,29 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('ErrorBoundary caught:', error, info);
+    // Log error to analytics with full context so the admin can investigate
+    try {
+      base44.analytics.track({
+        eventName: 'page_render_error',
+        properties: {
+          error_message: String(error?.message || error || '').slice(0, 500),
+          error_stack: String(error?.stack || '').slice(0, 2000),
+          component_stack: String(info?.componentStack || '').slice(0, 1000),
+          reset_key: String(this.props.resetKey || ''),
+          url: window.location.href,
+          retry_count: this.state.retryCount,
+        },
+      });
+    } catch (e) {
+      console.error('Failed to log error to analytics:', e);
+    }
+  }
+
+  componentDidUpdate(prevProps) {
+    // Auto-reset when the resetKey changes (e.g., user navigates to a different route)
+    if (this.props.resetKey && prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   handleRetry = () => {
@@ -44,12 +68,18 @@ export default class ErrorBoundary extends React.Component {
             </div>
             <h2 className="text-xl font-bold text-slate-800 mb-2">משהו השתבש</h2>
             <p className="text-slate-500 text-sm mb-6">אירעה שגיאה בטעינת הדף. ניתן לנסות שוב.</p>
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center flex-wrap">
               <button
                 onClick={this.handleRetry}
                 className="px-6 py-3 bg-[#105330] text-white rounded-xl font-semibold hover:bg-[#0d4027] transition-colors"
               >
                 נסה שוב
+              </button>
+              <button
+                onClick={() => { window.location.href = '/Home'; }}
+                className="px-6 py-3 bg-[#c8a863] text-[#105330] rounded-xl font-semibold hover:bg-[#d4b87a] transition-colors"
+              >
+                חזור לדף הבית
               </button>
               <button
                 onClick={() => window.location.reload()}
