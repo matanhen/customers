@@ -62,6 +62,12 @@ export default function GoalSettingsPanel({ userId }) {
 
   const autoSaveTimer = useRef(null);
   const pendingSaveRef = useRef(null);
+  // Refs for latest values needed for the cleanup save (direct API call on unmount)
+  const goalSettingsIdRef = useRef(null);
+  const pensionDataRef = useRef([]);
+  const userIdRef = useRef(userId);
+  const isViewingOtherRef = useRef(false);
+  const isAdvisorOrAdminRef = useRef(false);
 
   useEffect(() => {
     if (goalSettings) {
@@ -75,13 +81,20 @@ export default function GoalSettingsPanel({ userId }) {
     }
   }, [goalSettings]);
 
+  // Keep refs in sync so the unmount cleanup save has the latest values
+  useEffect(() => { goalSettingsIdRef.current = goalSettings?.id || null; }, [goalSettings]);
+  useEffect(() => { pensionDataRef.current = pensionData; }, [pensionData]);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
+  useEffect(() => { isViewingOtherRef.current = isViewingOther; }, [isViewingOther]);
+  useEffect(() => { isAdvisorOrAdminRef.current = isAdvisorOrAdmin; }, [isAdvisorOrAdmin]);
+
   const triggerAutoSave = (newSettings) => {
     pendingSaveRef.current = newSettings;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       pendingSaveRef.current = null;
       saveMutation.mutate(newSettings);
-    }, 1000);
+    }, 500);
   };
 
   const updateSettings = (newSettings) => {
@@ -115,14 +128,34 @@ export default function GoalSettingsPanel({ userId }) {
   const saveMutationRef = useRef(saveMutation);
   useEffect(() => { saveMutationRef.current = saveMutation; }, [saveMutation]);
 
-  // Flush any pending debounced save when the panel unmounts (page navigation / app close)
+  // Flush any pending debounced save when the panel unmounts (page navigation / tab switch)
+  // Uses a direct API call (not useMutation) because useMutation's mutate may not
+  // complete after the component unmounts in React Query v5.
   useEffect(() => {
     return () => {
       clearTimeout(autoSaveTimer.current);
-      if (pendingSaveRef.current) {
+      if (pendingSaveRef.current && userIdRef.current) {
         const data = pendingSaveRef.current;
         pendingSaveRef.current = null;
-        saveMutationRef.current.mutate(data);
+        const currentUserId = userIdRef.current;
+        const saveData = {
+          ...data,
+          user_id: currentUserId,
+          male_current_age: pensionDataRef.current.find(p => p.gender === 'male' && p.fund_type === 'pension')?.current_age || 0,
+          female_current_age: pensionDataRef.current.find(p => p.gender === 'female' && p.fund_type === 'pension')?.current_age || 0,
+        };
+        const id = goalSettingsIdRef.current;
+        let promise;
+        if (isViewingOtherRef.current && isAdvisorOrAdminRef.current) {
+          promise = base44.functions.invoke('saveClientData', { entityName: 'GoalSettings', clientUserId: currentUserId, data: saveData, recordId: id || null });
+        } else if (id) {
+          promise = base44.entities.GoalSettings.update(id, saveData);
+        } else {
+          promise = base44.entities.GoalSettings.create(saveData);
+        }
+        promise.then(() => {
+          queryClient.invalidateQueries({ queryKey: ['goalSettings', currentUserId] });
+        }).catch(() => {});
       }
     };
   }, []);

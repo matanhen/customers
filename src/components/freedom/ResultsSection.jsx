@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Target, TrendingUp, Calendar, Award, AlertTriangle, CheckCircle, Home, Coins } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function ResultsSection({ userId }) {
   const [activePlan, setActivePlan] = useState('current');
+  const [noGoalDelay, setNoGoalDelay] = useState(false);
 
   const planButtons = [
     { value: 'current', label: 'אם לא משנים כלום' },
@@ -23,7 +24,18 @@ export default function ResultsSection({ userId }) {
       return results[0];
     },
     enabled: !!userId,
+    staleTime: 0,
   });
+
+  // Delay showing "no goal" message to allow a pending save (from the planning tab)
+  // to complete and trigger a refetch via invalidation.
+  useEffect(() => {
+    if (!goalLoading && !goalSettings && !goalFetching) {
+      const timer = setTimeout(() => setNoGoalDelay(true), 1200);
+      return () => clearTimeout(timer);
+    }
+    setNoGoalDelay(false);
+  }, [goalLoading, goalSettings, goalFetching]);
 
   const { data: allPlans = [] } = useQuery({
     queryKey: ['allFinancialPlans', userId],
@@ -748,6 +760,13 @@ export default function ResultsSection({ userId }) {
   }
 
   if (!goalSettings) {
+    if (!noGoalDelay) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-10 h-10 border-4 border-[#105330]/20 border-t-[#105330] rounded-full animate-spin" />
+        </div>
+      );
+    }
     return (
       <Card className="border-0 shadow-xl bg-white/95">
         <CardContent className="p-8 text-center">
