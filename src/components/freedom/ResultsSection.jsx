@@ -16,7 +16,7 @@ export default function ResultsSection({ userId }) {
     { value: 'plan_c', label: 'תכנון ג׳' },
   ];
 
-  const { data: goalSettings } = useQuery({
+  const { data: goalSettings, isLoading: goalLoading, isFetching: goalFetching } = useQuery({
     queryKey: ['goalSettings', userId],
     queryFn: async () => {
       const results = await base44.entities.GoalSettings.filter({ user_id: userId });
@@ -737,6 +737,14 @@ export default function ResultsSection({ userId }) {
 
   if (!userId) {
     return <div className="text-center py-8 text-[#105330]">אנא התחבר למערכת</div>;
+  }
+
+  if (goalLoading || (goalFetching && !goalSettings)) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="w-10 h-10 border-4 border-[#105330]/20 border-t-[#105330] rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!goalSettings) {

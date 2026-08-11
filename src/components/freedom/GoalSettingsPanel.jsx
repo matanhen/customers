@@ -27,7 +27,7 @@ export default function GoalSettingsPanel({ userId }) {
     base44.auth.me().then(setCurrentUser).catch(() => {});
   }, [userId]);
 
-  const { data: goalSettings } = useQuery({
+  const { data: goalSettings, isSuccess: goalSettingsLoaded } = useQuery({
     queryKey: ['goalSettings', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
@@ -86,7 +86,7 @@ export default function GoalSettingsPanel({ userId }) {
 
   const updateSettings = (newSettings) => {
     setSettings(newSettings);
-    if (goalSettings !== undefined) triggerAutoSave(newSettings);
+    if (goalSettingsLoaded) triggerAutoSave(newSettings);
   };
 
   const saveMutation = useMutation({
@@ -107,7 +107,7 @@ export default function GoalSettingsPanel({ userId }) {
       return base44.entities.GoalSettings.create(saveData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goalSettings', userId, currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ['goalSettings', userId] });
     },
   });
 
