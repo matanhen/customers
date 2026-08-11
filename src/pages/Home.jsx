@@ -260,7 +260,17 @@ export default function Home() {
     await queryClient.invalidateQueries({ queryKey: ['expenseMappings'] });
   }, [queryClient, effectiveUserId]);
 
-  const topGoals = (financialGoals || []).slice(0, 5);
+  // Hide goals whose target date has already passed (compare by month)
+  const currentMonthStart = new Date();
+  currentMonthStart.setDate(1);
+  currentMonthStart.setHours(0, 0, 0, 0);
+  const topGoals = (financialGoals || [])
+    .filter(g => {
+      if (!g.target_date) return true; // goals without a date are always shown
+      const targetDate = new Date(g.target_date);
+      return targetDate >= currentMonthStart;
+    })
+    .slice(0, 5);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
