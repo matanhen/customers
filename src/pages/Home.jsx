@@ -178,10 +178,36 @@ export default function Home() {
       .slice(0, 8);
   })();
 
-  // Assets from Balance sheet (FinancialPlan plan_type=balance_sheet)
-  const balanceAssets = balancePlan?.assets?.items || [];
+  // Current month and monthly balance lookup (MonthlyBalance is the source of truth;
+  // FinancialPlan plan_type=balance_sheet is only a legacy fallback)
+  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const balanceByMonth = {};
+  (monthlyBalances || []).forEach(b => {
+    if (b.month) balanceByMonth[b.month] = b;
+  });
+  if (!balanceByMonth[currentMonthStr] && balancePlan) {
+    balanceByMonth[currentMonthStr] = {
+      month: currentMonthStr,
+      assets: { items: (balancePlan.assets?.items || []).map(a => ({ ...a, value: Number(a.value) || 0 })) },
+      liabilities: { items: (balancePlan.liabilities?.items || []).map(l => ({ ...l, balance: Number(l.balance) || 0 })) },
+    };
+  }
+
+  // Use current month's balance, or latest available month if current month has no record
+  const sortedBalanceMonths = (monthlyBalances || [])
+    .filter(b => b.month)
+    .sort((a, b) => a.month.localeCompare(b.month));
+  const latestBalance = sortedBalanceMonths[sortedBalanceMonths.length - 1];
+  const currentBalance = balanceByMonth[currentMonthStr] || latestBalance || { assets: { items: [] }, liabilities: { items: [] } };
+
+  // Assets and liabilities from the current month's balance
+  const balanceAssets = currentBalance.assets?.items || [];
+  const balanceLiabilities = currentBalance.liabilities?.items || [];
   const totalAssets = balanceAssets.reduce((s, a) => s + (Number(a.value) || 0), 0);
   const totalPension = (pensionData || []).reduce((sum, p) => sum + (p.current_amount || 0), 0);
+  const totalDebts = balanceLiabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
+  const netWorth = totalAssets + totalPension - totalDebts;
+  const netWorthExPension = totalAssets - totalDebts;
 
   // Group balance assets by category for breakdown
   const assetCatTotals = {};
@@ -207,21 +233,6 @@ export default function Home() {
   }
   const netWorthMonths = generateLastMonths(4);
 
-  // Build monthly balance lookup (MonthlyBalance + legacy FinancialPlan fallback)
-  const balanceByMonth = {};
-  (monthlyBalances || []).forEach(b => {
-    if (b.month) balanceByMonth[b.month] = b;
-  });
-  // Legacy fallback: if a month is in the current month, use legacy plan if no MonthlyBalance
-  const currentMonthStr = new Date().toISOString().slice(0, 7);
-  if (!balanceByMonth[currentMonthStr] && balancePlan) {
-    balanceByMonth[currentMonthStr] = {
-      month: currentMonthStr,
-      assets: { items: (balancePlan.assets?.items || []).map(a => ({ ...a, value: Number(a.value) || 0 })) },
-      liabilities: { items: (balancePlan.liabilities?.items || []).map(l => ({ ...l, balance: Number(l.balance) || 0 })) },
-    };
-  }
-
   // Net worth progression data (last 4 months)
   const netWorthProgressionData = netWorthMonths.map(m => {
     const b = balanceByMonth[m];
@@ -235,11 +246,6 @@ export default function Home() {
       'שווי נקי': aTotal + (pensionData || []).reduce((s, p) => s + (p.current_amount || 0), 0) - lTotal,
     };
   });
-
-  const balanceLiabilities = balancePlan?.liabilities?.items || [];
-  const totalDebts = balanceLiabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
-  const netWorth = totalAssets + totalPension - totalDebts;
-  const netWorthExPension = totalAssets - totalDebts;
 
   const hasData = incomeVsExpensesData.length > 0 || (totalAssets + totalPension) > 0 || totalDebts > 0;
 
