@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
-export default function GoalSettingsPanel({ userId }) {
+export default function GoalSettingsPanel({ userId, registerFlushSave }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [settings, setSettings] = useState({
     goal_type: 'financial_freedom',  // always financial_freedom
@@ -127,6 +127,40 @@ export default function GoalSettingsPanel({ userId }) {
   // Keep latest saveMutation reference so cleanup can trigger it after unmount
   const saveMutationRef = useRef(saveMutation);
   useEffect(() => { saveMutationRef.current = saveMutation; }, [saveMutation]);
+
+  // Synchronous flush: saves pending changes immediately and returns a promise
+  // that resolves when the save is complete. Used by the parent before switching
+  // to the results tab so ResultsSection always sees the saved data.
+  const flushSave = async () => {
+    clearTimeout(autoSaveTimer.current);
+    const data = pendingSaveRef.current || settings;
+    pendingSaveRef.current = null;
+    const saveData = {
+      ...data,
+      user_id: userId,
+      male_current_age: pensionData.find(p => p.gender === 'male' && p.fund_type === 'pension')?.current_age || 0,
+      female_current_age: pensionData.find(p => p.gender === 'female' && p.fund_type === 'pension')?.current_age || 0,
+    };
+    const id = goalSettings?.id;
+    let promise;
+    if (isViewingOther && isAdvisorOrAdmin) {
+      promise = base44.functions.invoke('saveClientData', { entityName: 'GoalSettings', clientUserId: userId, data: saveData, recordId: id || null });
+    } else if (id) {
+      promise = base44.entities.GoalSettings.update(id, saveData);
+    } else {
+      promise = base44.entities.GoalSettings.create(saveData);
+    }
+    try {
+      await promise;
+      queryClient.invalidateQueries({ queryKey: ['goalSettings', userId] });
+    } catch (e) { /* ignore */ }
+  };
+
+  // Register the latest flushSave on every render so the parent always calls the
+  // version with the most up-to-date settings.
+  useEffect(() => {
+    if (registerFlushSave) registerFlushSave(flushSave);
+  });
 
   // Flush any pending debounced save when the panel unmounts (page navigation / tab switch)
   // Uses a direct API call (not useMutation) because useMutation's mutate may not

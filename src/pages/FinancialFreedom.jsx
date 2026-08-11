@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { ArrowRight, TrendingUp, BarChart3 } from 'lucide-react';
 import GoalSettingsPanel from '../components/freedom/GoalSettingsPanel';
@@ -28,6 +28,17 @@ export default function FinancialFreedom() {
   const [viewingClientId, setViewingClientId] = useState(null);
   const [activeSection, setActiveSection] = useState(null);
   const [cashflowTab, setCashflowTab] = useState('planning');
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const flushSaveRef = useRef(null);
+
+  const handleResultsClick = async () => {
+    if (flushSaveRef.current) {
+      setResultsLoading(true);
+      try { await flushSaveRef.current(); } catch {}
+      setResultsLoading(false);
+    }
+    setCashflowTab('results');
+  };
 
   useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
@@ -95,17 +106,21 @@ export default function FinancialFreedom() {
             <BarChart3 className="w-4 h-4" />תכנון
           </button>
           <button
-            onClick={() => setCashflowTab('results')}
-            className={`rounded-xl py-3 px-6 font-semibold transition-all duration-300 flex items-center gap-2 ${
+            onClick={handleResultsClick}
+            disabled={resultsLoading}
+            className={`rounded-xl py-3 px-6 font-semibold transition-all duration-300 flex items-center gap-2 disabled:opacity-60 disabled:cursor-wait ${
               cashflowTab === 'results' ? 'bg-[#105330] text-white shadow-xl' : 'bg-transparent text-[#105330] hover:bg-[#105330]/10'
             }`}
           >
-            <TrendingUp className="w-4 h-4" />תוצאות
+            {resultsLoading
+              ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <TrendingUp className="w-4 h-4" />}
+            {resultsLoading ? 'טוען...' : 'תוצאות'}
           </button>
         </div>
         {cashflowTab === 'planning' && (
           <div className="space-y-6">
-            <GoalSettingsPanel userId={effectiveUserId} />
+            <GoalSettingsPanel userId={effectiveUserId} registerFlushSave={(fn) => { flushSaveRef.current = fn; }} />
             <PlanningSection userId={effectiveUserId} />
           </div>
         )}
