@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, UserCog, Link2, Search, Check, X, 
-  Shield, User, Briefcase, Unlink, Pencil, Eye
+  Shield, User, Briefcase, Unlink, Pencil, Eye, Trash2
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,6 +56,8 @@ export default function AdminDashboard() {
   const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
   const [bulkAdvisor, setBulkAdvisor] = useState('');
   const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -421,6 +423,39 @@ export default function AdminDashboard() {
     setBulkAssigning(false);
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedClients.size === 0) return;
+    setBulkDeleting(true);
+    for (const clientId of selectedClients) {
+      const client = filteredUsers.find(u => u.id === clientId);
+      if (!client) continue;
+      try {
+        // Delete assignments first
+        const userAssignments = await base44.entities.ClientAdvisorAssignment.filter({ client_email: client.email });
+        for (const assignment of userAssignments) {
+          await base44.entities.ClientAdvisorAssignment.delete(assignment.id);
+        }
+        // Delete from User entity
+        if (client.id && !client.allowedUserId) {
+          await base44.entities.User.delete(client.id);
+        }
+        // Delete from AllowedUser
+        if (client.allowedUserId) {
+          await base44.entities.AllowedUser.delete(client.allowedUserId);
+        }
+      } catch (e) {
+        console.error('Error deleting client:', e);
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+    queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
+    queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
+    queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
+    setSelectedClients(new Set());
+    setShowBulkDeleteDialog(false);
+    setBulkDeleting(false);
+  };
+
   const getAdvisorName = (client) => {
     const assignment = getClientAssignment(client);
     if (assignment) {
@@ -582,14 +617,23 @@ export default function AdminDashboard() {
               {userFilter === 'admins' && `מנהלים (${filteredUsers.length})`}
               {userFilter === 'unassigned' && `לקוחות ללא יועץ (${filteredUsers.length})`}
             </div>
-            {userFilter === 'unassigned' && selectedClients.size > 0 && (
-              <Button
-                onClick={() => setShowBulkAssignDialog(true)}
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-xl shadow-lg"
-              >
-                <Link2 className="w-4 h-4 ml-2" />
-                שייך {selectedClients.size} לקוחות ליועץ
-              </Button>
+            {(userFilter === 'clients' || userFilter === 'unassigned') && selectedClients.size > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowBulkAssignDialog(true)}
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-xl shadow-lg"
+                >
+                  <Link2 className="w-4 h-4 ml-2" />
+                  שייך {selectedClients.size} לקוחות ליועץ
+                </Button>
+                <Button
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg"
+                >
+                  <Trash2 className="w-4 h-4 ml-2" />
+                  מחק {selectedClients.size} לקוחות
+                </Button>
+              </div>
             )}
           </CardTitle>
         </CardHeader>
@@ -598,7 +642,7 @@ export default function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50">
-                  {userFilter === 'unassigned' && (
+                  {(userFilter === 'clients' || userFilter === 'unassigned') && (
                     <TableHead className="w-10">
                       <input
                         type="checkbox"
@@ -625,7 +669,7 @@ export default function AdminDashboard() {
               <TableBody>
                 {filteredUsers.map((u) => (
                   <TableRow key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                    {userFilter === 'unassigned' && (
+                    {(userFilter === 'clients' || userFilter === 'unassigned') && (
                       <TableCell>
                         <input
                           type="checkbox"
@@ -877,6 +921,32 @@ export default function AdminDashboard() {
               className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-xl shadow-lg"
             >
               {bulkAssigning ? 'משייך...' : `שייך ${selectedClients.size} לקוחות`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <DialogContent className="sm:max-w-md border-0 shadow-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-red-700">מחיקת {selectedClients.size} לקוחות</DialogTitle>
+          </DialogHeader>
+          <div className="py-6">
+            <p className="text-slate-600">
+              האם אתה בטוח שברצונך למחוק <strong className="text-red-700">{selectedClients.size}</strong> לקוחות מהמערכת? פעולה זו אינה הפיכה.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkDeleteDialog(false)} className="rounded-xl border-slate-200">
+              ביטול
+            </Button>
+            <Button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg"
+            >
+              {bulkDeleting ? 'מוחק...' : `מחק ${selectedClients.size} לקוחות`}
             </Button>
           </DialogFooter>
         </DialogContent>
