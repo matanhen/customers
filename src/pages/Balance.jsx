@@ -297,6 +297,8 @@ export default function Balance() {
 
   const netWorth = totalAssets + pensionTotal - totalLiabilities;
   const totalMonthlyPayment = liabilities.reduce((s, l) => s + (Number(l.monthly_payment) || 0), 0);
+  const totalAssetIncome = assets.reduce((s, a) => s + (Number(a.monthly_income) || 0), 0);
+  const assetCashFlow = totalAssetIncome - totalMonthlyPayment;
 
   // Auto-create record if data is carried from previous month
   useEffect(() => {
@@ -481,6 +483,45 @@ export default function Balance() {
           </div>
         </Card>
       </div>
+
+      {/* Cash Flow Summary */}
+      {(totalAssetIncome > 0 || totalMonthlyPayment > 0) && (
+        <div className="flex flex-col md:flex-row gap-4 mb-8">
+          {totalAssetIncome > 0 && (
+            <Card className="border-0 shadow-lg overflow-hidden flex-1">
+              <div className="h-full border-r-4 border-emerald-400">
+                <CardContent className="p-5">
+                  <p className="text-sm text-slate-500 mb-1">הכנסה תזרימית מנכסים</p>
+                  <p className="text-2xl font-bold text-emerald-600">₪{totalAssetIncome.toLocaleString()}</p>
+                  <p className="text-xs text-slate-400 mt-1">סה"כ הכנסה חודשית מכל הנכסים</p>
+                </CardContent>
+              </div>
+            </Card>
+          )}
+          {totalMonthlyPayment > 0 && (
+            <Card className="border-0 shadow-lg overflow-hidden flex-1">
+              <div className="h-full border-r-4 border-rose-400">
+                <CardContent className="p-5">
+                  <p className="text-sm text-slate-500 mb-1">הוצאה חודשית מהתחייבויות</p>
+                  <p className="text-2xl font-bold text-rose-600">₪{totalMonthlyPayment.toLocaleString()}</p>
+                  <p className="text-xs text-slate-400 mt-1">סה"כ החזרים חודשיים מכל ההתחייבויות</p>
+                </CardContent>
+              </div>
+            </Card>
+          )}
+          <Card className="border-0 shadow-lg overflow-hidden flex-1">
+            <div className={`h-full border-r-4 ${assetCashFlow >= 0 ? 'border-[#c8a863]' : 'border-rose-400'}`}>
+              <CardContent className="p-5">
+                <p className="text-sm text-slate-500 mb-1">תזרים</p>
+                <p className={`text-2xl font-bold ${assetCashFlow >= 0 ? 'text-[#105330]' : 'text-rose-600'}`}>
+                  ₪{assetCashFlow.toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">הכנסה תזרימית פחות הוצאה חודשית</p>
+              </CardContent>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

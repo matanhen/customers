@@ -184,7 +184,7 @@ export default function MonthlyPlanning({ userId }) {
         return response.data;
       }
       if (currentPlanIdRef.current) {
-        return base44.entities.MonthlyPlan.update(currentPlanIdRef.current, data);
+        return base44.entities.MonthlyPlan.update(currentPlanIdRef.current, { ...data, user_id: userId, month: currentMonth });
       } else {
         const created = await base44.entities.MonthlyPlan.create({
           ...data,

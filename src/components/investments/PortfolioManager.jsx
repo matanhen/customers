@@ -109,6 +109,10 @@ export default function PortfolioManager({ userId }) {
       setShowAddStock(false);
       setNewStock({ name: '', quantity: 0, current_price: 0, target_percentage: 0 });
     },
+    onError: (error) => {
+      console.error('Failed to add stock:', error);
+      alert('שגיאה בשמירת נייר הערך: ' + (error?.message || 'נסה שוב'));
+    },
   });
 
   const updateInvestmentMutation = useMutation({
@@ -128,6 +132,10 @@ export default function PortfolioManager({ userId }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investments', userId] });
       setEditingStock(null);
+    },
+    onError: (error) => {
+      console.error('Failed to update stock:', error);
+      alert('שגיאה בעדכון נייר הערך: ' + (error?.message || 'נסה שוב'));
     },
   });
 
@@ -450,7 +458,7 @@ export default function PortfolioManager({ userId }) {
 
       {/* Add Stock Dialog */}
       <Dialog open={showAddStock} onOpenChange={setShowAddStock}>
-        <DialogContent className="sm:max-w-md border-0 shadow-2xl" dir="rtl">
+        <DialogContent className="sm:max-w-md border-0 shadow-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-slate-800">הוספת נייר ערך</DialogTitle>
           </DialogHeader>
@@ -496,15 +504,17 @@ export default function PortfolioManager({ userId }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddStock(false)} className="border-slate-200">ביטול</Button>
-            <Button onClick={() => createInvestmentMutation.mutate(newStock)} className="bg-gradient-to-r from-indigo-600 to-purple-600">הוסף</Button>
+            <Button type="button" variant="outline" onClick={() => setShowAddStock(false)} className="border-slate-200">ביטול</Button>
+            <Button type="button" onClick={() => createInvestmentMutation.mutate(newStock)} disabled={!newStock.name?.trim() || createInvestmentMutation.isPending} className="bg-gradient-to-r from-indigo-600 to-purple-600">
+              {createInvestmentMutation.isPending ? 'שומר...' : 'הוסף'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Stock Dialog */}
       <Dialog open={!!editingStock} onOpenChange={() => setEditingStock(null)}>
-        <DialogContent className="sm:max-w-md border-0 shadow-2xl" dir="rtl">
+        <DialogContent className="sm:max-w-md border-0 shadow-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-slate-800">עריכת נייר ערך</DialogTitle>
           </DialogHeader>
@@ -548,9 +558,9 @@ export default function PortfolioManager({ userId }) {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingStock(null)} className="border-slate-200">ביטול</Button>
-            <Button onClick={() => updateInvestmentMutation.mutate({ id: editingStock.id, data: editingStock })} className="bg-gradient-to-r from-indigo-600 to-purple-600">
-              שמור
+            <Button type="button" variant="outline" onClick={() => setEditingStock(null)} className="border-slate-200">ביטול</Button>
+            <Button type="button" onClick={() => updateInvestmentMutation.mutate({ id: editingStock.id, data: editingStock })} disabled={!editingStock?.name?.trim() || updateInvestmentMutation.isPending} className="bg-gradient-to-r from-indigo-600 to-purple-600">
+              {updateInvestmentMutation.isPending ? 'שומר...' : 'שמור'}
             </Button>
           </DialogFooter>
         </DialogContent>
