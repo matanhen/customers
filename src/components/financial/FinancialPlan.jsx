@@ -88,8 +88,8 @@ export default function FinancialPlan({ userId }) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showStepSelector, setShowStepSelector] = useState(false);
-  const [showPersonalGoal, setShowPersonalGoal] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
+  const [showPersonalGoal, setShowPersonalGoal] = useState(true);
+  const [showNotes, setShowNotes] = useState(true);
   const autoSaveTimer = useRef(null);
   const pendingDataRef = useRef(null);
   const planIdRef = useRef(null);
@@ -273,11 +273,27 @@ export default function FinancialPlan({ userId }) {
 
   const currentStep = planData.current_step || 1;
   const currentStepInfo = FINANCIAL_STEPS.find(s => s.id === currentStep) || FINANCIAL_STEPS[0];
-  const stepGap = getStepGap(currentStep, situation, planData.step_targets);
-  const stepValue = getStepValue(currentStep, situation);
+  const stepCurrents = planData.step_currents || {};
+  const stepGap = getStepGap(currentStep, situation, planData.step_targets, stepCurrents);
+  const stepValue = getStepValue(currentStep, situation, stepCurrents);
   const stepTarget = getStepTarget(currentStep, situation, planData.step_targets);
 
+  const requiredFields = [
+    { key: 'client_name', label: 'שם לקוח', check: () => !!planData.client_name?.trim() },
+    { key: 'main_goal', label: 'מטרה מרכזית', check: () => !!planData.main_goal?.trim() },
+    { key: 'personal_goal_name', label: 'מטרה אישית', check: () => !!planData.personal_goal_name?.trim() },
+    { key: 'personal_goal_amount', label: 'סכום יעד', check: () => (planData.personal_goal_amount || 0) > 0 },
+    { key: 'personal_goal_date', label: 'תאריך יעד', check: () => !!planData.personal_goal_date },
+  ];
+  const missingFields = requiredFields.filter(f => !f.check()).map(f => f.label);
+  const canExport = missingFields.length === 0;
+  const isEmergencyFundStep = currentStep === 4 || currentStep === 6;
+
   const handleExport = async () => {
+    if (!canExport) {
+      alert('נא למלא את כל השדות החובה לפני יצירת התכנית:\n• ' + missingFields.join('\n• '));
+      return;
+    }
     setExporting(true);
     try {
       let logoUrl = null;
@@ -295,47 +311,61 @@ export default function FinancialPlan({ userId }) {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="bg-white rounded-3xl shadow-xl p-6 md:p-8">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex-1">
+      {/* Header — Hero */}
+      <div className="bg-gradient-to-l from-[#105330] via-[#0d4027] to-[#105330] rounded-3xl shadow-2xl p-6 md:p-10 text-white relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-72 h-72 bg-[#c8a863]/10 rounded-full -translate-x-36 -translate-y-36 pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/5 rounded-full translate-x-24 translate-y-24 pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="flex-1 min-w-0">
+              <p className="text-[#c8a863] text-sm font-semibold mb-2 tracking-wide">התוכנית הפיננסית של</p>
+              {isAdvisorOrAdmin ? (
+                <Input
+                  value={planData.client_name || ''}
+                  onChange={e => update({ client_name: e.target.value })}
+                  placeholder="שם הלקוח *"
+                  className="text-3xl md:text-4xl font-bold text-white bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/30 h-auto py-0"
+                />
+              ) : (
+                <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+                  {planData.client_name || 'הלקוח'}
+                </h1>
+              )}
+            </div>
+            <Button
+              onClick={handleExport}
+              disabled={exporting}
+              className="bg-[#c8a863] hover:bg-[#b8943d] text-[#105330] flex-shrink-0 font-bold shadow-lg"
+            >
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <FileDown className="w-4 h-4 ml-2" />}
+              {exporting ? 'מייצר...' : 'צור PDF'}
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3 pt-4 border-t border-white/15">
+            <Target className="w-6 h-6 text-[#c8a863] flex-shrink-0" />
             {isAdvisorOrAdmin ? (
               <Input
-                value={planData.client_name || ''}
-                onChange={e => update({ client_name: e.target.value })}
-                placeholder="שם הלקוח"
-                className="text-2xl font-bold text-[#105330] border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                value={planData.main_goal || ''}
+                onChange={e => update({ main_goal: e.target.value })}
+                placeholder="המטרה המרכזית של הלקוח *"
+                className="text-lg text-white bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/30 h-auto py-0"
               />
             ) : (
-              <h1 className="text-2xl font-bold text-[#105330]">
-                התוכנית הפיננסית של {planData.client_name || 'הלקוח'}
-              </h1>
+              <p className="text-lg text-white/90">
+                <span className="text-[#c8a863] font-semibold">המטרה המרכזית: </span>
+                {planData.main_goal || 'טרם הוגדרה'}
+              </p>
             )}
           </div>
-          <Button
-            onClick={handleExport}
-            disabled={exporting}
-            className="bg-[#105330] hover:bg-[#0d4027] flex-shrink-0"
-          >
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <FileDown className="w-4 h-4 ml-2" />}
-            {exporting ? 'מייצר...' : 'צור את התוכנית הפיננסית שלי'}
-          </Button>
-        </div>
 
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-          <Target className="w-5 h-5 text-[#c8a863] flex-shrink-0" />
-          {isAdvisorOrAdmin ? (
-            <Input
-              value={planData.main_goal || ''}
-              onChange={e => update({ main_goal: e.target.value })}
-              placeholder="המטרה המרכזית של הלקוח"
-              className="text-base text-slate-600 border-0 px-0 focus-visible:ring-0"
-            />
-          ) : (
-            <p className="text-base text-slate-600">
-              <span className="font-medium text-slate-500">המטרה המרכזית: </span>
-              {planData.main_goal || 'טרם הוגדרה'}
-            </p>
+          {!canExport && isAdvisorOrAdmin && (
+            <div className="mt-4 bg-amber-500/20 border border-amber-300/30 rounded-xl p-3">
+              <p className="text-amber-100 text-sm">
+                <span className="font-bold">שדות חובה חסרים: </span>
+                {missingFields.join(' · ')}
+              </p>
+            </div>
           )}
         </div>
       </div>
@@ -356,9 +386,26 @@ export default function FinancialPlan({ userId }) {
           </div>
           <div>
             <p className="text-xs text-white/50 mb-1">המצב היום</p>
-            <p className="text-xl font-bold">
-              {currentStepInfo.unit ? formatCurrency(stepValue) : stepValue ? 'פתוח' : 'לא פתוח'}
-            </p>
+            {isEmergencyFundStep && isAdvisorOrAdmin ? (
+              <Input
+                type="number"
+                value={stepCurrents[String(currentStep)] ?? ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  const newCurrents = { ...stepCurrents };
+                  if (val === '') delete newCurrents[String(currentStep)];
+                  else newCurrents[String(currentStep)] = Number(val);
+                  update({ step_currents: newCurrents });
+                }}
+                placeholder={String(situation.emergencyFund || 0)}
+                className="text-xl font-bold text-white bg-white/10 border-white/20 focus-visible:ring-[#c8a863] h-9"
+                dir="ltr"
+              />
+            ) : (
+              <p className="text-xl font-bold">
+                {currentStepInfo.unit ? formatCurrency(stepValue) : stepValue ? 'פתוח' : 'לא פתוח'}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs text-white/50 mb-1">הפער</p>
@@ -367,6 +414,11 @@ export default function FinancialPlan({ userId }) {
             </p>
           </div>
         </div>
+        {isEmergencyFundStep && isAdvisorOrAdmin && (
+          <p className="mt-2 text-xs text-white/50">
+            ניתן לערוך את הסכום הנוכחי ידנית (אם ריק, מחושב אוטומטית מהתכנון החודשי)
+          </p>
+        )}
         {stepGap > 0 && (
           <p className="mt-4 text-sm text-white/70">
             נשאר לך לסגור פער של <span className="font-bold text-[#c8a863]">{formatCurrency(stepGap)}</span>
@@ -417,6 +469,7 @@ export default function FinancialPlan({ userId }) {
             situation={situation}
             currentStep={currentStep}
             stepTargets={planData.step_targets}
+            stepCurrents={stepCurrents}
             onStepClick={(id) => isAdvisorOrAdmin && update({ current_step: id })}
             editable={isAdvisorOrAdmin}
           />
@@ -443,27 +496,19 @@ export default function FinancialPlan({ userId }) {
           </button>
         </CardHeader>
         <CardContent>
-          {planData.personal_goal_name && !showPersonalGoal ? (
-            <div className="space-y-1">
-              <p className="font-bold text-slate-800">{planData.personal_goal_name}</p>
-              {planData.personal_goal_amount > 0 && <p className="text-sm text-slate-500">סכום יעד: {formatCurrency(planData.personal_goal_amount)}</p>}
-              {planData.personal_goal_date && <p className="text-sm text-slate-500">תאריך יעד: {planData.personal_goal_date}</p>}
-              {planData.personal_goal_monthly > 0 && <p className="text-sm text-slate-500">יעד חודשי: {formatCurrency(planData.personal_goal_monthly)}</p>}
-              {planData.personal_goal_note && <p className="text-sm text-slate-400 mt-2">{planData.personal_goal_note}</p>}
-            </div>
-          ) : isAdvisorOrAdmin && showPersonalGoal ? (
+          {isAdvisorOrAdmin && showPersonalGoal ? (
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label className="text-xs text-slate-500">שם המטרה</Label>
+                <Label className="text-xs text-slate-500">שם המטרה <span className="text-red-500">*</span></Label>
                 <Input value={planData.personal_goal_name || ''} onChange={e => update({ personal_goal_name: e.target.value })} placeholder="המטרה האישית הגדולה" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500">סכום יעד (₪)</Label>
+                  <Label className="text-xs text-slate-500">סכום יעד (₪) <span className="text-red-500">*</span></Label>
                   <Input type="number" value={planData.personal_goal_amount || ''} onChange={e => update({ personal_goal_amount: Number(e.target.value) || 0 })} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500">תאריך יעד</Label>
+                  <Label className="text-xs text-slate-500">תאריך יעד <span className="text-red-500">*</span></Label>
                   <Input type="date" value={planData.personal_goal_date || ''} onChange={e => update({ personal_goal_date: e.target.value })} />
                 </div>
               </div>
@@ -475,6 +520,14 @@ export default function FinancialPlan({ userId }) {
                 <Label className="text-xs text-slate-500">הערת יועץ</Label>
                 <Textarea value={planData.personal_goal_note || ''} onChange={e => update({ personal_goal_note: e.target.value })} rows={2} />
               </div>
+            </div>
+          ) : planData.personal_goal_name ? (
+            <div className="space-y-1">
+              <p className="font-bold text-slate-800">{planData.personal_goal_name}</p>
+              {planData.personal_goal_amount > 0 && <p className="text-sm text-slate-500">סכום יעד: {formatCurrency(planData.personal_goal_amount)}</p>}
+              {planData.personal_goal_date && <p className="text-sm text-slate-500">תאריך יעד: {planData.personal_goal_date}</p>}
+              {planData.personal_goal_monthly > 0 && <p className="text-sm text-slate-500">יעד חודשי: {formatCurrency(planData.personal_goal_monthly)}</p>}
+              {planData.personal_goal_note && <p className="text-sm text-slate-400 mt-2">{planData.personal_goal_note}</p>}
             </div>
           ) : (
             <p className="text-slate-400 text-sm">טרם הוגדרה מטרה אישית</p>

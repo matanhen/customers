@@ -11,14 +11,15 @@ export const FINANCIAL_STEPS = [
   { id: 10, key: 'financial_freedom', label: 'חופש כלכלי מוחלט', description: 'הכנסה פסיבית מכסה את כל ההוצאות', unit: '₪' },
 ];
 
-export function getStepValue(stepId, s) {
+export function getStepValue(stepId, s, stepCurrents) {
+  const sc = stepCurrents || {};
   switch (stepId) {
     case 1: return s.checkingBalance ?? 0;
     case 2: return s.cashFlow ?? 0;
     case 3: return s.totalLiabilities ?? 0;
-    case 4: return s.emergencyFund ?? 0;
+    case 4: return sc['4'] != null ? Number(sc['4']) : (s.emergencyFund ?? 0);
     case 5: return s.hasInvestments ? 1 : 0;
-    case 6: return s.emergencyFund ?? 0;
+    case 6: return sc['6'] != null ? Number(sc['6']) : (s.emergencyFund ?? 0);
     case 7: return s.netWorth ?? 0;
     case 8: return s.netWorth ?? 0;
     case 9: return s.passiveIncome ?? 0;
@@ -44,8 +45,8 @@ export function getStepTarget(stepId, s, stepTargets) {
   }
 }
 
-export function getStepGap(stepId, s, stepTargets) {
-  const current = getStepValue(stepId, s);
+export function getStepGap(stepId, s, stepTargets, stepCurrents) {
+  const current = getStepValue(stepId, s, stepCurrents);
   const target = getStepTarget(stepId, s, stepTargets);
   if (stepId === 3) return current - target;
   if (stepId === 1) return Math.max(0, target - current);
@@ -53,8 +54,8 @@ export function getStepGap(stepId, s, stepTargets) {
   return target - current;
 }
 
-export function isStepCompleted(stepId, s, stepTargets) {
-  return getStepGap(stepId, s, stepTargets) <= 0;
+export function isStepCompleted(stepId, s, stepTargets, stepCurrents) {
+  return getStepGap(stepId, s, stepTargets, stepCurrents) <= 0;
 }
 
 export function formatCurrency(n) {

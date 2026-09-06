@@ -3,7 +3,7 @@ import { Check, MapPin, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FINANCIAL_STEPS, getStepValue, getStepTarget, getStepGap, formatCurrency } from './financialPlanSteps';
 
-export default function FinancialJourney({ situation, currentStep, stepTargets, onStepClick, editable }) {
+export default function FinancialJourney({ situation, currentStep, stepTargets, stepCurrents, onStepClick, editable }) {
   return (
     <div className="relative" dir="rtl">
       <div className="absolute right-[27px] top-2 bottom-2 w-0.5 bg-slate-200" />
@@ -12,9 +12,9 @@ export default function FinancialJourney({ situation, currentStep, stepTargets, 
           const isCurrent = step.id === currentStep;
           const isPast = step.id < currentStep;
           const isFuture = step.id > currentStep;
-          const gap = getStepGap(step.id, situation, stepTargets);
+          const gap = getStepGap(step.id, situation, stepTargets, stepCurrents);
           const completed = gap <= 0;
-          const value = getStepValue(step.id, situation);
+          const value = getStepValue(step.id, situation, stepCurrents);
           const target = getStepTarget(step.id, situation, stepTargets);
 
           return (

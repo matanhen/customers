@@ -4,8 +4,8 @@ import { FINANCIAL_STEPS, getStepValue, getStepTarget, getStepGap, formatCurrenc
 
 function buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl }) {
   const step = FINANCIAL_STEPS.find(s => s.id === currentStep) || FINANCIAL_STEPS[0];
-  const gap = getStepGap(currentStep, situation, planData?.step_targets);
-  const value = getStepValue(currentStep, situation);
+  const gap = getStepGap(currentStep, situation, planData?.step_targets, planData?.step_currents);
+  const value = getStepValue(currentStep, situation, planData?.step_currents);
   const target = getStepTarget(currentStep, situation, planData?.step_targets);
 
   const situationItems = [
