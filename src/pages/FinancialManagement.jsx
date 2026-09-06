@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import PullToRefresh from '../components/PullToRefresh';
-import { Wallet, LineChart, TrendingUp, ClipboardList, ArrowRight } from 'lucide-react';
+import { Wallet, LineChart, TrendingUp, ClipboardList, ArrowRight, Target } from 'lucide-react';
 // Note: DebtManager and PensionManager removed from Reflection tab per product decision
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
+import FinancialPlan from '../components/financial/FinancialPlan';
 
 import BeforeAfterComparison from '../components/financial/BeforeAfterComparison';
 import ExpenseTracking from '../components/financial/ExpenseTracking';
@@ -32,6 +33,13 @@ const SECTIONS = [
     icon: TrendingUp,
     description: 'השוואה בין מצב קודם למצב הנוכחי',
     color: 'from-[#7a4a10] to-[#b06a1a]',
+  },
+  {
+    key: 'plan',
+    label: 'תכנית פיננסית',
+    icon: Target,
+    description: 'מסלול פיננסי אישי: איפה אתה, לאן, ומה חסר',
+    color: 'from-[#105330] to-[#c8a863]',
   },
 ];
 
@@ -84,7 +92,7 @@ export default function FinancialManagement() {
           <h1 className="text-3xl font-bold text-[#105330] mb-2">התנהלות כלכלית</h1>
           <p className="text-[#105330]/70">בחר קטגוריה להתחלה</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
             return (
@@ -180,6 +188,22 @@ export default function FinancialManagement() {
           <h1 className="text-2xl font-bold text-[#105330]">לפני / אחרי</h1>
         </div>
         <BeforeAfterComparison userId={effectiveUserId} />
+      </div>
+    );
+  }
+
+  // Financial Plan section
+  if (activeSection === 'plan') {
+    return (
+      <div className="max-w-5xl mx-auto" dir="rtl">
+        <div className="mb-6 flex items-center gap-3">
+          <button onClick={handleBack} className="text-[#105330]/60 hover:text-[#105330] flex items-center gap-1 text-sm font-medium">
+            <ArrowRight className="w-4 h-4" />
+            חזרה
+          </button>
+          <h1 className="text-2xl font-bold text-[#105330]">תכנית פיננסית</h1>
+        </div>
+        <FinancialPlan userId={effectiveUserId} />
       </div>
     );
   }

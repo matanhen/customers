@@ -1,0 +1,90 @@
+{
+  "name": "FinancialPlanData",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05de\u05e9\u05ea\u05de\u05e9"
+    },
+    "client_name": {
+      "type": "string",
+      "default": "",
+      "description": "\u05e9\u05dd \u05d4\u05dc\u05e7\u05d5\u05d7 (\u05d8\u05e7\u05e1\u05d8 \u05d7\u05d5\u05e4\u05e9\u05d9)"
+    },
+    "main_goal": {
+      "type": "string",
+      "default": "",
+      "description": "\u05d4\u05de\u05d8\u05e8\u05d4 \u05d4\u05de\u05e8\u05db\u05d6\u05d9\u05ea (\u05d8\u05e7\u05e1\u05d8 \u05d7\u05d5\u05e4\u05e9\u05d9)"
+    },
+    "current_step": {
+      "type": "number",
+      "default": 1,
+      "description": "\u05d4\u05e9\u05dc\u05d1 \u05d4\u05e0\u05d5\u05db\u05d7\u05d9 \u05d1\u05de\u05e1\u05dc\u05d5\u05dc (1-10)"
+    },
+    "step_targets": {
+      "type": "object",
+      "description": "\u05d9\u05e2\u05d3\u05d9\u05dd \u05de\u05e1\u05e4\u05e8\u05d9\u05d9\u05dd \u05de\u05d5\u05ea\u05d0\u05de\u05d9\u05dd \u05d0\u05d9\u05e9\u05d9\u05ea \u05dc\u05db\u05dc \u05e9\u05dc\u05d1 (\u05de\u05e4\u05ea\u05d7: \u05de\u05e1\u05e4\u05e8 \u05e9\u05dc\u05d1)"
+    },
+    "actions": {
+      "type": "array",
+      "description": "\u05ea\u05d5\u05db\u05e0\u05d9\u05ea \u05e4\u05e2\u05d5\u05dc\u05d4 - \u05e4\u05e2\u05d5\u05dc\u05d5\u05ea \u05e9\u05e2\u05dc \u05d4\u05dc\u05e7\u05d5\u05d7 \u05dc\u05d1\u05e6\u05e2",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "default": 0
+          },
+          "completed": {
+            "type": "boolean",
+            "default": false
+          },
+          "due_date": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "personal_goal_name": {
+      "type": "string",
+      "default": "",
+      "description": "\u05d4\u05de\u05d8\u05e8\u05d4 \u05d4\u05d0\u05d9\u05e9\u05d9\u05ea \u05d4\u05d2\u05d3\u05d5\u05dc\u05d4"
+    },
+    "personal_goal_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05e1\u05db\u05d5\u05dd \u05d9\u05e2\u05d3"
+    },
+    "personal_goal_date": {
+      "type": "string",
+      "description": "\u05ea\u05d0\u05e8\u05d9\u05da \u05d9\u05e2\u05d3"
+    },
+    "personal_goal_monthly": {
+      "type": "number",
+      "default": 0,
+      "description": "\u05d9\u05e2\u05d3 \u05d7\u05d5\u05d3\u05e9\u05d9"
+    },
+    "personal_goal_note": {
+      "type": "string",
+      "default": "",
+      "description": "\u05d4\u05e2\u05e8\u05ea \u05d9\u05d5\u05e2\u05e5"
+    },
+    "advisor_notes": {
+      "type": "string",
+      "default": "",
+      "description": "\u05d4\u05e2\u05e8\u05d5\u05ea \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05e9\u05dc \u05d4\u05d9\u05d5\u05e2\u05e5"
+    }
+  },
+  "required": [
+    "user_id"
+  ]
+}
