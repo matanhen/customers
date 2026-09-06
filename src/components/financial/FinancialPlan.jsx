@@ -324,7 +324,7 @@ export default function FinancialPlan({ userId }) {
                   value={planData.client_name || ''}
                   onChange={e => update({ client_name: e.target.value })}
                   placeholder="שם הלקוח *"
-                  className="text-3xl md:text-4xl font-bold text-white bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/30 h-auto py-0"
+                  className="hero-input text-3xl md:text-4xl font-bold bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-0"
                 />
               ) : (
                 <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
@@ -349,7 +349,7 @@ export default function FinancialPlan({ userId }) {
                 value={planData.main_goal || ''}
                 onChange={e => update({ main_goal: e.target.value })}
                 placeholder="המטרה המרכזית של הלקוח *"
-                className="text-lg text-white bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-white/30 h-auto py-0"
+                className="hero-input text-lg bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-0"
               />
             ) : (
               <p className="text-lg text-white/90">
@@ -398,7 +398,7 @@ export default function FinancialPlan({ userId }) {
                   update({ step_currents: newCurrents });
                 }}
                 placeholder={String(situation.emergencyFund || 0)}
-                className="text-xl font-bold text-white bg-white/10 border-white/20 focus-visible:ring-[#c8a863] h-9"
+                className="hero-input text-xl font-bold bg-white/10 border-white/20 focus-visible:ring-[#c8a863] h-9"
                 dir="ltr"
               />
             ) : (

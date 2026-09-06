@@ -214,3 +214,14 @@ button:focus-visible {
 }
 .animate-flash-up   { animation: flash-up 1.2s ease-out; }
 .animate-flash-down { animation: flash-down 1.2s ease-out; }
+
+/* === White text inputs on dark backgrounds (Financial Plan hero) === */
+.hero-input {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+.hero-input::placeholder {
+  color: rgba(255, 255, 255, 0.3) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.3) !important;
+}
