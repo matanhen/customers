@@ -162,6 +162,18 @@ export default function GoalSettingsPanel({ userId, registerFlushSave }) {
     if (registerFlushSave) registerFlushSave(flushSave);
   });
 
+  // Flush on visibility change / page hide (mobile background / tab switch)
+  useEffect(() => {
+    const handleVisibility = () => { if (document.hidden) flushSave(); };
+    const handlePageHide = () => flushSave();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [flushSave]);
+
   // Flush any pending debounced save when the panel unmounts (page navigation / tab switch)
   // Uses a direct API call (not useMutation) because useMutation's mutate may not
   // complete after the component unmounts in React Query v5.

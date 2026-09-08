@@ -156,13 +156,37 @@ export default function AssetsLiabilitiesTable({ userId, planType }) {
   });
 
   const autoSaveTimer = useRef(null);
+  const pendingSaveRef = useRef(false);
+  const saveMutationRef = useRef(saveMutation);
+  saveMutationRef.current = saveMutation;
 
   const triggerAutoSave = () => {
+    pendingSaveRef.current = true;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      saveMutation.mutate();
-    }, 1000);
+      pendingSaveRef.current = false;
+      saveMutationRef.current.mutate();
+    }, 500);
   };
+
+  // Flush pending save on visibility change / page hide / unmount
+  useEffect(() => {
+    const flush = () => {
+      if (!pendingSaveRef.current) return;
+      clearTimeout(autoSaveTimer.current);
+      pendingSaveRef.current = false;
+      saveMutationRef.current.mutate();
+    };
+    const handleVisibility = () => { if (document.hidden) flush(); };
+    const handlePageHide = () => flush();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
+      flush();
+    };
+  }, []);
 
   const toggleSection = (section) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));

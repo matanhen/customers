@@ -105,25 +105,34 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
         [pending.field]: isAge ? (parseInt(pending.rawValue) || 0) : (parseFloat(pending.rawValue) || 0),
       };
       onSaveRef.current({ gender, fundType, data: dataToSave });
-    }, 1500);
+    }, 500);
   };
 
-  // Flush any pending debounced save when this form unmounts
-  // (switching tabs between gender / fund type, navigating to another page, closing the app)
-  useEffect(() => {
-    return () => {
-      clearTimeout(autoSaveTimer.current);
-      const pending = pendingSaveRef.current;
-      if (!pending) return;
-      pendingSaveRef.current = null;
-      const isAge = pending.field === 'current_age' || pending.field === 'retirement_age' || pending.field === 'stop_deposits_age';
-      const dataToSave = {
-        ...pending.fullData,
-        [pending.field]: isAge ? (parseInt(pending.rawValue) || 0) : (parseFloat(pending.rawValue) || 0),
-      };
-      onSaveRef.current({ gender, fundType, data: dataToSave });
+  // Flush any pending debounced save on visibility change / page hide / unmount
+  const flushPendingSave = useCallback(() => {
+    clearTimeout(autoSaveTimer.current);
+    const pending = pendingSaveRef.current;
+    if (!pending) return;
+    pendingSaveRef.current = null;
+    const isAge = pending.field === 'current_age' || pending.field === 'retirement_age' || pending.field === 'stop_deposits_age';
+    const dataToSave = {
+      ...pending.fullData,
+      [pending.field]: isAge ? (parseInt(pending.rawValue) || 0) : (parseFloat(pending.rawValue) || 0),
     };
+    onSaveRef.current({ gender, fundType, data: dataToSave });
   }, [gender, fundType]);
+
+  useEffect(() => {
+    const handleVisibility = () => { if (document.hidden) flushPendingSave(); };
+    const handlePageHide = () => flushPendingSave();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
+      flushPendingSave();
+    };
+  }, [flushPendingSave]);
 
   const getNumericValue = (val) => {
     if (val === '' || val === undefined || val === null) return '';

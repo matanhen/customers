@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Wallet, TrendingUp, TrendingDown, Lightbulb, Save } from 'lucide-react';
@@ -94,6 +94,39 @@ export default function CashFlowSection({ userId, planType }) {
     },
   });
 
+  const autoSaveTimer = useRef(null);
+  const pendingSaveRef = useRef(false);
+  const saveMutationRef = useRef(saveMutation);
+  saveMutationRef.current = saveMutation;
+
+  const triggerAutoSave = () => {
+    pendingSaveRef.current = true;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      pendingSaveRef.current = false;
+      saveMutationRef.current.mutate();
+    }, 500);
+  };
+
+  // Flush pending save on visibility change / page hide / unmount
+  useEffect(() => {
+    const flush = () => {
+      if (!pendingSaveRef.current) return;
+      clearTimeout(autoSaveTimer.current);
+      pendingSaveRef.current = false;
+      saveMutationRef.current.mutate();
+    };
+    const handleVisibility = () => { if (document.hidden) flush(); };
+    const handlePageHide = () => flush();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
+      flush();
+    };
+  }, []);
+
   const totalIncome = formData.salary + formData.additional_income;
   const totalExpenses = formData.rent + formData.fixed_expenses + formData.variable_expenses;
   const netCashFlow = totalIncome - totalExpenses;
@@ -151,7 +184,7 @@ export default function CashFlowSection({ userId, planType }) {
                 <Input
                   type="number"
                   value={formData.salary || ''}
-                  onChange={(e) => setFormData({ ...formData, salary: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => { setFormData({ ...formData, salary: parseFloat(e.target.value) || 0 }); triggerAutoSave(); }}
                   className="border-emerald-200 focus:border-emerald-400 rounded-xl"
                 />
               </div>
@@ -160,7 +193,7 @@ export default function CashFlowSection({ userId, planType }) {
                 <Input
                   type="number"
                   value={formData.additional_income || ''}
-                  onChange={(e) => setFormData({ ...formData, additional_income: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => { setFormData({ ...formData, additional_income: parseFloat(e.target.value) || 0 }); triggerAutoSave(); }}
                   className="border-emerald-200 focus:border-emerald-400 rounded-xl"
                 />
               </div>
@@ -185,7 +218,7 @@ export default function CashFlowSection({ userId, planType }) {
                 <Input
                   type="number"
                   value={formData.rent || ''}
-                  onChange={(e) => setFormData({ ...formData, rent: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => { setFormData({ ...formData, rent: parseFloat(e.target.value) || 0 }); triggerAutoSave(); }}
                   className="border-red-200 focus:border-red-400 rounded-xl"
                 />
               </div>
@@ -194,7 +227,7 @@ export default function CashFlowSection({ userId, planType }) {
                 <Input
                   type="number"
                   value={formData.fixed_expenses || ''}
-                  onChange={(e) => setFormData({ ...formData, fixed_expenses: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => { setFormData({ ...formData, fixed_expenses: parseFloat(e.target.value) || 0 }); triggerAutoSave(); }}
                   className="border-red-200 focus:border-red-400 rounded-xl"
                 />
               </div>
@@ -203,7 +236,7 @@ export default function CashFlowSection({ userId, planType }) {
                 <Input
                   type="number"
                   value={formData.variable_expenses || ''}
-                  onChange={(e) => setFormData({ ...formData, variable_expenses: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => { setFormData({ ...formData, variable_expenses: parseFloat(e.target.value) || 0 }); triggerAutoSave(); }}
                   className="border-red-200 focus:border-red-400 rounded-xl"
                 />
               </div>

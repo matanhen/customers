@@ -272,17 +272,27 @@ export default function ExpenseTracking({ userId }) {
     }, 600);
   };
 
-  // Flush any pending income save when this component unmounts
-  useEffect(() => {
-    return () => {
-      if (incomeSaveTimer.current) clearTimeout(incomeSaveTimer.current);
-      if (pendingIncomeSaveRef.current) {
-        const data = pendingIncomeSaveRef.current;
-        pendingIncomeSaveRef.current = null;
-        saveNowRef.current(data);
-      }
-    };
+  // Flush any pending income save when page is hidden / closed / unmounted
+  const flushIncomeSave = useCallback(() => {
+    if (incomeSaveTimer.current) clearTimeout(incomeSaveTimer.current);
+    if (pendingIncomeSaveRef.current) {
+      const data = pendingIncomeSaveRef.current;
+      pendingIncomeSaveRef.current = null;
+      saveNowRef.current(data);
+    }
   }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => { if (document.hidden) flushIncomeSave(); };
+    const handlePageHide = () => flushIncomeSave();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
+      flushIncomeSave();
+    };
+  }, [flushIncomeSave]);
 
   // Handle table changes (flat expenses from ExpenseTrackingTable)
   // The table gives { [catKey]: { [item]: amount } }

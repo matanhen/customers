@@ -403,7 +403,7 @@ export default function WorkbookPage({ userId, viewerEmail }) {
       pendingSaveRef.current = false;
       persistAnswers(answersRef.current, answersIdRef.current).catch(() => {});
       setSavedAt(new Date());
-    }, 1500);
+    }, 800);
   };
 
   const handleSave = async () => {
@@ -419,7 +419,7 @@ export default function WorkbookPage({ userId, viewerEmail }) {
     setSavedAt(new Date());
   };
 
-  // Flush any pending debounced save on page navigation / app close
+  // Flush any pending debounced save on page navigation / app close / visibility change
   useEffect(() => {
     const flush = () => {
       if (!pendingSaveRef.current) return;
@@ -427,9 +427,15 @@ export default function WorkbookPage({ userId, viewerEmail }) {
       pendingSaveRef.current = false;
       persistAnswers(answersRef.current, answersIdRef.current).catch(() => {});
     };
+    const handleVisibility = () => { if (document.hidden) flush(); };
+    const handlePageHide = () => flush();
     window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
     return () => {
       window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
       flush();
     };
   }, [userId]);
