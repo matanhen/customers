@@ -15,6 +15,7 @@ import IncomeTable from './IncomeTable';
 import ExpensesTable from './ExpensesTable';
 import FinancialForecast from './FinancialForecast';
 import { migrateLegacyExpenses, getDefaultExpenses, EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS } from './expenseCategories';
+import { useAutoSave } from '@/hooks/useAutoSave';
 
 const MONTHS = ['month1','month2','month3','month4','month5','month6'];
 
@@ -42,7 +43,6 @@ export default function FinancialReflection({ userId }) {
   }, [userId]);
 
   const queryClient = useQueryClient();
-  const autoSaveTimer = useRef(null);
   const reflectionIdRef = useRef(null);
 
   useEffect(() => {
@@ -169,30 +169,20 @@ export default function FinancialReflection({ userId }) {
     },
   });
 
-  const pendingDataRef = useRef(null);
   const saveMutationRef = useRef(saveMutation);
   const dataLoadedRef = useRef(dataLoaded);
   useEffect(() => { saveMutationRef.current = saveMutation; }, [saveMutation]);
   useEffect(() => { dataLoadedRef.current = dataLoaded; }, [dataLoaded]);
 
+  const { triggerSave, flushSave } = useAutoSave(
+    (data) => saveMutationRef.current.mutate(data),
+    500
+  );
+
   const triggerAutoSave = useCallback((latestData) => {
     if (!dataLoadedRef.current) return;
-    pendingDataRef.current = latestData;
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      saveMutationRef.current.mutate(latestData);
-      pendingDataRef.current = null;
-    }, 800);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (pendingDataRef.current) {
-        clearTimeout(autoSaveTimer.current);
-        saveMutationRef.current.mutate(pendingDataRef.current);
-      }
-    };
-  }, []);
+    triggerSave(latestData);
+  }, [triggerSave]);
 
   const buildPayload = (overrides = {}) => ({
     income_rows: incomeRows,

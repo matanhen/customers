@@ -16,12 +16,11 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import FinancialGoals from './FinancialGoals';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import { useAutoSave } from '@/hooks/useAutoSave';
 
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentUser, setCurrentUser] = useState(null);
-  const autoSaveTimer = React.useRef(null);
-
   const isDirty = React.useRef(false);
   const dataInitialized = React.useRef(false);
   const lastLoadedPlanId = React.useRef(null);
@@ -207,43 +206,19 @@ export default function MonthlyPlanning({ userId }) {
     },
   });
 
-  const triggerAutoSave = useCallback((newData) => {
-    if (!dataInitialized.current) return;
-    isDirty.current = true;
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      isDirty.current = false;
-      saveMutation.mutate(newData);
-    }, 400);
-  }, [saveMutation]);
-
-  // Save immediately when user leaves the page
-  const pendingDataRef = React.useRef(null);
-  const saveImmediately = useCallback(() => {
-    if (pendingDataRef.current && isDirty.current) {
-      clearTimeout(autoSaveTimer.current);
-      isDirty.current = false;
-      saveMutation.mutate(pendingDataRef.current);
-      pendingDataRef.current = null;
-    }
-  }, [saveMutation]);
+  const { triggerSave, flushSave } = useAutoSave(
+    (data) => { isDirty.current = false; saveMutation.mutate(data); },
+    300
+  );
 
   const updatePlanData = (updates) => {
     const newData = { ...planData, ...updates };
     setPlanData(newData);
-    pendingDataRef.current = newData;
-    triggerAutoSave(newData);
+    if (dataInitialized.current) {
+      isDirty.current = true;
+      triggerSave(newData);
+    }
   };
-
-  // Save on page unload / navigation away
-  useEffect(() => {
-    const handleBeforeUnload = () => saveImmediately();
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      saveImmediately(); // Save when component unmounts (navigation within app)
-    };
-  }, [saveImmediately]);
 
   const totalExpenses = planData.fixed_expenses + planData.variable_expenses + planData.savings;
   const expensesPercentage = planData.expected_income > 0 
@@ -278,9 +253,9 @@ export default function MonthlyPlanning({ userId }) {
 
   const handleSaveNotes = async () => {
     setNotesSaving(true);
+    flushSave();
     const newData = { ...planData, notes: notesInput };
     setPlanData(newData);
-    await new Promise(resolve => setTimeout(resolve, 100));
     saveMutation.mutate(newData);
     setNotesSaving(false);
   };

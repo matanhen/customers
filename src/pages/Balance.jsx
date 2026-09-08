@@ -315,15 +315,28 @@ export default function Balance() {
     }
   }, [carryFromPrev]);
 
+  const creatingPromiseRef = useRef(null);
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       const payload = { user_id: userId, month: selectedMonth, ...data };
       if (balanceIdRef.current) {
         return base44.entities.MonthlyBalance.update(balanceIdRef.current, payload);
       }
-      const created = await base44.entities.MonthlyBalance.create(payload);
-      balanceIdRef.current = created.id;
-      return created;
+      // Prevent duplicate records: if a create is in progress, wait for it, then update
+      if (creatingPromiseRef.current) {
+        await creatingPromiseRef.current;
+        return base44.entities.MonthlyBalance.update(balanceIdRef.current, payload);
+      }
+      const createPromise = base44.entities.MonthlyBalance.create(payload);
+      creatingPromiseRef.current = createPromise;
+      try {
+        const created = await createPromise;
+        balanceIdRef.current = created.id;
+        return created;
+      } finally {
+        creatingPromiseRef.current = null;
+      }
     },
     onSuccess: (result) => {
       // Update cache WITHOUT refetching (prevents stale-data races)

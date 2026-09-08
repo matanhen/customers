@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useAutoSave } from '@/hooks/useAutoSave';
 
 export default function PortfolioManager({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -41,7 +42,6 @@ export default function PortfolioManager({ userId }) {
     monthly_deposit: 0,
   });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const autoSaveTimer = React.useRef(null);
   const settingsIdRef = React.useRef(null);
 
   const queryClient = useQueryClient();
@@ -177,12 +177,14 @@ export default function PortfolioManager({ userId }) {
     },
   });
 
+  const { triggerSave: triggerSettingsSave } = useAutoSave(
+    (data) => saveSettingsMutation.mutate(data),
+    500
+  );
+
   const triggerSettingsAutoSave = (newSettings) => {
     if (!settingsLoaded) return;
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      saveSettingsMutation.mutate(newSettings);
-    }, 1000);
+    triggerSettingsSave(newSettings);
   };
 
   const totalValue = investments.reduce((sum, inv) => sum + (inv.quantity || 0) * (inv.current_price || 0), 0);
