@@ -79,8 +79,8 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.ExpenseTracking.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: monthlyPlans = [] } = useQuery({
@@ -132,6 +132,12 @@ export default function ExpenseTracking({ userId }) {
 
   const dataLoadedRef = useRef(false);
   const lastLoadedTrackingIdRef = useRef(null);
+  const hasSavedForMonthRef = useRef(false);
+
+  // Reset the "has saved" flag when the month changes
+  useEffect(() => {
+    hasSavedForMonthRef.current = false;
+  }, [currentMonth]);
 
   useEffect(() => {
     if (currentTracking) {
@@ -149,6 +155,10 @@ export default function ExpenseTracking({ userId }) {
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     } else if (!trackingLoading && allTracking !== undefined) {
+      // Don't reset to empty if we've already saved data for this month.
+      // A refetch (or cache update) might return no record before the save
+      // reaches the server, which would wipe the user's in-progress data.
+      if (hasSavedForMonthRef.current) return;
       if (lastLoadedTrackingIdRef.current === `empty-${currentMonth}` && dataLoadedRef.current) return;
       lastLoadedTrackingIdRef.current = `empty-${currentMonth}`;
       dataLoadedRef.current = false;
@@ -240,7 +250,10 @@ export default function ExpenseTracking({ userId }) {
       currentTrackingIdRef.current = savedRecord.id;
     }
     // Mark this record as loaded so the data-loading useEffect doesn't overwrite local edits
-    if (savedRecord?.id) lastLoadedTrackingIdRef.current = savedRecord.id;
+    if (savedRecord?.id) {
+      lastLoadedTrackingIdRef.current = savedRecord.id;
+      hasSavedForMonthRef.current = true;
+    }
     // Update cache WITHOUT triggering a refetch (prevents useEffect from overwriting user edits)
     const trackingQueryKey = ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin];
     queryClient.setQueryData(trackingQueryKey, (old = []) => {
