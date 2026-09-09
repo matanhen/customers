@@ -34,6 +34,7 @@ export default function MonthlyPlanning({ userId }) {
     dreams_savings: 0,
     emergency_fund_current: 0,
     emergency_fund_allocation: 0,
+    checking_balance: 0,
     notes: '',
   });
   const [notesInput, setNotesInput] = useState('');
@@ -102,6 +103,7 @@ export default function MonthlyPlanning({ userId }) {
           dreams_savings: prevPlan?.dreams_savings || 0,
           emergency_fund_current: 0,
           emergency_fund_allocation: 0,
+          checking_balance: 0,
         });
       }
       return;
@@ -126,6 +128,7 @@ export default function MonthlyPlanning({ userId }) {
           emergency_fund_current: prevPlan ?
             (prevPlan.emergency_fund_current || 0) + (prevPlan.emergency_fund_allocation || 0) : 0,
           emergency_fund_allocation: 0,
+          checking_balance: 0,
         });
       }
       return;
@@ -157,6 +160,7 @@ export default function MonthlyPlanning({ userId }) {
       dreams_savings: currentPlan.dreams_savings || 0,
       emergency_fund_current: currentPlan.emergency_fund_current || 0,
       emergency_fund_allocation: currentPlan.emergency_fund_allocation || 0,
+      checking_balance: currentPlan.checking_balance || 0,
       notes: currentPlan.notes || '',
     });
     setNotesInput(currentPlan.notes || '');
@@ -283,6 +287,26 @@ export default function MonthlyPlanning({ userId }) {
             >
               <ChevronLeft className="w-5 h-5" />
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Checking Account Balance */}
+      <Card className="border-2 border-sky-300 bg-sky-50/50">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 text-sky-700 font-medium">
+              <Wallet className="w-5 h-5 text-sky-600" />
+              יתרת עובר ושב לחודש {format(currentDate, 'MMMM yyyy', { locale: he })}
+            </div>
+            <div className="sm:mr-auto sm:w-64">
+              <FormattedNumberInput
+                value={planData.checking_balance}
+                onChange={(val) => updatePlanData({ checking_balance: val })}
+                placeholder="הזן יתרה"
+                className="text-lg font-medium"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
