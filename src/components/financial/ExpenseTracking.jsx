@@ -40,6 +40,7 @@ export default function ExpenseTracking({ userId }) {
     total_installments: '',
     paid_installments: '',
   });
+  const [creditNameMode, setCreditNameMode] = useState('list'); // 'list' | 'free'
 
   const [trackingData, setTrackingData] = useState({
     actual_income: 0,
@@ -667,17 +668,42 @@ export default function ExpenseTracking({ userId }) {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>קטגוריה / שם ההוצאה</Label>
-              <Select value={creditForm.category} onValueChange={v => setCreditForm(p => ({ ...p, category: v }))}>
-                <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
-                <SelectContent>
-                  {EXPENSE_CATEGORIES.map(cat => (
-                    <React.Fragment key={cat.key}>
-                      <div className="px-2 py-1 text-xs font-bold text-slate-500 bg-slate-50">{cat.label}</div>
-                      {cat.items.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
-                    </React.Fragment>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2 mb-1">
+                <button
+                  type="button"
+                  onClick={() => { setCreditNameMode('list'); setCreditForm(p => ({ ...p, category: '' })); }}
+                  className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors ${creditNameMode === 'list' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  בחירה מרשימה
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCreditNameMode('free'); setCreditForm(p => ({ ...p, category: '' })); }}
+                  className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors ${creditNameMode === 'free' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  טקסט חופשי
+                </button>
+              </div>
+              {creditNameMode === 'list' ? (
+                <Select value={creditForm.category} onValueChange={v => setCreditForm(p => ({ ...p, category: v }))}>
+                  <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_CATEGORIES.map(cat => (
+                      <React.Fragment key={cat.key}>
+                        <div className="px-2 py-1 text-xs font-bold text-slate-500 bg-slate-50">{cat.label}</div>
+                        {cat.items.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                      </React.Fragment>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={creditForm.category}
+                  onChange={e => setCreditForm(p => ({ ...p, category: e.target.value }))}
+                  placeholder="הקלד שם הוצאה..."
+                  dir="rtl"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label>סכום כולל של הרכישה (₪)</Label>
