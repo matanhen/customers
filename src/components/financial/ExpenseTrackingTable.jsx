@@ -99,55 +99,68 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
               {isExpanded && (
                 <div className="p-2 sm:p-3 space-y-2">
                   <div className="w-full overflow-x-auto">
-                    <table className="w-full text-sm" style={{ minWidth: 260 }}>
+                    <table className="w-full text-sm" style={{ minWidth: 320 }}>
                       <thead>
                         <tr className="text-slate-500 text-xs">
                           <th className="text-right pb-2 font-medium pr-2">סעיף</th>
-                          <th className="pb-2 font-medium text-center w-32">שבוע {selectedWeek} (₪)</th>
+                          <th className="pb-2 font-medium text-center w-28">שבוע {selectedWeek} (₪)</th>
+                          <th className="pb-2 font-medium text-center w-28 bg-slate-50">חודשי (₪)</th>
                           {!disabled && <th className="w-8"></th>}
                         </tr>
                       </thead>
                       <tbody>
-                        {cat.items.map(item => (
-                          <tr key={item} className="border-t border-slate-100">
-                            <td className="py-1 pr-2 text-slate-700 text-xs">{item}</td>
-                            <td className="py-1 px-1">
-                              <Input
-                                type="number"
-                                value={getItemWeekAmount(catData[item], selectedWeek) || ''}
-                                onChange={e => updateCell(cat.key, item, e.target.value)}
-                                className="h-7 text-xs text-center border-slate-200 px-1"
-                                placeholder="0"
-                                disabled={disabled}
-                                dir="ltr"
-                              />
-                            </td>
-                            {!disabled && <td className="w-8"></td>}
-                          </tr>
-                        ))}
-                        {customItems.map(item => (
-                          <tr key={item} className="border-t border-slate-100 bg-blue-50/30">
-                            <td className="py-1 pr-2 text-blue-700 text-xs font-medium">{item}</td>
-                            <td className="py-1 px-1">
-                              <Input
-                                type="number"
-                                value={getItemWeekAmount(catData[item], selectedWeek) || ''}
-                                onChange={e => updateCell(cat.key, item, e.target.value)}
-                                className="h-7 text-xs text-center border-blue-200 px-1"
-                                placeholder="0"
-                                disabled={disabled}
-                                dir="ltr"
-                              />
-                            </td>
-                            {!disabled && (
-                              <td className="w-8">
-                                <button onClick={() => deleteItem(cat.key, item)} className="text-slate-300 hover:text-red-400">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                        {cat.items.map(item => {
+                          const monthTotal = getItemMonthTotal(catData[item]);
+                          return (
+                            <tr key={item} className="border-t border-slate-100">
+                              <td className="py-1 pr-2 text-slate-700 text-xs">{item}</td>
+                              <td className="py-1 px-1">
+                                <Input
+                                  type="number"
+                                  value={getItemWeekAmount(catData[item], selectedWeek) || ''}
+                                  onChange={e => updateCell(cat.key, item, e.target.value)}
+                                  className="h-7 text-xs text-center border-slate-200 px-1"
+                                  placeholder="0"
+                                  disabled={disabled}
+                                  dir="ltr"
+                                />
                               </td>
-                            )}
-                          </tr>
-                        ))}
+                              <td className="py-1 px-1 text-center text-xs font-bold bg-slate-50/70 text-slate-700 select-none">
+                                {monthTotal > 0 ? `₪${monthTotal.toLocaleString()}` : '—'}
+                              </td>
+                              {!disabled && <td className="w-8"></td>}
+                            </tr>
+                          );
+                        })}
+                        {customItems.map(item => {
+                          const monthTotal = getItemMonthTotal(catData[item]);
+                          return (
+                            <tr key={item} className="border-t border-slate-100 bg-blue-50/30">
+                              <td className="py-1 pr-2 text-blue-700 text-xs font-medium">{item}</td>
+                              <td className="py-1 px-1">
+                                <Input
+                                  type="number"
+                                  value={getItemWeekAmount(catData[item], selectedWeek) || ''}
+                                  onChange={e => updateCell(cat.key, item, e.target.value)}
+                                  className="h-7 text-xs text-center border-blue-200 px-1"
+                                  placeholder="0"
+                                  disabled={disabled}
+                                  dir="ltr"
+                                />
+                              </td>
+                              <td className="py-1 px-1 text-center text-xs font-bold bg-slate-50/70 text-slate-700 select-none">
+                                {monthTotal > 0 ? `₪${monthTotal.toLocaleString()}` : '—'}
+                              </td>
+                              {!disabled && (
+                                <td className="w-8">
+                                  <button onClick={() => deleteItem(cat.key, item)} className="text-slate-300 hover:text-red-400">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
