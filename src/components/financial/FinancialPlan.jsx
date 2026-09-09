@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Target, FileDown, Loader2, ChevronDown, ChevronUp, Edit3, Save } from 'lucide-react';
@@ -14,6 +14,8 @@ import PlanActionItems from './PlanActionItems';
 import PlanSituation from './PlanSituation';
 import { exportPlanToPDF } from './planPDFExport';
 import { FINANCIAL_STEPS, getStepValue, getStepTarget, getStepGap, formatCurrency } from './financialPlanSteps';
+import { useAutoSave } from '@/hooks/useAutoSave';
+import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 
 const MONTHS = ['month1','month2','month3','month4','month5','month6'];
 
@@ -142,8 +144,6 @@ export default function FinancialPlan({ userId }) {
   const [showPersonalGoal, setShowPersonalGoal] = useState(true);
   const [showNotes, setShowNotes] = useState(true);
   const [planMode, setPlanMode] = useState('start');
-  const autoSaveTimer = useRef(null);
-  const pendingDataRef = useRef(null);
   const planIdRef = useRef(null);
   const queryClient = useQueryClient();
 
@@ -280,34 +280,13 @@ export default function FinancialPlan({ userId }) {
     },
   });
 
-  const saveMutationRef = useRef(saveMutation);
-  useEffect(() => { saveMutationRef.current = saveMutation; }, [saveMutation]);
-
-  const triggerAutoSave = useCallback((newData) => {
-    pendingDataRef.current = newData;
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      if (pendingDataRef.current) {
-        saveMutationRef.current.mutate(pendingDataRef.current);
-        pendingDataRef.current = null;
-      }
-    }, 800);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (pendingDataRef.current) {
-        clearTimeout(autoSaveTimer.current);
-        saveMutationRef.current.mutate(pendingDataRef.current);
-      }
-    };
-  }, []);
+  const { triggerSave } = useAutoSave((data) => saveMutation.mutate(data), 500);
 
   const update = (updates) => {
     if (!planData) return;
     const newData = { ...planData, ...updates };
     setPlanData(newData);
-    triggerAutoSave(newData);
+    triggerSave(newData);
   };
 
   const latestMonthlyPlan = (monthlyPlans || []).sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0];
@@ -598,7 +577,7 @@ export default function FinancialPlan({ userId }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs text-slate-500">סכום יעד (₪) <span className="text-red-500">*</span></Label>
-                  <Input type="number" value={planData.personal_goal_amount || ''} onChange={e => update({ personal_goal_amount: Number(e.target.value) || 0 })} />
+                  <FormattedNumberInput value={planData.personal_goal_amount || ''} onChange={val => update({ personal_goal_amount: val })} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-slate-500">תאריך יעד <span className="text-red-500">*</span></Label>
@@ -607,7 +586,7 @@ export default function FinancialPlan({ userId }) {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500">יעד חודשי (₪)</Label>
-                <Input type="number" value={planData.personal_goal_monthly || ''} onChange={e => update({ personal_goal_monthly: Number(e.target.value) || 0 })} />
+                <FormattedNumberInput value={planData.personal_goal_monthly || ''} onChange={val => update({ personal_goal_monthly: val })} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500">הערת יועץ</Label>

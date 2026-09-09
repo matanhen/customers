@@ -180,12 +180,12 @@ export default function Home() {
 
   // Current month and monthly balance lookup (MonthlyBalance is the source of truth;
   // FinancialPlan plan_type=balance_sheet is only a legacy fallback)
-  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const currentMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   const balanceByMonth = {};
   (monthlyBalances || []).forEach(b => {
     if (b.month) balanceByMonth[b.month] = b;
   });
-  if (!balanceByMonth[currentMonthStr] && balancePlan) {
+  if (!balanceByMonth[currentMonthStr] && balancePlan && (monthlyBalances || []).length === 0) {
     balanceByMonth[currentMonthStr] = {
       month: currentMonthStr,
       assets: { items: (balancePlan.assets?.items || []).map(a => ({ ...a, value: Number(a.value) || 0 })) },
