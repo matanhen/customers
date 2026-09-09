@@ -314,7 +314,7 @@ export default function FinancialPlan({ userId }) {
   const startBalanceMonth = planData?.start_balance_month || currentMonthStr();
   const currentMonthBalance = (allMonthlyBalances || []).find(m => m.month === currentMonthStr());
   const startMonthBalance = (allMonthlyBalances || []).find(m => m.month === startBalanceMonth);
-  const availableMonths = [...new Set((allMonthlyBalances || []).map(m => m.month))].sort().reverse();
+  const availableMonths = [...new Set([...(allMonthlyBalances || []).map(m => m.month), startBalanceMonth].filter(Boolean))].sort().reverse();
   const startSituation = calcSituation(reflection, startMonthBalance, latestMonthlyPlan, investments || []);
   const endSituation = calcSituationFromPlan(latestMonthlyPlan, currentMonthBalance, investments || []);
   const situation = planMode === 'start' ? startSituation : endSituation;
@@ -446,7 +446,7 @@ export default function FinancialPlan({ userId }) {
       {planMode === 'start' && (
         <div className="flex items-center gap-3 bg-[#105330]/5 rounded-xl p-4">
           <label className="text-sm font-medium text-[#105330] whitespace-nowrap">חודש מאזן לתחילת תהליך:</label>
-          {isAdvisorOrAdmin && availableMonths.length > 0 ? (
+          {availableMonths.length > 0 ? (
             <Select value={startBalanceMonth} onValueChange={(v) => update({ start_balance_month: v })}>
               <SelectTrigger className="w-48">
                 <SelectValue />
