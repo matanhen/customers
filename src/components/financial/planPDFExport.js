@@ -162,6 +162,11 @@ function buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl, m
           ${planData.personal_goal_monthly > 0 ? `<div style="font-size:13px;color:#64748b;">יעד חודשי: ${formatCurrency(planData.personal_goal_monthly)}</div>` : ''}
         </div>
       ` : ''}
+
+      ${planData?.advisor_notes?.trim() ? `
+        <h2 style="font-size:18px;color:#105330;border-bottom:2px solid #105330;padding-bottom:6px;margin:0 0 12px 0;">הערות יועץ</h2>
+        <div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:24px;white-space:pre-wrap;font-size:13px;color:#1e293b;line-height:1.6;">${planData.advisor_notes}</div>
+      ` : ''}
     </div>
   `;
 }
