@@ -86,6 +86,11 @@
       "type": "string",
       "default": "",
       "description": "\u05d4\u05e2\u05e8\u05d5\u05ea \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05e9\u05dc \u05d4\u05d9\u05d5\u05e2\u05e5"
+    },
+    "start_balance_month": {
+      "type": "string",
+      "default": "",
+      "description": "\u05d7\u05d5\u05d3\u05e9 \u05d4\u05de\u05d0\u05d6\u05df \u05dc\u05ea\u05d7\u05d9\u05dc\u05ea \u05d4\u05ea\u05d4\u05dc\u05d9\u05da (YYYY-MM)"
     }
   },
   "required": [

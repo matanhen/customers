@@ -17,6 +17,13 @@ import { FINANCIAL_STEPS, getStepValue, getStepTarget, getStepGap, formatCurrenc
 
 const MONTHS = ['month1','month2','month3','month4','month5','month6'];
 
+const HEBREW_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function formatMonthLabel(m) {
+  if (!m) return '';
+  const [year, month] = m.split('-');
+  return `${HEBREW_MONTHS[parseInt(month) - 1]} ${year}`;
+}
+
 function currentMonthStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -165,15 +172,14 @@ export default function FinancialPlan({ userId }) {
     staleTime: 30000,
   });
 
-  const { data: monthBalance } = useQuery({
-    queryKey: ['monthlyBalance', userId, currentMonthStr()],
+  const { data: allMonthlyBalances } = useQuery({
+    queryKey: ['monthlyBalances', userId, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
       if (isViewingOther && isAdvisorOrAdmin) {
         const r = await base44.functions.invoke('getClientData', { clientUserId: userId, clientEmail: viewingClientEmail, entityName: 'MonthlyBalance' });
-        return (r.data.data || []).find(m => m.month === currentMonthStr());
+        return r.data.data || [];
       }
-      const results = await base44.entities.MonthlyBalance.filter({ user_id: userId, month: currentMonthStr() });
-      return results[0];
+      return base44.entities.MonthlyBalance.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
     staleTime: 30000,
@@ -305,8 +311,12 @@ export default function FinancialPlan({ userId }) {
   };
 
   const latestMonthlyPlan = (monthlyPlans || []).sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0];
-  const startSituation = calcSituation(reflection, monthBalance, latestMonthlyPlan, investments || []);
-  const endSituation = calcSituationFromPlan(latestMonthlyPlan, monthBalance, investments || []);
+  const startBalanceMonth = planData?.start_balance_month || currentMonthStr();
+  const currentMonthBalance = (allMonthlyBalances || []).find(m => m.month === currentMonthStr());
+  const startMonthBalance = (allMonthlyBalances || []).find(m => m.month === startBalanceMonth);
+  const availableMonths = [...new Set((allMonthlyBalances || []).map(m => m.month))].sort().reverse();
+  const startSituation = calcSituation(reflection, startMonthBalance, latestMonthlyPlan, investments || []);
+  const endSituation = calcSituationFromPlan(latestMonthlyPlan, currentMonthBalance, investments || []);
   const situation = planMode === 'start' ? startSituation : endSituation;
 
   if (!planData) {
@@ -429,6 +439,27 @@ export default function FinancialPlan({ userId }) {
           </TabsList>
         </Tabs>
       </div>
+
+      {/* Start Balance Month Selector */}
+      {planMode === 'start' && (
+        <div className="flex items-center gap-3 bg-[#105330]/5 rounded-xl p-4">
+          <label className="text-sm font-medium text-[#105330] whitespace-nowrap">חודש מאזן לתחילת תהליך:</label>
+          {isAdvisorOrAdmin && availableMonths.length > 0 ? (
+            <Select value={startBalanceMonth} onValueChange={(v) => update({ start_balance_month: v })}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMonths.map(m => (
+                  <SelectItem key={m} value={m}>{formatMonthLabel(m)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="text-sm text-slate-600 font-medium">{formatMonthLabel(startBalanceMonth)}</span>
+          )}
+        </div>
+      )}
 
       {/* Current Situation */}
       <PlanSituation situation={situation} missingData={situation.missing || []} mode={planMode} />

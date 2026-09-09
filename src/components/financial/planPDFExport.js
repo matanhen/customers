@@ -7,6 +7,8 @@ function buildComparisonHTML(startSit, endSit) {
     { label: 'הכנסה חודשית', start: startSit.income, end: endSit.income, higherIsBetter: true },
     { label: 'הוצאות חודשיות', start: startSit.totalExpenses, end: endSit.totalExpenses, higherIsBetter: false },
     { label: 'תזרים חודשי', start: startSit.cashFlow, end: endSit.cashFlow, higherIsBetter: true },
+    { label: 'תזרים שנתי (×12)', start: startSit.cashFlow * 12, end: endSit.cashFlow * 12, higherIsBetter: true },
+    { label: 'תזרים ב-10 שנים (×120)', start: startSit.cashFlow * 120, end: endSit.cashFlow * 120, higherIsBetter: true },
     { label: 'מצב עו"ש', start: startSit.checkingBalance, end: endSit.checkingBalance, higherIsBetter: true },
     { label: 'סך נכסים', start: startSit.totalAssets, end: endSit.totalAssets, higherIsBetter: true },
     { label: 'סך חובות', start: startSit.totalLiabilities, end: endSit.totalLiabilities, higherIsBetter: false },
