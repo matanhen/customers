@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FinancialJourney from './FinancialJourney';
 import PlanActionItems from './PlanActionItems';
 import PlanSituation from './PlanSituation';
@@ -81,6 +82,49 @@ function calcSituation(reflection, monthBalance, latestPlan, investments) {
   };
 }
 
+function calcSituationFromPlan(monthlyPlan, monthBalance, investments) {
+  const missing = [];
+
+  let income = 0;
+  let totalExpenses = 0;
+  let checkingBalance = 0;
+
+  if (monthlyPlan) {
+    income = monthlyPlan.expected_income || 0;
+    totalExpenses = (monthlyPlan.fixed_expenses || 0) + (monthlyPlan.variable_expenses || 0) + (monthlyPlan.savings || 0);
+    checkingBalance = monthlyPlan.checking_balance || 0;
+  } else {
+    missing.push('תכנון חודשי — הכנסה והוצאות');
+  }
+
+  const cashFlow = income - totalExpenses;
+
+  let totalAssets = 0, totalLiabilities = 0, passiveIncome = 0;
+  if (monthBalance) {
+    const assets = monthBalance.assets?.items || [];
+    const liabilities = monthBalance.liabilities?.items || [];
+    totalAssets = assets.reduce((s, a) => s + (Number(a.value) || 0), 0);
+    totalLiabilities = liabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
+    passiveIncome = assets.reduce((s, a) => s + (Number(a.monthly_income) || 0), 0)
+      - liabilities.reduce((s, l) => s + (Number(l.monthly_payment) || 0), 0);
+  } else {
+    missing.push('מאזן — נכסים והתחייבויות');
+  }
+
+  const netWorth = totalAssets - totalLiabilities;
+  const emergencyFund = monthlyPlan?.emergency_fund_current || 0;
+  const hasInvestments = (investments || []).length > 0;
+
+  return {
+    income, totalExpenses, cashFlow, checkingBalance,
+    totalAssets, totalLiabilities, passiveIncome, netWorth,
+    emergencyFund, hasInvestments,
+    essentialExpenses: totalExpenses,
+    monthlyExpenses: totalExpenses,
+    missing,
+  };
+}
+
 export default function FinancialPlan({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [planData, setPlanData] = useState(null);
@@ -90,6 +134,7 @@ export default function FinancialPlan({ userId }) {
   const [showStepSelector, setShowStepSelector] = useState(false);
   const [showPersonalGoal, setShowPersonalGoal] = useState(true);
   const [showNotes, setShowNotes] = useState(true);
+  const [planMode, setPlanMode] = useState('start');
   const autoSaveTimer = useRef(null);
   const pendingDataRef = useRef(null);
   const planIdRef = useRef(null);
@@ -259,9 +304,10 @@ export default function FinancialPlan({ userId }) {
     triggerAutoSave(newData);
   };
 
-  const situation = calcSituation(reflection, monthBalance,
-    (monthlyPlans || []).sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0],
-    investments || []);
+  const latestMonthlyPlan = (monthlyPlans || []).sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0];
+  const startSituation = calcSituation(reflection, monthBalance, latestMonthlyPlan, investments || []);
+  const endSituation = calcSituationFromPlan(latestMonthlyPlan, monthBalance, investments || []);
+  const situation = planMode === 'start' ? startSituation : endSituation;
 
   if (!planData) {
     return (
@@ -301,7 +347,7 @@ export default function FinancialPlan({ userId }) {
         const logoRes = await base44.functions.invoke('getSiteLogo', {});
         logoUrl = logoRes?.data?.logo_url || logoRes?.logo_url || null;
       } catch (e) {}
-      await exportPlanToPDF({ planData, situation, currentStep, logoUrl });
+      await exportPlanToPDF({ planData, situation, currentStep, logoUrl, mode: planMode, startSituation });
     } catch (e) {
       console.error('PDF export failed', e);
       alert('שגיאה ביצירת הקובץ. נסה שוב.');
@@ -370,8 +416,22 @@ export default function FinancialPlan({ userId }) {
         </div>
       </div>
 
+      {/* Process Mode Tabs */}
+      <div className="flex justify-center">
+        <Tabs value={planMode} onValueChange={setPlanMode} className="w-full max-w-md">
+          <TabsList className="grid grid-cols-2 w-full bg-[#105330]/10 p-1.5 rounded-xl">
+            <TabsTrigger value="start" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm">
+              תחילת תהליך
+            </TabsTrigger>
+            <TabsTrigger value="end" className="rounded-lg data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold text-sm">
+              סיום תהליך
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {/* Current Situation */}
-      <PlanSituation situation={situation} missingData={situation.missing || []} />
+      <PlanSituation situation={situation} missingData={situation.missing || []} mode={planMode} />
 
       {/* Next Goal */}
       <div className="bg-gradient-to-l from-[#105330] to-[#0d4027] rounded-3xl shadow-xl p-6 md:p-8 text-white">

@@ -3,7 +3,8 @@ import { TrendingUp, TrendingDown, Wallet, Landmark, Building2, Coins } from 'lu
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from './financialPlanSteps';
 
-export default function PlanSituation({ situation, missingData }) {
+export default function PlanSituation({ situation, missingData, mode = 'start' }) {
+  const isEnd = mode === 'end';
   const reflectionItems = [
     { label: 'הכנסה חודשית', value: situation.income, icon: Wallet, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'הוצאות חודשיות', value: situation.totalExpenses, icon: TrendingDown, color: 'text-rose-600', bg: 'bg-rose-50' },
@@ -21,7 +22,7 @@ export default function PlanSituation({ situation, missingData }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <h2 className="text-xl font-bold text-[#105330]">המצב שלך היום</h2>
-        <span className="text-xs text-slate-400">מתוך השיקוף הפיננסי והמאזן</span>
+        <span className="text-xs text-slate-400">{isEnd ? 'מתוך התכנון החודשי והמאזן' : 'מתוך השיקוף הפיננסי והמאזן'}</span>
       </div>
 
       {missingData.length > 0 && (
@@ -34,7 +35,7 @@ export default function PlanSituation({ situation, missingData }) {
       )}
 
       <div>
-        <p className="text-xs text-slate-400 mb-2 font-medium">לפי השיקוף הפיננסי</p>
+        <p className="text-xs text-slate-400 mb-2 font-medium">{isEnd ? 'לפי התכנון החודשי' : 'לפי השיקוף הפיננסי'}</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {reflectionItems.map(item => {
             const Icon = item.icon;
