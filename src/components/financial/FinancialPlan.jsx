@@ -234,7 +234,7 @@ export default function FinancialPlan({ userId }) {
     } else if (!existingPlan && !!userId && !!currentUser && !dataLoaded) {
       // Auto-create default plan
       const defaultPlan = {
-        user_id: userId, client_name: '', main_goal: '', current_step: 1,
+        user_id: userId, client_name: '', main_goal: '', current_step: 1, current_step_end: 1,
         step_targets: {}, actions: [], personal_goal_name: '', personal_goal_amount: 0,
         personal_goal_date: '', personal_goal_monthly: 0, personal_goal_note: '', advisor_notes: '',
       };
@@ -327,7 +327,7 @@ export default function FinancialPlan({ userId }) {
     );
   }
 
-  const currentStep = planData.current_step || 1;
+  const currentStep = planMode === 'start' ? (planData.current_step || 1) : (planData.current_step_end || planData.current_step || 1);
   const currentStepInfo = FINANCIAL_STEPS.find(s => s.id === currentStep) || FINANCIAL_STEPS[0];
   const stepCurrents = planData.step_currents || {};
   const stepGap = getStepGap(currentStep, situation, planData.step_targets, stepCurrents);
@@ -357,7 +357,9 @@ export default function FinancialPlan({ userId }) {
         const logoRes = await base44.functions.invoke('getSiteLogo', {});
         logoUrl = logoRes?.data?.logo_url || logoRes?.logo_url || null;
       } catch (e) {}
-      await exportPlanToPDF({ planData, situation, currentStep, logoUrl, mode: planMode, startSituation });
+      const startStep = planData.current_step || 1;
+      const endStep = planData.current_step_end || planData.current_step || 1;
+      await exportPlanToPDF({ planData, situation, currentStep, logoUrl, mode: planMode, startSituation, startStep, endStep });
     } catch (e) {
       console.error('PDF export failed', e);
       alert('שגיאה ביצירת הקובץ. נסה שוב.');
@@ -533,7 +535,7 @@ export default function FinancialPlan({ userId }) {
                 {FINANCIAL_STEPS.map(step => (
                   <button
                     key={step.id}
-                    onClick={() => { update({ current_step: step.id }); setShowStepSelector(false); }}
+                    onClick={() => { update(planMode === 'start' ? { current_step: step.id } : { current_step_end: step.id }); setShowStepSelector(false); }}
                     className={`text-right p-3 rounded-xl border-2 transition-all ${
                       step.id === currentStep
                         ? 'border-[#105330] bg-[#105330]/5'
@@ -561,7 +563,7 @@ export default function FinancialPlan({ userId }) {
             currentStep={currentStep}
             stepTargets={planData.step_targets}
             stepCurrents={stepCurrents}
-            onStepClick={(id) => isAdvisorOrAdmin && update({ current_step: id })}
+            onStepClick={(id) => isAdvisorOrAdmin && update(planMode === 'start' ? { current_step: id } : { current_step_end: id })}
             editable={isAdvisorOrAdmin}
           />
         </CardContent>

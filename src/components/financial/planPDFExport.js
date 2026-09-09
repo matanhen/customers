@@ -49,7 +49,35 @@ function buildComparisonHTML(startSit, endSit) {
   `;
 }
 
-function buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl, mode, startSituation }) {
+function buildStepComparisonHTML(startStepId, endStepId) {
+  const startStep = FINANCIAL_STEPS.find(s => s.id === startStepId) || FINANCIAL_STEPS[0];
+  const endStep = FINANCIAL_STEPS.find(s => s.id === endStepId) || FINANCIAL_STEPS[0];
+  const progress = endStepId - startStepId;
+  const progressColor = progress > 0 ? '#105330' : progress < 0 ? '#dc2626' : '#64748b';
+  const progressLabel = progress > 0 ? 'התקדמות חיובית' : progress < 0 ? 'נסיגה' : 'ללא שינוי';
+  return `
+    <h2 style="font-size:18px;color:#105330;border-bottom:2px solid #105330;padding-bottom:6px;margin:0 0 12px 0;">התקדמות במסלול הפיננסי</h2>
+    <div style="display:flex;gap:12px;margin-bottom:24px;">
+      <div style="flex:1;background:#f8fafc;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px;">שלב בתחילת תהליך</div>
+        <div style="font-size:22px;font-weight:bold;color:#64748b;">שלב ${startStep.id}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">${startStep.label}</div>
+      </div>
+      <div style="flex:1;background:#105330;border-radius:10px;padding:16px;text-align:center;color:white;">
+        <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">שלב בסיום תהליך</div>
+        <div style="font-size:22px;font-weight:bold;">שלב ${endStep.id}</div>
+        <div style="font-size:12px;opacity:0.9;margin-top:4px;">${endStep.label}</div>
+      </div>
+      <div style="flex:1;background:#f8fafc;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px;">התקדמות</div>
+        <div style="font-size:22px;font-weight:bold;color:${progressColor};">${progress > 0 ? '+' : ''}${progress} שלבים</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">${progressLabel}</div>
+      </div>
+    </div>
+  `;
+}
+
+function buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl, mode, startSituation, startStep, endStep }) {
   const step = FINANCIAL_STEPS.find(s => s.id === currentStep) || FINANCIAL_STEPS[0];
   const gap = getStepGap(currentStep, situation, planData?.step_targets, planData?.step_currents);
   const value = getStepValue(currentStep, situation, planData?.step_currents);
@@ -105,6 +133,7 @@ function buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl, m
       </div>
 
       ${mode === 'end' && startSituation ? buildComparisonHTML(startSituation, situation) : ''}
+      ${mode === 'end' ? buildStepComparisonHTML(startStep, endStep) : ''}
 
       <h2 style="font-size:18px;color:#105330;border-bottom:2px solid #105330;padding-bottom:6px;margin:0 0 12px 0;">היעד הבא</h2>
       <div style="background:#105330;color:white;border-radius:12px;padding:16px;margin-bottom:24px;">
@@ -137,11 +166,11 @@ function buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl, m
   `;
 }
 
-export async function exportPlanToPDF({ planData, situation, currentStep, logoUrl, mode, startSituation }) {
+export async function exportPlanToPDF({ planData, situation, currentStep, logoUrl, mode, startSituation, startStep, endStep }) {
   const nextStep = currentStep;
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;right:-9999px;top:0;width:794px;padding:40px;background:white;';
-  container.innerHTML = buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl, mode, startSituation });
+  container.innerHTML = buildPrintHTML({ planData, situation, currentStep, nextStep, logoUrl, mode, startSituation, startStep, endStep });
   document.body.appendChild(container);
 
   try {
