@@ -70,6 +70,17 @@ export default function Layout({ children }) {
     loadUser();
   }, []);
 
+  // Listen for live navbar logo updates from the admin panel
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail && typeof e.detail.url === 'string') {
+        setLogoUrl(e.detail.url);
+      }
+    };
+    window.addEventListener('navbar-logo-updated', handler);
+    return () => window.removeEventListener('navbar-logo-updated', handler);
+  }, []);
+
   const loadUser = async () => {
     try {
       let currentUser = await base44.auth.me();

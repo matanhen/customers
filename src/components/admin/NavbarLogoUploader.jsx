@@ -34,7 +34,7 @@ export default function NavbarLogoUploader() {
     setUploading(true);
     setError('');
     try {
-      const result = await base44.integrations.Core.UploadFile({ file });
+      const result = await base44.integrations.Core.UploadPublicFile({ file });
       const url = result?.file_url;
       if (!url) throw new Error('No file_url returned');
       if (recordId) {
@@ -44,6 +44,7 @@ export default function NavbarLogoUploader() {
         setRecordId(created.id);
       }
       setLogoUrl(url);
+      window.dispatchEvent(new CustomEvent('navbar-logo-updated', { detail: { url } }));
     } catch (e) {
       console.error('Upload failed', e);
       setError('העלאת התמונה נכשלה. נסה שוב.');
@@ -57,6 +58,7 @@ export default function NavbarLogoUploader() {
     try {
       await base44.entities.SiteSettings.update(recordId, { logo_url: '' });
       setLogoUrl('');
+      window.dispatchEvent(new CustomEvent('navbar-logo-updated', { detail: { url: '' } }));
     } catch (e) {
       console.error('Remove failed', e);
     }
