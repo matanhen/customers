@@ -45,9 +45,10 @@ export default function Layout({ children }) {
       sessionStorage.removeItem('viewingClient');
     }
 
-    // Fetch navbar logo for the top bar (always runs, independent of user cache)
-    base44.entities.SiteSettings.filter({ key: 'navbar_logo' })
-      .then(recs => { if (recs && recs[0] && recs[0].logo_url) setLogoUrl(recs[0].logo_url); })
+    // Fetch navbar logo for the top bar via backend function (service role —
+    // bypasses RLS so clients, advisors and admins all see the logo)
+    base44.functions.invoke('getSiteLogo', {})
+      .then(res => { if (res?.data?.navbar_logo_url) setLogoUrl(res.data.navbar_logo_url); })
       .catch(() => {});
 
     // Check cache first
