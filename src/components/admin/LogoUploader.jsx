@@ -71,8 +71,8 @@ export default function LogoUploader() {
             <Upload className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-800">לוגו דף הכניסה</h3>
-            <p className="text-sm text-slate-500">תמונה שתופיע בדף הנחיתה במקום הסמל הישן</p>
+            <h3 className="text-lg font-bold text-slate-800">לוגו האתר</h3>
+            <p className="text-sm text-slate-500">תמונה שתופיע בסרגל העליון ובדף הכניסה במקום הטקסט</p>
           </div>
         </div>
         {loading ? (

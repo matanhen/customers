@@ -27,6 +27,7 @@ export default function Layout({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0); // 0=hidden, 1=first confirm, 2=second confirm
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
 
   // Force light mode - app is not designed for dark mode
   useEffect(() => {
@@ -60,6 +61,11 @@ export default function Layout({ children }) {
     } catch (e) {
       sessionStorage.removeItem('currentUser');
     }
+
+    // Fetch site logo for the top bar
+    base44.entities.SiteSettings.filter({ key: 'logo' })
+      .then(recs => { if (recs && recs[0] && recs[0].logo_url) setLogoUrl(recs[0].logo_url); })
+      .catch(() => {});
 
     loadUser();
   }, []);
@@ -335,9 +341,13 @@ export default function Layout({ children }) {
                   <ChevronLeft className="w-6 h-6" />
                 </button>
               )}
-              <h1 className="text-xl lg:text-2xl font-bold text-white">
-                צעירים מתעשרים
-              </h1>
+              {logoUrl ? (
+                <img src={logoUrl} alt="לוגו" className="h-9 lg:h-11 w-auto object-contain" />
+              ) : (
+                <h1 className="text-xl lg:text-2xl font-bold text-white">
+                  צעירים מתעשרים
+                </h1>
+              )}
               {/* Academy Button - Mobile */}
               <a
                 href="https://academy.matanhen.com"
