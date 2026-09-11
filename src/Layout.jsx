@@ -45,6 +45,11 @@ export default function Layout({ children }) {
       sessionStorage.removeItem('viewingClient');
     }
 
+    // Fetch navbar logo for the top bar (always runs, independent of user cache)
+    base44.entities.SiteSettings.filter({ key: 'navbar_logo' })
+      .then(recs => { if (recs && recs[0] && recs[0].logo_url) setLogoUrl(recs[0].logo_url); })
+      .catch(() => {});
+
     // Check cache first
     try {
       const cachedUser = sessionStorage.getItem('currentUser');
@@ -61,11 +66,6 @@ export default function Layout({ children }) {
     } catch (e) {
       sessionStorage.removeItem('currentUser');
     }
-
-    // Fetch navbar logo for the top bar
-    base44.entities.SiteSettings.filter({ key: 'navbar_logo' })
-      .then(recs => { if (recs && recs[0] && recs[0].logo_url) setLogoUrl(recs[0].logo_url); })
-      .catch(() => {});
 
     loadUser();
   }, []);
