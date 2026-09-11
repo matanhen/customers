@@ -2,14 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import PullToRefresh from '../components/PullToRefresh';
-import { Wallet, LineChart, TrendingUp, ClipboardList, ArrowRight, Target } from 'lucide-react';
+import { Wallet, LineChart, ClipboardList, ArrowRight, Target } from 'lucide-react';
 // Note: DebtManager and PensionManager removed from Reflection tab per product decision
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MonthlyPlanning from '../components/financial/MonthlyPlanning';
 import FinancialReflection from '../components/financial/FinancialReflection';
 import FinancialPlan from '../components/financial/FinancialPlan';
 
-import BeforeAfterComparison from '../components/financial/BeforeAfterComparison';
 import ExpenseTracking from '../components/financial/ExpenseTracking';
 
 const SECTIONS = [
@@ -26,13 +25,6 @@ const SECTIONS = [
     icon: LineChart,
     description: 'שיקוף ההתנהלות הכלכלית וניהול חובות',
     color: 'from-[#1a5c8a] to-[#2a7abf]',
-  },
-  {
-    key: 'comparison',
-    label: 'לפני / אחרי',
-    icon: TrendingUp,
-    description: 'השוואה בין מצב קודם למצב הנוכחי',
-    color: 'from-[#7a4a10] to-[#b06a1a]',
   },
   {
     key: 'plan',
@@ -172,22 +164,6 @@ export default function FinancialManagement() {
           <h1 className="text-2xl font-bold text-[#105330]">שיקוף פיננסי</h1>
         </div>
         <FinancialReflection userId={effectiveUserId} />
-      </div>
-    );
-  }
-
-  // Comparison section
-  if (activeSection === 'comparison') {
-    return (
-      <div className="max-w-6xl mx-auto" dir="rtl">
-        <div className="mb-6 flex items-center gap-3">
-          <button onClick={handleBack} className="text-[#105330]/60 hover:text-[#105330] flex items-center gap-1 text-sm font-medium">
-            <ArrowRight className="w-4 h-4" />
-            חזרה
-          </button>
-          <h1 className="text-2xl font-bold text-[#105330]">לפני / אחרי</h1>
-        </div>
-        <BeforeAfterComparison userId={effectiveUserId} />
       </div>
     );
   }

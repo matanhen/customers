@@ -245,7 +245,7 @@ export default function Layout({ children }) {
     { name: 'מאזן', page: 'Balance', icon: Scale },
     { name: 'פנסיוני', page: 'Pension', icon: Landmark },
     { name: 'השקעות', page: 'Investments', icon: TrendingUp },
-    { name: 'תכנון חופש כלכלי', page: 'FinancialFreedom', icon: Target },
+    { name: <>{'תכנון חופש'}<br/>{'כלכלי'}</>, page: 'FinancialFreedom', icon: Target },
     { name: 'חוברת עבודה', page: 'Workbook', icon: BookOpen },
     { name: 'האקדמיה', externalUrl: 'https://academy.matanhen.com', icon: GraduationCap },
   ];
@@ -571,7 +571,7 @@ export default function Layout({ children }) {
                       className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all bg-[#1f9d47] text-white shadow-lg hover:bg-[#1a8a3f] text-sm"
                     >
                       <Icon className="w-5 h-5 shrink-0" />
-                      <span className="font-medium truncate">{item.name}</span>
+                      <span className="font-medium line-clamp-2 leading-tight">{item.name}</span>
                     </a>
                   );
                 }
@@ -589,7 +589,7 @@ export default function Layout({ children }) {
                     `}
                   >
                     <Icon className="w-5 h-5 shrink-0" />
-                    <span className="font-medium truncate">{item.name}</span>
+                    <span className="font-medium line-clamp-2 leading-tight">{item.name}</span>
                   </Link>
                 );
               })}
