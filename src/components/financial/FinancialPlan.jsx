@@ -291,8 +291,12 @@ export default function FinancialPlan({ userId }) {
 
   const latestMonthlyPlan = (monthlyPlans || []).sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0];
   const startBalanceMonth = planData?.start_balance_month || currentMonthStr();
-  const currentMonthBalance = (allMonthlyBalances || []).find(m => m.month === currentMonthStr());
-  const startMonthBalance = (allMonthlyBalances || []).find(m => m.month === startBalanceMonth);
+  const sortedBalances = [...(allMonthlyBalances || [])].filter(m => m.month).sort((a, b) => a.month.localeCompare(b.month));
+  const latestBalance = sortedBalances[sortedBalances.length - 1];
+  const currentMonthBalance = (allMonthlyBalances || []).find(m => m.month === currentMonthStr()) || latestBalance;
+  const startMonthBalance = (allMonthlyBalances || []).find(m => m.month === startBalanceMonth)
+    || sortedBalances.filter(m => m.month <= startBalanceMonth).pop()
+    || latestBalance;
   const availableMonths = [...new Set([...(allMonthlyBalances || []).map(m => m.month), startBalanceMonth].filter(Boolean))].sort().reverse();
   const startSituation = calcSituation(reflection, startMonthBalance, latestMonthlyPlan, investments || []);
   const endSituation = calcSituationFromPlan(latestMonthlyPlan, currentMonthBalance, investments || []);
