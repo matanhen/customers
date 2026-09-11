@@ -84,25 +84,25 @@ export default function FinancialManagement() {
           <h1 className="text-3xl font-bold text-[#105330] mb-2">התנהלות כלכלית</h1>
           <p className="text-[#105330]/70">בחר קטגוריה להתחלה</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-6">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
             return (
               <button
                 key={section.key}
                 onClick={() => handleSelectSection(section.key)}
-                className={`bg-gradient-to-br ${section.color} text-white rounded-2xl p-5 md:p-8 text-right shadow-xl hover:scale-105 transition-transform duration-200 flex flex-col gap-4`}
+                className={`bg-gradient-to-br ${section.color} text-white rounded-2xl p-3 md:p-8 text-right shadow-xl hover:scale-105 transition-transform duration-200 flex flex-col gap-2 md:gap-4`}
               >
-                <div className="w-11 h-11 md:w-14 md:h-14 rounded-2xl bg-white/20 flex items-center justify-center">
-                  <Icon className="w-6 h-6 md:w-8 md:h-8" />
+                <div className="w-9 h-9 md:w-14 md:h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <Icon className="w-5 h-5 md:w-8 md:h-8" />
                 </div>
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold mb-1">{section.label}</h2>
-                  <p className="text-white/75 text-sm">{section.description}</p>
+                  <h2 className="text-base md:text-2xl font-bold mb-1">{section.label}</h2>
+                  <p className="text-white/75 text-xs md:text-sm">{section.description}</p>
                 </div>
-                <div className="flex items-center gap-1 text-white/80 text-sm mt-auto">
+                <div className="flex items-center gap-1 text-white/80 text-xs md:text-sm mt-auto">
                   <span>כניסה</span>
-                  <ArrowRight className="w-4 h-4 rotate-180" />
+                  <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4 rotate-180" />
                 </div>
               </button>
             );
