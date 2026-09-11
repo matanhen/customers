@@ -342,7 +342,7 @@ export default function Layout({ children }) {
           {/* Main Nav Row */}
           <div className="flex items-center justify-between px-4 lg:px-8 py-3">
             {/* Logo / Back Button (mobile) */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {/* Back button: mobile only, shown when not at root */}
               {location.pathname !== '/' && location.pathname !== '/Home' && (
                 <button
@@ -354,7 +354,7 @@ export default function Layout({ children }) {
                 </button>
               )}
               {logoUrl ? (
-                <img src={logoUrl} alt="לוגו" className="h-9 lg:h-11 w-auto object-contain" />
+                <img src={logoUrl} alt="לוגו" className="h-9 lg:h-11 w-auto object-contain shrink-0 max-w-none" />
               ) : (
                 <h1 className="text-xl lg:text-2xl font-bold text-white">
                   צעירים מתעשרים
