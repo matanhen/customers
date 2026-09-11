@@ -4,6 +4,7 @@ const ALLOWED_ENTITIES = [
   'FinancialReflection',
   'ExpenseTracking',
   'MonthlyPlan',
+  'MonthlyBalance',
   'Debt',
   'Investment',
   'PortfolioSettings',
@@ -11,6 +12,7 @@ const ALLOWED_ENTITIES = [
   'FinancialGoal',
   'PensionData',
   'FinancialPlan',
+  'FinancialPlanData',
 ];
 
 Deno.serve(async (req) => {
