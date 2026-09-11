@@ -542,10 +542,10 @@ export default function Layout({ children }) {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-[#0d4027] border-t border-white/10">
-            <div className="px-4 py-4 space-y-2">
+            <div className="px-4 py-4 grid grid-cols-2 gap-2">
               {/* Mobile User Info */}
               {user && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-white/10 rounded-xl mb-4">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white/10 rounded-xl mb-4 col-span-2">
                   <div className="p-2 rounded-lg bg-[#c8a863]">
                     <User className="w-4 h-4 text-[#105330]" />
                   </div>
@@ -568,10 +568,10 @@ export default function Layout({ children }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-[#1f9d47] text-white shadow-lg hover:bg-[#1a8a3f]"
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all bg-[#1f9d47] text-white shadow-lg hover:bg-[#1a8a3f] text-sm"
                     >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{item.name}</span>
+                      <Icon className="w-5 h-5 shrink-0" />
+                      <span className="font-medium truncate">{item.name}</span>
                     </a>
                   );
                 }
@@ -582,14 +582,14 @@ export default function Layout({ children }) {
                     to={createPageUrl(item.page)}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`
-                      flex items-center gap-3 px-4 py-3 rounded-xl transition-all
+                      flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all text-sm
                       ${isActive 
                         ? 'bg-[#c8a863] text-[#105330]' 
                         : 'text-white/80 hover:bg-white/10'}
                     `}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.name}</span>
+                    <Icon className="w-5 h-5 shrink-0" />
+                    <span className="font-medium truncate">{item.name}</span>
                   </Link>
                 );
               })}
