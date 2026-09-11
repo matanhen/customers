@@ -62,8 +62,8 @@ export default function Layout({ children }) {
       sessionStorage.removeItem('currentUser');
     }
 
-    // Fetch site logo for the top bar
-    base44.entities.SiteSettings.filter({ key: 'logo' })
+    // Fetch navbar logo for the top bar
+    base44.entities.SiteSettings.filter({ key: 'navbar_logo' })
       .then(recs => { if (recs && recs[0] && recs[0].logo_url) setLogoUrl(recs[0].logo_url); })
       .catch(() => {});
 
