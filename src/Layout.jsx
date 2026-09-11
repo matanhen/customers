@@ -245,7 +245,7 @@ export default function Layout({ children }) {
     { name: 'מאזן', page: 'Balance', icon: Scale },
     { name: 'פנסיוני', page: 'Pension', icon: Landmark },
     { name: 'השקעות', page: 'Investments', icon: TrendingUp },
-    { name: <>{'תכנון חופש'}<br/>{'כלכלי'}</>, page: 'FinancialFreedom', icon: Target },
+    { name: <span className="whitespace-nowrap">תכנון חופש<br/>כלכלי</span>, page: 'FinancialFreedom', icon: Target },
     { name: 'חוברת עבודה', page: 'Workbook', icon: BookOpen },
     { name: 'האקדמיה', externalUrl: 'https://academy.matanhen.com', icon: GraduationCap },
   ];
@@ -340,7 +340,7 @@ export default function Layout({ children }) {
       <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#105330] via-[#0d4027] to-[#105330] shadow-2xl">
         <div className="max-w-7xl mx-auto">
           {/* Main Nav Row */}
-          <div className="flex items-center justify-between px-4 lg:px-8 py-3">
+          <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             {/* Logo / Back Button (mobile) */}
             <div className="flex items-center gap-2 shrink-0">
               {/* Back button: mobile only, shown when not at root */}
@@ -354,7 +354,7 @@ export default function Layout({ children }) {
                 </button>
               )}
               {logoUrl ? (
-                <img src={logoUrl} alt="לוגו" className="h-9 lg:h-11 w-auto object-contain shrink-0 max-w-none" />
+                <img src={logoUrl} alt="לוגו" className="h-10 lg:h-12 w-auto object-contain shrink-0 max-w-none" />
               ) : (
                 <h1 className="text-xl lg:text-2xl font-bold text-white">
                   צעירים מתעשרים
@@ -398,7 +398,7 @@ export default function Layout({ children }) {
                     key={item.page}
                     to={createPageUrl(item.page)}
                     className={`
-                      flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium
+                      flex items-center gap-2 px-5 py-3 rounded-xl transition-all duration-300 font-medium text-base
                       ${isActive 
                         ? 'bg-[#c8a863] text-[#105330] shadow-lg' 
                         : 'text-white/80 hover:bg-white/10 hover:text-white'}

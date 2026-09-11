@@ -64,13 +64,13 @@ export default function FinancialFreedom() {
               <button
                 key={section.key}
                 onClick={() => setActiveSection(section.key)}
-                className={`bg-gradient-to-br ${section.color} text-white rounded-2xl p-8 text-right shadow-xl hover:scale-105 transition-transform duration-200 flex flex-col gap-4`}
+                className={`bg-gradient-to-br ${section.color} text-white rounded-2xl p-5 md:p-8 text-right shadow-xl hover:scale-105 transition-transform duration-200 flex flex-col gap-4`}
               >
-                <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
-                  <Icon className="w-8 h-8" />
+                <div className="w-11 h-11 md:w-14 md:h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <Icon className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold mb-1">{section.label}</h2>
+                  <h2 className="text-xl md:text-2xl font-bold mb-1">{section.label}</h2>
                   <p className="text-white/75 text-sm">{section.description}</p>
                 </div>
                 <div className="flex items-center gap-1 text-white/80 text-sm mt-auto">
