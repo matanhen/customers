@@ -1,4 +1,6 @@
 import './App.css'
+import { lazy } from 'react';
+import { ThemeProvider } from 'next-themes';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -7,11 +9,11 @@ import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
-import Systems from './pages/Systems';
 import Landing from './pages/Landing';
-import Workbook from './pages/Workbook';
-import Balance from './pages/Balance';
-import Pension from './pages/Pension';
+const Systems = lazy(() => import('./pages/Systems'));
+const Workbook = lazy(() => import('./pages/Workbook'));
+const Balance = lazy(() => import('./pages/Balance'));
+const Pension = lazy(() => import('./pages/Pension'));
 // Removed Appointments related imports
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ErrorBoundary from '@/lib/ErrorBoundary';
@@ -77,6 +79,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
@@ -90,6 +93,7 @@ function App() {
           <VisualEditAgent />
         </QueryClientProvider>
       </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

@@ -67,7 +67,7 @@ export default function MacroRatesWidget() {
               >
                 <Icon className="w-3 h-3 md:w-4 md:h-4 text-white" />
               </div>
-              <span className="text-[9px] md:text-xs font-bold text-[#105330] leading-tight">
+              <span className="text-xs font-bold text-[#105330] leading-tight">
                 {label}
               </span>
             </div>
@@ -75,7 +75,7 @@ export default function MacroRatesWidget() {
               {formatPct(data?.[field], decimals)}
             </div>
             {data?.report_month && (
-              <div className="text-[8px] md:text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+              <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
                 <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
                 {data.report_month}
               </div>

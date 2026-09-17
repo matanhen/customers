@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPageUrl } from './utils/index.ts';
 import { base44 } from '@/api/base44Client';
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPageName = location.pathname.replace('/', '');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -28,11 +29,6 @@ export default function Layout({ children }) {
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0); // 0=hidden, 1=first confirm, 2=second confirm
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [logoUrl, setLogoUrl] = useState('');
-
-  // Force light mode - app is not designed for dark mode
-  useEffect(() => {
-    document.documentElement.classList.remove('dark');
-  }, []);
 
   useEffect(() => {
     // Always load viewingClient from sessionStorage
@@ -227,7 +223,7 @@ export default function Layout({ children }) {
   };
 
   const goBack = () => {
-    window.history.back();
+    navigate(-1);
   };
 
   const isAdvisor = user?.user_type === 'advisor';
@@ -264,7 +260,7 @@ export default function Layout({ children }) {
   // Show loading screen
   if (isLoading) {
     return (
-      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] flex items-center justify-center">
+      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#105330] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-[#105330] font-semibold">טוען...</p>
@@ -276,15 +272,15 @@ export default function Layout({ children }) {
   // Show unauthorized screen if user is not registered
   if (isUnauthorized) {
     return (
-      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] flex items-center justify-center p-4">
+      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
-          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-red-200">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl overflow-hidden border-2 border-red-200 dark:border-red-900">
             <div className="h-2 bg-gradient-to-r from-red-500 to-orange-500" />
             <div className="p-10 text-center">
               <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
                 <X className="w-10 h-10 text-red-600" />
               </div>
-              <h1 className="text-3xl font-bold text-slate-800 mb-3">הכניסה ללקוחות בלבד</h1>
+              <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-3">הכניסה ללקוחות בלבד</h1>
               <p className="text-slate-600 mb-8 leading-relaxed">
                 אתה לא רשום במערכת. רק לקוחות רשומים יכולים להיכנס לאפליקציה.
                 <br />
@@ -308,7 +304,7 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef]">
+    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950">
       <style>{`
         :root {
           --primary: #105330;
@@ -498,6 +494,7 @@ export default function Layout({ children }) {
                 variant="ghost"
                 size="sm"
                 onClick={handleLogout}
+                aria-label="יציאה"
                 className="text-white/80 hover:text-white hover:bg-red-500/20 rounded-xl"
               >
                 <LogOut className="w-4 h-4 lg:ml-2" />
@@ -507,6 +504,7 @@ export default function Layout({ children }) {
               {/* Mobile Menu Toggle */}
               <button 
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="תפריט"
                 className="lg:hidden p-2 text-white hover:bg-white/10 rounded-xl"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -609,7 +607,9 @@ export default function Layout({ children }) {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.18 }}
             >
-              {children || <Outlet />}
+              <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-[#105330] border-t-transparent rounded-full animate-spin" /></div>}>
+                {children || <Outlet />}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </div>

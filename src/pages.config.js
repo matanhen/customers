@@ -47,12 +47,13 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import AdminDashboard from './pages/AdminDashboard';
-import AdvisorDashboard from './pages/AdvisorDashboard';
-import FinancialFreedom from './pages/FinancialFreedom';
-import FinancialManagement from './pages/FinancialManagement';
-import Investments from './pages/Investments';
-import Home from './pages/Home';
+import { lazy } from 'react';
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdvisorDashboard = lazy(() => import('./pages/AdvisorDashboard'));
+const FinancialFreedom = lazy(() => import('./pages/FinancialFreedom'));
+const FinancialManagement = lazy(() => import('./pages/FinancialManagement'));
+const Investments = lazy(() => import('./pages/Investments'));
+const Home = lazy(() => import('./pages/Home'));
 import __Layout from './Layout.jsx';
 
 

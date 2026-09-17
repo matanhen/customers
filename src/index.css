@@ -193,11 +193,7 @@ button:focus-visible {
   }
   body {
     @apply bg-background text-foreground;
-    color-scheme: light;
-  }
-  /* Force light mode - prevent system dark mode from affecting the app */
-  :root {
-    color-scheme: light only;
+    color-scheme: light dark;
   }
 }
 

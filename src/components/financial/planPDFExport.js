@@ -1,5 +1,3 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { FINANCIAL_STEPS, getStepValue, getStepTarget, getStepGap, formatCurrency } from './financialPlanSteps';
 
 function buildComparisonHTML(startSit, endSit) {
@@ -179,6 +177,10 @@ export async function exportPlanToPDF({ planData, situation, currentStep, logoUr
   document.body.appendChild(container);
 
   try {
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
     const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
