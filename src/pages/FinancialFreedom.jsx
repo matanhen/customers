@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { ArrowRight, TrendingUp, BarChart3 } from 'lucide-react';
 import GoalSettingsPanel from '../components/freedom/GoalSettingsPanel';
@@ -26,7 +27,8 @@ const SECTIONS = [
 export default function FinancialFreedom() {
   const [user, setUser] = useState(null);
   const [viewingClientId, setViewingClientId] = useState(null);
-  const [activeSection, setActiveSection] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSection = searchParams.get('section');
   const [cashflowTab, setCashflowTab] = useState('planning');
   const [resultsLoading, setResultsLoading] = useState(false);
   const flushSaveRef = useRef(null);
@@ -63,7 +65,7 @@ export default function FinancialFreedom() {
             return (
               <button
                 key={section.key}
-                onClick={() => setActiveSection(section.key)}
+                onClick={() => setSearchParams({ section: section.key })}
                 className={`bg-gradient-to-br ${section.color} text-white rounded-2xl p-3 md:p-8 text-right shadow-xl hover:scale-105 transition-transform duration-200 flex flex-col gap-2 md:gap-4`}
               >
                 <div className="w-9 h-9 md:w-14 md:h-14 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -85,7 +87,7 @@ export default function FinancialFreedom() {
     );
   }
 
-  const handleBack = () => setActiveSection(null);
+  const handleBack = () => setSearchParams({});
 
   if (activeSection === 'cashflow') {
     return (

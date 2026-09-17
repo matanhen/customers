@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { TrendingUp, Calculator, ReceiptText, Coins, ArrowRight, BarChart3, PieChart } from 'lucide-react';
 import PortfolioManager from '../components/investments/PortfolioManager';
@@ -56,7 +57,8 @@ const SECTIONS = [
 export default function Investments() {
   const [user, setUser] = useState(null);
   const [viewingClientId, setViewingClientId] = useState(null);
-  const [activeSection, setActiveSection] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSection = searchParams.get('section');
 
   useEffect(() => {
     loadUser();
@@ -78,7 +80,7 @@ export default function Investments() {
 
   const effectiveUserId = viewingClientId || user?.id;
 
-  const handleBack = () => setActiveSection(null);
+  const handleBack = () => setSearchParams({});
 
   const renderSection = () => {
     switch (activeSection) {
@@ -113,7 +115,7 @@ export default function Investments() {
             return (
               <button
                 key={section.key}
-                onClick={() => setActiveSection(section.key)}
+                onClick={() => setSearchParams({ section: section.key })}
                 className={`bg-gradient-to-br ${section.color} text-white rounded-2xl p-3 md:p-8 text-right shadow-xl hover:scale-105 transition-transform duration-200 flex flex-col gap-2 md:gap-4 min-h-[120px] md:min-h-[160px]`}
               >
                 <div className="w-9 h-9 md:w-14 md:h-14 rounded-2xl bg-white/20 flex items-center justify-center">

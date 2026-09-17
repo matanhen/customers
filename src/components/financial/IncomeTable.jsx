@@ -83,7 +83,7 @@ export default function IncomeTable({ rows, onChange, pensionMaleMonthly = 0, pe
                   <Input
                     value={row.name}
                     onChange={e => updateName(row.id, e.target.value)}
-                    className="h-8 text-xs border-slate-200 min-w-[100px]"
+                    className="h-11 md:h-8 text-xs border-slate-200 min-w-[100px]"
                     disabled={disabled}
                     dir="rtl"
                   />
@@ -94,7 +94,7 @@ export default function IncomeTable({ rows, onChange, pensionMaleMonthly = 0, pe
                       type="number"
                       value={row[m] || ''}
                       onChange={e => updateCell(row.id, m, e.target.value)}
-                      className="h-8 text-xs text-center border-slate-200 w-20"
+                      className="h-11 md:h-8 text-xs text-center border-slate-200 w-20"
                       placeholder="0"
                       disabled={disabled}
                       dir="ltr"

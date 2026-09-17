@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import PullToRefresh from '../components/PullToRefresh';
@@ -38,7 +39,8 @@ const SECTIONS = [
 export default function FinancialManagement() {
   const [user, setUser] = useState(null);
   const [viewingClientId, setViewingClientId] = useState(null);
-  const [activeSection, setActiveSection] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSection = searchParams.get('section');
   const [activeTab, setActiveTab] = useState('planning');
   const queryClient = useQueryClient();
 
@@ -66,13 +68,13 @@ export default function FinancialManagement() {
   }, [queryClient]);
 
   const handleSelectSection = (key) => {
-    setActiveSection(key);
+    setSearchParams({ section: key });
     if (key === 'monthly') setActiveTab('planning');
     if (key === 'reflection') setActiveTab('reflection');
   };
 
   const handleBack = () => {
-    setActiveSection(null);
+    setSearchParams({});
   };
 
   // Landing: section selection

@@ -665,7 +665,7 @@ ${conversationHistory}
   };
 
   return (
-    <div className="fixed bottom-6 left-6 z-50" dir="rtl">
+    <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-6 left-6 z-50" dir="rtl">
       {/* Chat Panel */}
       {isOpen && (
         <div
