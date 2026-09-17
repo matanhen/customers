@@ -36,6 +36,7 @@ import {
 import { format } from 'date-fns';
 import LogoUploader from '@/components/admin/LogoUploader';
 import NavbarLogoUploader from '@/components/admin/NavbarLogoUploader';
+import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -499,6 +500,9 @@ export default function AdminDashboard() {
       {/* Logo Uploaders */}
       <LogoUploader />
       <NavbarLogoUploader />
+
+      {/* Manual macro rates editor (admin updates BoI + prime, inflation stays auto) */}
+      <MacroRatesEditor />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

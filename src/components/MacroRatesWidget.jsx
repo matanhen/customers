@@ -1,5 +1,5 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Banknote, TrendingUp, Percent, Calendar } from 'lucide-react';
@@ -17,6 +17,7 @@ const CARDS = [
 ];
 
 export default function MacroRatesWidget() {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['macroRates'],
     queryFn: async () => {
@@ -26,8 +27,18 @@ export default function MacroRatesWidget() {
       );
       return sorted[0] || null;
     },
-    staleTime: 1000 * 60 * 60 * 24, // cache 24h to avoid redundant fetches
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
+
+  // Live updates: when admin updates the rates, reflect immediately for all users
+  useEffect(() => {
+    const unsubscribe = base44.entities.MacroRates.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['macroRates'] });
+    });
+    return unsubscribe;
+  }, [queryClient]);
 
   if (isLoading) {
     return (

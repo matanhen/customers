@@ -103,7 +103,20 @@ export default function Home() {
     queryKey: ['monthlyBalances', effectiveUserId],
     queryFn: () => base44.entities.MonthlyBalance.filter({ user_id: effectiveUserId }),
     enabled: !!effectiveUserId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
+
+  // Live updates: when balance records change (e.g. edits made in the Balance
+  // page), refresh the home snapshot immediately so the Assets vs Liabilities
+  // card always reflects the current month's data.
+  useEffect(() => {
+    const unsubscribe = base44.entities.MonthlyBalance.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyBalances'] });
+    });
+    return unsubscribe;
+  }, [queryClient]);
 
   const { data: balancePlan } = useQuery({
     queryKey: ['balance_plan', effectiveUserId],
@@ -183,7 +196,13 @@ export default function Home() {
   const currentMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   const balanceByMonth = {};
   (monthlyBalances || []).forEach(b => {
-    if (b.month) balanceByMonth[b.month] = b;
+    if (!b.month) return;
+    // If duplicate records exist for the same month, keep the most recently
+    // updated one so the card reflects the latest balance, not a stale copy.
+    const existing = balanceByMonth[b.month];
+    if (!existing || new Date(b.updated_date || b.created_date || 0) > new Date(existing.updated_date || existing.created_date || 0)) {
+      balanceByMonth[b.month] = b;
+    }
   });
   if (!balanceByMonth[currentMonthStr] && balancePlan && (monthlyBalances || []).length === 0) {
     balanceByMonth[currentMonthStr] = {
