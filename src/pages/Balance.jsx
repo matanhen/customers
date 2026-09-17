@@ -491,7 +491,11 @@ export default function Balance() {
               <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-[#105330]' : 'text-rose-600'}`}>
                 ₪{netWorth.toLocaleString()}
               </p>
-              <p className="text-xs text-slate-400 mt-1">נכסים – התחייבויות</p>
+              {pensionTotal > 0 ? (
+                <p className="text-xs text-slate-400 mt-1">ללא פנסיוני: ₪{(totalAssets - totalLiabilities).toLocaleString()}</p>
+              ) : (
+                <p className="text-xs text-slate-400 mt-1">נכסים – התחייבויות</p>
+              )}
             </CardContent>
           </div>
         </Card>
