@@ -678,9 +678,9 @@ ${conversationHistory}
           top-0 sm:top-auto
           mb-0 sm:mb-4
           w-full sm:w-[420px]
-          bg-white
+          bg-white dark:bg-slate-900
           sm:rounded-2xl rounded-none
-          shadow-2xl border border-gray-200 flex flex-col overflow-hidden
+          shadow-2xl border border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden
           z-50 sm:z-auto
           "
           style={{ height: '100%', maxHeight: 'calc(100dvh - 0px)' }}
@@ -709,7 +709,7 @@ ${conversationHistory}
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 sm:min-h-[380px] min-h-0" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-slate-950 sm:min-h-[380px] min-h-0" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                 {msg.role === 'assistant' && (
@@ -720,7 +720,7 @@ ${conversationHistory}
                 <div className={`max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-[#105330] text-white rounded-bl-sm'
-                    : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-none'
+                    : 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-100 shadow-sm border border-gray-100 dark:border-slate-700 rounded-bl-none'
                 }`}>
                   {msg.role === 'assistant' ? (
                     <ReactMarkdown
@@ -745,7 +745,7 @@ ${conversationHistory}
                 <div className="w-7 h-7 rounded-full bg-[#105330] flex items-center justify-center flex-shrink-0">
                   <Sparkles className="w-3 h-3 text-[#c8a863]" />
                 </div>
-                <div className="bg-white border border-gray-100 shadow-sm px-4 py-3 rounded-2xl rounded-bl-none">
+                <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 shadow-sm px-4 py-3 rounded-2xl rounded-bl-none">
                   <div className="flex gap-1 items-center">
                     <span className="w-2 h-2 bg-[#105330] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-2 h-2 bg-[#105330] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -758,7 +758,7 @@ ${conversationHistory}
           </div>
 
           {/* Input */}
-          <div className="p-3 border-t bg-white flex-shrink-0">
+          <div className="p-3 border-t bg-white dark:bg-slate-900 flex-shrink-0">
             <div className="flex gap-2 items-end">
               <Textarea
                 value={inputValue}
@@ -776,7 +776,7 @@ ${conversationHistory}
                 <Send className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-xs text-gray-400 mt-1 text-center hidden sm:block">Enter לשליחה • Shift+Enter לשורה חדשה</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1 text-center hidden sm:block">Enter לשליחה • Shift+Enter לשורה חדשה</p>
           </div>
         </div>
       )}

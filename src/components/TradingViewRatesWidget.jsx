@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 
 const SYMBOLS = [
   { proName: 'FX_IDC:USDILS', title: 'שער הדולר' },
@@ -9,6 +10,8 @@ const SYMBOLS = [
 
 export default function TradingViewRatesWidget() {
   const containerRef = useRef(null);
+  const { resolvedTheme } = useTheme();
+  const theme = resolvedTheme === 'dark' ? 'dark' : 'light';
 
   useEffect(() => {
     const el = containerRef.current;
@@ -27,18 +30,18 @@ export default function TradingViewRatesWidget() {
     script.innerHTML = JSON.stringify({
       symbols: SYMBOLS,
       showSymbolLogo: true,
-      colorTheme: 'light',
+      colorTheme: theme,
       isTransparent: true,
       displayMode: 'adaptive',
       locale: 'he_IL',
     });
     el.appendChild(script);
-  }, []);
+  }, [theme]);
 
   return (
     <div
       ref={containerRef}
-      className="tradingview-widget-container rounded-xl overflow-hidden border border-[#105330]/10 bg-white"
+      className="tradingview-widget-container rounded-xl overflow-hidden border border-[#105330]/10 bg-white dark:bg-slate-900"
     />
   );
 }

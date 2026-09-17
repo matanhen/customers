@@ -333,7 +333,7 @@ export default function Layout({ children }) {
       `}</style>
 
       {/* Top Navigation Bar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#105330] via-[#0d4027] to-[#105330] shadow-2xl">
+      <header className="fixed top-0 left-0 right-0 z-50 pt-safe bg-gradient-to-r from-[#105330] via-[#0d4027] to-[#105330] shadow-2xl">
         <div className="max-w-7xl mx-auto">
           {/* Main Nav Row */}
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
@@ -597,7 +597,7 @@ export default function Layout({ children }) {
       </header>
 
       {/* Main Content */}
-      <main className={`${viewingClient ? 'pt-36' : 'pt-20'} min-h-screen pb-16 lg:pb-0`}>
+      <main className={`${viewingClient ? 'pt-[calc(9rem+env(safe-area-inset-top))]' : 'pt-[calc(5rem+env(safe-area-inset-top))]'} min-h-screen pb-16 lg:pb-0`}>
         <div className="p-4 lg:p-8 max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
