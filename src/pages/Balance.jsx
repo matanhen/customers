@@ -471,7 +471,7 @@ export default function Balance() {
             <CardContent className="p-5">
               <p className="text-sm text-slate-500 mb-1">סה"כ נכסים</p>
               <p className="text-2xl font-bold text-emerald-600">₪{(totalAssets + pensionTotal).toLocaleString()}</p>
-              {pensionTotal > 0 && <p className="text-xs text-slate-400 mt-1">כולל פנסיוני: ₪{pensionTotal.toLocaleString()}</p>}
+              {pensionTotal > 0 && <p className="text-xs text-slate-400 mt-1">ללא פנסיוני: ₪{totalAssets.toLocaleString()}</p>}
             </CardContent>
           </div>
         </Card>

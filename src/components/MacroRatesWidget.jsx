@@ -4,16 +4,16 @@ import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Banknote, TrendingUp, Percent, Calendar } from 'lucide-react';
 
-const formatPct = (n) => {
+const formatPct = (n, decimals = 1) => {
   const v = Number(n);
   if (!Number.isFinite(v)) return '—';
-  return `${v.toFixed(1)}%`;
+  return `${v.toFixed(decimals)}%`;
 };
 
 const CARDS = [
-  { key: 'boi',      label: 'ריבית בנק ישראל',     field: 'bank_of_israel_rate', icon: Banknote,    color: '#105330' },
-  { key: 'prime',    label: 'ריבית פריים',          field: 'prime_rate',            icon: Percent,     color: '#1a7a4a' },
-  { key: 'inflation', label: 'אינפלציה (12 חודשים)', field: 'inflation_rate',        icon: TrendingUp,  color: '#c8a863' },
+  { key: 'boi',      label: 'ריבית בנק ישראל',     field: 'bank_of_israel_rate', icon: Banknote,    color: '#105330', decimals: 2 },
+  { key: 'prime',    label: 'ריבית פריים',          field: 'prime_rate',            icon: Percent,     color: '#1a7a4a', decimals: 2 },
+  { key: 'inflation', label: 'אינפלציה (12 חודשים)', field: 'inflation_rate',        icon: TrendingUp,  color: '#c8a863', decimals: 1 },
 ];
 
 export default function MacroRatesWidget() {
@@ -57,7 +57,7 @@ export default function MacroRatesWidget() {
 
   return (
     <div className="grid grid-cols-3 gap-1.5 md:gap-3 mb-4">
-      {CARDS.map(({ key, label, field, icon: Icon, color }) => (
+      {CARDS.map(({ key, label, field, icon: Icon, color, decimals }) => (
         <Card key={key} className="border-0 shadow-lg overflow-hidden h-full">
           <CardContent className="p-2.5 md:p-4">
             <div className="flex items-center gap-1.5 md:gap-2 mb-1.5">
@@ -72,7 +72,7 @@ export default function MacroRatesWidget() {
               </span>
             </div>
             <div className="text-base md:text-2xl font-black text-slate-800 leading-tight">
-              {formatPct(data?.[field])}
+              {formatPct(data?.[field], decimals)}
             </div>
             {data?.report_month && (
               <div className="text-[8px] md:text-[10px] text-slate-400 mt-1 flex items-center gap-1">
