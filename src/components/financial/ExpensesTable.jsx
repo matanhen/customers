@@ -141,7 +141,7 @@ export default function ExpensesTable({ expenses, onChange, disabled = false }) 
                                     type="number"
                                     value={monthData[m] || ''}
                                     onChange={e => updateCell(cat.key, item, m, e.target.value)}
-                                    className="h-11 md:h-7 text-xs text-center border-slate-200 px-1 min-w-[60px]"
+                                    className="h-7 text-xs text-center border-slate-200 px-1 min-w-[60px]"
                                     placeholder="0"
                                     disabled={disabled}
                                     dir="ltr"
@@ -169,7 +169,7 @@ export default function ExpensesTable({ expenses, onChange, disabled = false }) 
                                       type="number"
                                       value={monthData[m] || ''}
                                       onChange={e => updateCell(cat.key, item, m, e.target.value)}
-                                      className="h-11 md:h-7 text-xs text-center border-blue-200 px-1 min-w-[60px]"
+                                      className="h-7 text-xs text-center border-blue-200 px-1 min-w-[60px]"
                                       placeholder="0"
                                       disabled={disabled}
                                       dir="ltr"
@@ -199,11 +199,11 @@ export default function ExpensesTable({ expenses, onChange, disabled = false }) 
                         value={newItemName[cat.key] || ''}
                         onChange={e => setNewItemName(prev => ({ ...prev, [cat.key]: e.target.value }))}
                         placeholder="הוסף סעיף מותאם..."
-                        className="text-xs h-11 md:h-8"
+                        className="text-xs h-8"
                         onKeyDown={e => e.key === 'Enter' && addCustomItem(cat.key)}
                         dir="rtl"
                       />
-                      <Button onClick={() => addCustomItem(cat.key)} size="sm" variant="outline" className="text-xs h-11 md:h-8 flex-shrink-0">
+                      <Button onClick={() => addCustomItem(cat.key)} size="sm" variant="outline" className="text-xs h-8 flex-shrink-0">
                         <Plus className="w-3 h-3 ml-1" />הוסף
                       </Button>
                     </div>
