@@ -19,7 +19,7 @@ export default function Pension() {
   return (
     <div className="max-w-6xl mx-auto" dir="rtl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#105330]">פנסיוני</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-[#105330]">פנסיוני</h1>
         <p className="text-[#105330]/70 text-sm mt-1">ניהול קרנות פנסיה וקרן השתלמות</p>
       </div>
       <PensionManager userId={userId} />

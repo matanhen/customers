@@ -21,7 +21,7 @@ export default function PlanningSection({ userId }) {
             key={btn.value}
             type="button"
             onClick={() => setActivePlan(btn.value)}
-            className={`flex-1 min-w-[120px] rounded-xl py-3 font-semibold transition-all duration-300 ${
+            className={`flex-1 min-w-[100px] rounded-xl py-2.5 md:py-3 font-semibold text-sm md:text-base transition-all duration-300 ${
               activePlan === btn.value 
                 ? 'bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-xl' 
                 : 'bg-transparent text-[#105330] hover:bg-[#105330]/10'

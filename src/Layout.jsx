@@ -495,7 +495,7 @@ export default function Layout({ children }) {
                 size="sm"
                 onClick={handleLogout}
                 aria-label="יציאה"
-                className="text-white/80 hover:text-white hover:bg-red-500/20 rounded-xl"
+                className="hidden lg:inline-flex text-white/80 hover:text-white hover:bg-red-500/20 rounded-xl"
               >
                 <LogOut className="w-4 h-4 lg:ml-2" />
                 <span className="hidden lg:inline">יציאה</span>
@@ -591,6 +591,15 @@ export default function Layout({ children }) {
                   </Link>
                 );
               })}
+            </div>
+            <div className="px-4 pb-4">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500/20 text-red-200 hover:bg-red-500/30 transition-colors font-semibold text-sm"
+              >
+                <LogOut className="w-4 h-4" />
+                התנתק וצא
+              </button>
             </div>
           </div>
         )}

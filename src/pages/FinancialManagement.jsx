@@ -83,7 +83,7 @@ export default function FinancialManagement() {
       <PullToRefresh onRefresh={handleRefresh}>
       <div className="max-w-6xl mx-auto" dir="rtl">
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-[#105330] mb-2">התנהלות כלכלית</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-[#105330] mb-2">התנהלות כלכלית</h1>
           <p className="text-[#105330]/70">בחר קטגוריה להתחלה</p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-6">
@@ -124,7 +124,7 @@ export default function FinancialManagement() {
             <ArrowRight className="w-4 h-4" />
             חזרה
           </button>
-          <h1 className="text-2xl font-bold text-[#105330]">תכנון חודשי</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[#105330]">תכנון חודשי</h1>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid grid-cols-2 w-full max-w-sm bg-[#105330]/10 p-1.5 rounded-xl">
@@ -163,7 +163,7 @@ export default function FinancialManagement() {
             <ArrowRight className="w-4 h-4" />
             חזרה
           </button>
-          <h1 className="text-2xl font-bold text-[#105330]">שיקוף פיננסי</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[#105330]">שיקוף פיננסי</h1>
         </div>
         <FinancialReflection userId={effectiveUserId} />
       </div>
@@ -179,7 +179,7 @@ export default function FinancialManagement() {
             <ArrowRight className="w-4 h-4" />
             חזרה
           </button>
-          <h1 className="text-2xl font-bold text-[#105330]">תכנית פיננסית</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[#105330]">תכנית פיננסית</h1>
         </div>
         <FinancialPlan userId={effectiveUserId} />
       </div>

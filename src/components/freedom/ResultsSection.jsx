@@ -771,7 +771,7 @@ export default function ResultsSection({ userId }) {
       <Card className="border-0 shadow-xl bg-white/95">
         <CardContent className="p-8 text-center">
           <AlertTriangle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-[#105330] mb-2">לא הוגדרה מטרה כלכלית</h3>
+          <h3 className="text-base md:text-xl font-bold text-[#105330] mb-2">לא הוגדרה מטרה כלכלית</h3>
           <p className="text-[#105330]/70">אנא הגדר מטרה כלכלית בלשונית "תכנון" כדי לראות את התוצאות</p>
         </CardContent>
       </Card>
@@ -787,7 +787,7 @@ export default function ResultsSection({ userId }) {
             key={btn.value}
             type="button"
             onClick={() => setActivePlan(btn.value)}
-            className={`flex-1 min-w-[120px] rounded-xl py-3 font-semibold transition-all duration-300 ${
+            className={`flex-1 min-w-[100px] rounded-xl py-2.5 md:py-3 font-semibold text-sm md:text-base transition-all duration-300 ${
               activePlan === btn.value 
                 ? 'bg-[#105330] text-white shadow-xl' 
                 : 'bg-transparent text-[#105330] hover:bg-[#105330]/10'
@@ -838,17 +838,17 @@ export default function ResultsSection({ userId }) {
           <div className="grid md:grid-cols-3 gap-4">
             <div className="p-4 bg-[#105330]/5 rounded-xl text-center">
               <p className="text-sm text-[#105330]/70">גיל נוכחי</p>
-              <p className="text-2xl font-bold text-[#105330]">{results?.currentAge || '-'}</p>
+              <p className="text-xl md:text-2xl font-bold text-[#105330]">{results?.currentAge || '-'}</p>
             </div>
             <div className="p-4 bg-[#105330]/5 rounded-xl text-center">
               <p className="text-sm text-[#105330]/70">גיל יעד</p>
-              <p className="text-2xl font-bold text-[#105330]">{results?.targetAge || '-'}</p>
+              <p className="text-xl md:text-2xl font-bold text-[#105330]">{results?.targetAge || '-'}</p>
             </div>
             <div className="p-4 bg-[#c8a863]/20 rounded-xl text-center">
               <p className="text-sm text-[#105330]/70">
                 {goalSettings?.goal_type === 'financial_freedom' ? 'הכנסה פאסיבית רצויה' : 'סכום יעד'}
               </p>
-              <p className="text-2xl font-bold text-[#105330]">
+              <p className="text-xl md:text-2xl font-bold text-[#105330]">
                 ₪{(goalSettings?.goal_type === 'financial_freedom' 
                   ? results?.targetPassiveIncome 
                   : results?.targetAmount)?.toLocaleString() || '-'}
@@ -879,7 +879,7 @@ export default function ResultsSection({ userId }) {
                   <AlertTriangle className="w-12 h-12 text-amber-500 flex-shrink-0" />
                 )}
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-2">
+                  <h3 className="text-base md:text-xl font-bold text-slate-800 mb-2">
                     {results.canAchieveGoal
                       ? `החל מגיל ${results.financialFreedomAge} תוכל למשוך לפחות ₪${results.targetPassiveIncome.toLocaleString()} בחודש`
                       : `לפי התכנון הנוכחי, לא ניתן להגיע להכנסה פאסיבית של ₪${results.targetPassiveIncome.toLocaleString()} עד גיל 80`
@@ -919,27 +919,27 @@ export default function ResultsSection({ userId }) {
               <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="p-4 bg-purple-50 rounded-xl">
                   <p className="text-sm text-purple-600 font-medium">תיק השקעות</p>
-                  <p className="text-xl font-bold text-purple-800">₪{results.projectedStocks.toLocaleString()}</p>
+                  <p className="text-base md:text-xl font-bold text-purple-800">₪{results.projectedStocks.toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-pink-50 rounded-xl">
                   <p className="text-sm text-pink-600 font-medium">השקעות אלטרנטיביות</p>
-                  <p className="text-xl font-bold text-pink-800">₪{results.projectedAlt.toLocaleString()}</p>
+                  <p className="text-base md:text-xl font-bold text-pink-800">₪{results.projectedAlt.toLocaleString()}</p>
                 </div>
                 {results.projectedKeren > 0 && (
                   <div className="p-4 bg-blue-50 rounded-xl">
                     <p className="text-sm text-blue-600 font-medium">קרן השתלמות</p>
-                    <p className="text-xl font-bold text-blue-800">₪{results.projectedKeren.toLocaleString()}</p>
+                    <p className="text-base md:text-xl font-bold text-blue-800">₪{results.projectedKeren.toLocaleString()}</p>
                   </div>
                 )}
                 {results.projectedRealEstate > 0 && (
                   <div className="p-4 bg-amber-50 rounded-xl">
                     <p className="text-sm text-amber-600 font-medium">נדל״ן</p>
-                    <p className="text-xl font-bold text-amber-800">₪{results.projectedRealEstate.toLocaleString()}</p>
+                    <p className="text-base md:text-xl font-bold text-amber-800">₪{results.projectedRealEstate.toLocaleString()}</p>
                   </div>
                 )}
                 <div className="p-4 bg-emerald-50 rounded-xl">
                   <p className="text-sm text-emerald-600 font-medium">קצבת פנסיה (מגיל {results.retirementAge})</p>
-                  <p className="text-xl font-bold text-emerald-800">₪{results.monthlyPensionAllowance.toLocaleString()}/חודש</p>
+                  <p className="text-base md:text-xl font-bold text-emerald-800">₪{results.monthlyPensionAllowance.toLocaleString()}/חודש</p>
                 </div>
               </div>
             </CardContent>
@@ -983,7 +983,7 @@ export default function ResultsSection({ userId }) {
                           <CheckCircle className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div className="text-left">
-                          <span className="text-lg font-bold text-[#105330]">
+                          <span className="text-base md:text-lg font-bold text-[#105330]">
                             ₪{period.totalMonthly.toLocaleString()}/חודש
                           </span>
                         </div>
@@ -1023,24 +1023,24 @@ export default function ResultsSection({ userId }) {
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
                   <div className="p-4 bg-blue-50 rounded-xl text-center">
                     <p className="text-sm text-blue-600">מזומנים</p>
-                    <p className="text-lg font-bold text-blue-800">₪{results.homeSavingsPlan.totalCash.toLocaleString()}</p>
+                    <p className="text-base md:text-lg font-bold text-blue-800">₪{results.homeSavingsPlan.totalCash.toLocaleString()}</p>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-xl text-center">
                     <p className="text-sm text-purple-600">רכבים</p>
-                    <p className="text-lg font-bold text-purple-800">₪{results.homeSavingsPlan.totalVehicles.toLocaleString()}</p>
+                    <p className="text-base md:text-lg font-bold text-purple-800">₪{results.homeSavingsPlan.totalVehicles.toLocaleString()}</p>
                   </div>
                   <div className="p-4 bg-green-50 rounded-xl text-center">
                     <p className="text-sm text-green-600">שוק ההון</p>
-                    <p className="text-lg font-bold text-green-800">₪{results.homeSavingsPlan.totalStocks.toLocaleString()}</p>
+                    <p className="text-base md:text-lg font-bold text-green-800">₪{results.homeSavingsPlan.totalStocks.toLocaleString()}</p>
                   </div>
                   <div className="p-4 bg-amber-50 rounded-xl text-center">
                     <p className="text-sm text-amber-600">השקעות אלטרנטיביות</p>
-                    <p className="text-lg font-bold text-amber-800">₪{results.homeSavingsPlan.totalAlternative.toLocaleString()}</p>
+                    <p className="text-base md:text-lg font-bold text-amber-800">₪{results.homeSavingsPlan.totalAlternative.toLocaleString()}</p>
                   </div>
                 </div>
                 <div className="p-4 bg-emerald-50 rounded-xl text-center border-2 border-emerald-200">
                   <p className="text-sm text-emerald-600 font-semibold">סך הנכסים</p>
-                  <p className="text-2xl font-bold text-emerald-800">₪{results.homeSavingsPlan.currentAssets.toLocaleString()}</p>
+                  <p className="text-xl md:text-2xl font-bold text-emerald-800">₪{results.homeSavingsPlan.currentAssets.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -1050,15 +1050,15 @@ export default function ResultsSection({ userId }) {
                 <div className="grid md:grid-cols-3 gap-4 mb-3">
                   <div className="p-4 bg-red-50 rounded-xl text-center">
                     <p className="text-sm text-red-600">רכבים</p>
-                    <p className="text-lg font-bold text-red-800">₪{results.homeSavingsPlan.totalVehicleLiabilities.toLocaleString()}</p>
+                    <p className="text-base md:text-lg font-bold text-red-800">₪{results.homeSavingsPlan.totalVehicleLiabilities.toLocaleString()}</p>
                   </div>
                   <div className="p-4 bg-orange-50 rounded-xl text-center">
                     <p className="text-sm text-orange-600">פנסיוני</p>
-                    <p className="text-lg font-bold text-orange-800">₪{results.homeSavingsPlan.totalPensionLiabilities.toLocaleString()}</p>
+                    <p className="text-base md:text-lg font-bold text-orange-800">₪{results.homeSavingsPlan.totalPensionLiabilities.toLocaleString()}</p>
                   </div>
                   <div className="p-4 bg-pink-50 rounded-xl text-center">
                     <p className="text-sm text-pink-600">הלוואות כלליות</p>
-                    <p className="text-lg font-bold text-pink-800">₪{results.homeSavingsPlan.totalGeneralLiabilities.toLocaleString()}</p>
+                    <p className="text-base md:text-lg font-bold text-pink-800">₪{results.homeSavingsPlan.totalGeneralLiabilities.toLocaleString()}</p>
                   </div>
                 </div>
                 <div className="p-4 bg-red-50 rounded-xl text-center border-2 border-red-200">
@@ -1070,14 +1070,14 @@ export default function ResultsSection({ userId }) {
               {/* Net Worth */}
               <div className="p-5 bg-[#105330]/10 rounded-xl text-center border-2 border-[#105330]/30">
                 <p className="text-sm text-[#105330]/70 font-semibold mb-1">ערך נקי (נכסים - התחייבויות)</p>
-                <p className="text-3xl font-bold text-[#105330]">₪{results.homeSavingsPlan.currentNetWorth.toLocaleString()}</p>
+                <p className="text-2xl md:text-3xl font-bold text-[#105330]">₪{results.homeSavingsPlan.currentNetWorth.toLocaleString()}</p>
               </div>
 
               {/* Target and Debt Payments */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="p-4 bg-[#c8a863]/20 rounded-xl text-center">
                   <p className="text-sm text-[#105330]/70">סכום יעד לבית</p>
-                  <p className="text-2xl font-bold text-[#105330]">₪{results.homeSavingsPlan.targetAmount.toLocaleString()}</p>
+                  <p className="text-xl md:text-2xl font-bold text-[#105330]">₪{results.homeSavingsPlan.targetAmount.toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl text-center">
                   <p className="text-sm text-blue-600">תשלום חודשי לחובות</p>
@@ -1100,7 +1100,7 @@ export default function ResultsSection({ userId }) {
                   <div className="flex-1">
                     {results.homeSavingsPlan.achievementAge ? (
                       <>
-                        <h3 className={`text-xl font-bold mb-2 ${
+                        <h3 className={`text-base md:text-xl font-bold mb-2 ${
                           results.homeSavingsPlan.canAchieveAtTarget ? 'text-emerald-800' : 'text-amber-800'
                         }`}>
                           {results.homeSavingsPlan.canAchieveAtTarget
@@ -1130,7 +1130,7 @@ export default function ResultsSection({ userId }) {
                       </>
                     ) : (
                       <>
-                        <h3 className="text-xl font-bold text-red-800 mb-2">
+                        <h3 className="text-base md:text-xl font-bold text-red-800 mb-2">
                           לא ניתן להגיע ליעד עד גיל 80
                         </h3>
                         <p className="text-red-700">

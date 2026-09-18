@@ -446,7 +446,7 @@ export default function ExpenseTracking({ userId }) {
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(prev => addMonths(prev, 1))}>
               <ChevronRight className="w-5 h-5" />
             </Button>
-            <h2 className="text-xl font-bold text-[#105330]">
+            <h2 className="text-base md:text-xl font-bold text-[#105330]">
               מעקב הוצאות - {format(currentDate, 'MMMM yyyy', { locale: he })}
             </h2>
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(prev => subMonths(prev, 1))}>
@@ -488,7 +488,7 @@ export default function ExpenseTracking({ userId }) {
       {/* Actual Income */}
       <Card className="border-2 border-green-300 bg-green-50/50">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg text-green-700">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg text-green-700">
             <Wallet className="w-5 h-5 text-green-600" />
             הכנסה בפועל
           </CardTitle>
@@ -500,7 +500,7 @@ export default function ExpenseTracking({ userId }) {
               onChange={val => updateActualIncome(val)}
               onBlur={handleBlurSave}
               placeholder="הזן הכנסה בפועל"
-              className="text-lg font-medium flex-1"
+              className="text-base md:text-lg font-medium flex-1"
             />
             {currentPlan?.expected_income && (
               <div className="text-sm text-gray-500">תכנון: ₪{currentPlan.expected_income.toLocaleString()}</div>

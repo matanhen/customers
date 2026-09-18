@@ -248,11 +248,11 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="text-center p-4 bg-white/60 rounded-2xl">
                 <p className="text-sm text-[#105330] font-medium mb-2">סכום צפוי בגיל פנסיה</p>
-                <p className="text-3xl font-bold text-[#105330]">₪{projectedAmount.toLocaleString()}</p>
+                <p className="text-2xl md:text-3xl font-bold text-[#105330]">₪{projectedAmount.toLocaleString()}</p>
               </div>
               <div className="text-center p-4 bg-white/60 rounded-2xl">
                 <p className="text-sm text-[#105330] font-medium mb-2">קצבה חודשית משוערת</p>
-                <p className="text-3xl font-bold text-[#c8a863]">₪{monthlyPension.toLocaleString()}</p>
+                <p className="text-2xl md:text-3xl font-bold text-[#c8a863]">₪{monthlyPension.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -267,7 +267,7 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
                     <Calendar className="w-4 h-4 text-[#105330]" />
                     <p className="text-sm text-[#105330] font-medium">{label}</p>
                   </div>
-                  <p className="text-2xl font-bold text-[#105330]">₪{val.toLocaleString()}</p>
+                  <p className="text-xl md:text-2xl font-bold text-[#105330]">₪{val.toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -288,7 +288,7 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
                   </SelectContent>
                 </Select>
                 <div className="flex-1 text-left">
-                  <span className="text-2xl font-bold text-[#c8a863]">₪{projectedInSelectedYears.toLocaleString()}</span>
+                  <span className="text-xl md:text-2xl font-bold text-[#c8a863]">₪{projectedInSelectedYears.toLocaleString()}</span>
                 </div>
               </div>
             </div>

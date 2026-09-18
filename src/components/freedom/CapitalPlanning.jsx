@@ -203,7 +203,7 @@ function PlanTab({ planKey, userId, planLabel, planColor }) {
           <Card key={s.label} className="border-0 shadow-md">
             <CardContent className="p-4">
               <p className="text-xs text-slate-500">{s.label}</p>
-              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+              <p className={`text-base md:text-xl font-bold ${s.color}`}>{s.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -213,11 +213,11 @@ function PlanTab({ planKey, userId, planLabel, planColor }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="text-center p-3 bg-blue-50 rounded-xl border border-blue-100">
           <p className="text-xs text-slate-500">שווי נקי בעוד 10 שנה</p>
-          <p className="text-lg font-bold text-blue-700">{formatMoney(val10)}</p>
+          <p className="text-base md:text-lg font-bold text-blue-700">{formatMoney(val10)}</p>
         </div>
         <div className="text-center p-3 bg-purple-50 rounded-xl border border-purple-100">
           <p className="text-xs text-slate-500">שווי נקי בעוד 20 שנה</p>
-          <p className="text-lg font-bold text-purple-700">{formatMoney(val20)}</p>
+          <p className="text-base md:text-lg font-bold text-purple-700">{formatMoney(val20)}</p>
         </div>
       </div>
 
@@ -412,7 +412,7 @@ export default function CapitalPlanning({ userId }) {
   return (
     <div className="space-y-8" dir="rtl">
       <div>
-        <h2 className="text-2xl font-bold text-[#105330]">תכנון פיננסי עתידי</h2>
+        <h2 className="text-xl md:text-2xl font-bold text-[#105330]">תכנון פיננסי עתידי</h2>
         <p className="text-[#105330]/70 text-sm">השווה תרחישים שונים לאורך 30 שנה (נכסים בניכוי התחייבויות)</p>
       </div>
 

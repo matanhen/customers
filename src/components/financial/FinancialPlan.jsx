@@ -365,10 +365,10 @@ export default function FinancialPlan({ userId }) {
                   value={planData.client_name || ''}
                   onChange={e => update({ client_name: e.target.value })}
                   placeholder="שם הלקוח *"
-                  className="hero-input text-3xl md:text-4xl font-bold bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-0"
+                  className="hero-input text-2xl md:text-4xl font-bold bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-0"
                 />
               ) : (
-                <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+                <h1 className="text-2xl md:text-4xl font-bold text-white leading-tight">
                   {planData.client_name || 'הלקוח'}
                 </h1>
               )}
@@ -390,10 +390,10 @@ export default function FinancialPlan({ userId }) {
                 value={planData.main_goal || ''}
                 onChange={e => update({ main_goal: e.target.value })}
                 placeholder="המטרה המרכזית של הלקוח *"
-                className="hero-input text-lg bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-0"
+                className="hero-input text-base md:text-lg bg-transparent border-0 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-0"
               />
             ) : (
-              <p className="text-lg text-white/90">
+              <p className="text-base md:text-lg text-white/90">
                 <span className="text-[#c8a863] font-semibold">המטרה המרכזית: </span>
                 {planData.main_goal || 'טרם הוגדרה'}
               </p>
@@ -452,11 +452,11 @@ export default function FinancialPlan({ userId }) {
       {/* Next Goal */}
       <div className="bg-gradient-to-l from-[#105330] to-[#0d4027] rounded-3xl shadow-xl p-6 md:p-8 text-white">
         <p className="text-sm text-white/60 mb-1">היעד הבא שלך</p>
-        <h2 className="text-2xl font-bold mb-4">{currentStepInfo.label}</h2>
+        <h2 className="text-xl md:text-2xl font-bold mb-4">{currentStepInfo.label}</h2>
         <div className="grid grid-cols-3 gap-4">
           <div>
             <p className="text-xs text-white/50 mb-1">היעד</p>
-            <p className="text-xl font-bold text-[#c8a863]">
+            <p className="text-base md:text-xl font-bold text-[#c8a863]">
               {currentStepInfo.unit ? formatCurrency(stepTarget) : 'פתיחת תיק'}
             </p>
           </div>
@@ -478,14 +478,14 @@ export default function FinancialPlan({ userId }) {
                 dir="ltr"
               />
             ) : (
-              <p className="text-xl font-bold">
+              <p className="text-base md:text-xl font-bold">
                 {currentStepInfo.unit ? formatCurrency(stepValue) : stepValue ? 'פתוח' : 'לא פתוח'}
               </p>
             )}
           </div>
           <div>
             <p className="text-xs text-white/50 mb-1">הפער</p>
-            <p className="text-xl font-bold text-[#c8a863]">
+            <p className="text-base md:text-xl font-bold text-[#c8a863]">
               {stepGap > 0 ? formatCurrency(stepGap) : '✓ הושלם'}
             </p>
           </div>

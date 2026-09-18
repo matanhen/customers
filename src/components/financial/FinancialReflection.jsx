@@ -320,7 +320,7 @@ export default function FinancialReflection({ userId }) {
               <div className="p-3 rounded-2xl bg-emerald-500/10"><DollarSign className="w-8 h-8 text-emerald-600" /></div>
               <div>
                 <p className="text-sm text-emerald-600 font-medium">ממוצע הכנסות נטו</p>
-                <p className="text-2xl font-bold text-emerald-700">₪{incomeNet.toLocaleString()}</p>
+                <p className="text-xl md:text-2xl font-bold text-emerald-700">₪{incomeNet.toLocaleString()}</p>
                 {incomeTotal !== incomeNet && <p className="text-xs text-emerald-500">כולל פנסיוני: ₪{incomeTotal.toLocaleString()}</p>}
               </div>
             </div>
@@ -332,7 +332,7 @@ export default function FinancialReflection({ userId }) {
               <div className="p-3 rounded-2xl bg-rose-500/10"><Receipt className="w-8 h-8 text-rose-600" /></div>
               <div>
                 <p className="text-sm text-rose-600 font-medium">ממוצע הוצאות</p>
-                <p className="text-2xl font-bold text-rose-700">₪{expenseTotalRound.toLocaleString()}</p>
+                <p className="text-xl md:text-2xl font-bold text-rose-700">₪{expenseTotalRound.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -345,7 +345,7 @@ export default function FinancialReflection({ userId }) {
               </div>
               <div>
                 <p className={`text-sm font-medium ${cashFlow >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>תזרים ממוצע</p>
-                <p className={`text-2xl font-bold ${cashFlow >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>₪{cashFlow.toLocaleString()}</p>
+                <p className={`text-xl md:text-2xl font-bold ${cashFlow >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>₪{cashFlow.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>

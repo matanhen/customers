@@ -277,7 +277,7 @@ export default function MonthlyPlanning({ userId }) {
             >
               <ChevronRight className="w-5 h-5" />
             </Button>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-base md:text-xl font-bold text-gray-900">
               {format(currentDate, 'MMMM yyyy', { locale: he })}
             </h2>
             <Button 
@@ -304,7 +304,7 @@ export default function MonthlyPlanning({ userId }) {
                 value={planData.checking_balance}
                 onChange={(val) => updatePlanData({ checking_balance: val })}
                 placeholder="הזן יתרה"
-                className="text-lg font-medium"
+                className="text-base md:text-lg font-medium"
               />
             </div>
           </div>
@@ -314,7 +314,7 @@ export default function MonthlyPlanning({ userId }) {
       {/* Notes */}
       <Card className="border-2 border-amber-200 bg-amber-50/30">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-amber-700 text-base">
+          <CardTitle className="flex items-center gap-2 text-amber-700 text-sm md:text-base">
             <FileText className="w-5 h-5 text-amber-600" />
             הערות לחודש {format(currentDate, 'MMMM yyyy', { locale: he })}
           </CardTitle>
@@ -353,7 +353,7 @@ export default function MonthlyPlanning({ userId }) {
         {/* Income */}
         <Card className="border-2 border-green-300 bg-green-50/50">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg text-green-700">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg text-green-700">
               <Wallet className="w-5 h-5 text-green-600" />
               הכנסה צפויה
             </CardTitle>
@@ -364,7 +364,7 @@ export default function MonthlyPlanning({ userId }) {
                 value={planData.expected_income}
                 onChange={(val) => updatePlanData({ expected_income: val })}
                 placeholder="הזן הכנסה צפויה"
-                className="text-lg font-medium"
+                className="text-base md:text-lg font-medium"
               />
               <p className="text-sm text-gray-500">סכום ההכנסה הצפויה החודש</p>
             </div>
@@ -374,7 +374,7 @@ export default function MonthlyPlanning({ userId }) {
         {/* Expenses Summary */}
         <Card className={`${isOver ? 'border-red-200 bg-red-50' : isUnder ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
               {isBalanced ? (
                 <CheckCircle className="w-5 h-5 text-green-600" />
               ) : (
@@ -387,7 +387,7 @@ export default function MonthlyPlanning({ userId }) {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">סך הוצאות מתוכננות:</span>
-                <span className="text-xl font-bold">₪{totalExpenses.toLocaleString()}</span>
+                <span className="text-lg md:text-xl font-bold">₪{totalExpenses.toLocaleString()}</span>
               </div>
               <Progress 
                 value={Math.min(100, expensesPercentage)} 
@@ -406,7 +406,7 @@ export default function MonthlyPlanning({ userId }) {
       {/* Expense Categories */}
       <Card className="border-2 border-red-300 bg-red-50/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-700">
+          <CardTitle className="flex items-center gap-2 text-sm md:text-base text-red-700">
             <PiggyBank className="w-5 h-5 text-red-600" />
             פירוט הוצאות
           </CardTitle>
@@ -415,7 +415,7 @@ export default function MonthlyPlanning({ userId }) {
           <div className="grid md:grid-cols-3 gap-6">
             {/* Savings */}
             <div className="space-y-3">
-              <Label className="text-base font-medium flex items-center gap-2">
+              <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-emerald-500" />
                 חסכונות
               </Label>
@@ -431,7 +431,7 @@ export default function MonthlyPlanning({ userId }) {
 
             {/* Fixed Expenses */}
             <div className="space-y-3">
-              <Label className="text-base font-medium flex items-center gap-2">
+              <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500" />
                 הוצאות קבועות
               </Label>
@@ -447,7 +447,7 @@ export default function MonthlyPlanning({ userId }) {
 
             {/* Variable Expenses */}
             <div className="space-y-3">
-              <Label className="text-base font-medium flex items-center gap-2">
+              <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-purple-500" />
                 יתרת הוצאות
               </Label>
@@ -467,7 +467,7 @@ export default function MonthlyPlanning({ userId }) {
       {/* Freedom Account */}
       <Card className="border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-sky-50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-700">
+          <CardTitle className="flex items-center gap-2 text-sm md:text-base text-blue-700">
             <Sparkles className="w-5 h-5 text-blue-600" />
             חשבון החופש
             <span className="text-sm font-normal text-gray-500 mr-2">
@@ -479,7 +479,7 @@ export default function MonthlyPlanning({ userId }) {
           <div className="grid md:grid-cols-3 gap-6 mb-6">
             {/* Investments */}
             <div className="space-y-3">
-              <Label className="text-base font-medium flex items-center gap-2">
+              <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-blue-600" />
                 השקעות
               </Label>
@@ -495,7 +495,7 @@ export default function MonthlyPlanning({ userId }) {
 
             {/* Dreams Savings */}
             <div className="space-y-3">
-              <Label className="text-base font-medium flex items-center gap-2">
+              <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                 <Target className="w-4 h-4 text-pink-600" />
                 חיסכון חלומות
               </Label>
@@ -511,7 +511,7 @@ export default function MonthlyPlanning({ userId }) {
 
             {/* Emergency Fund */}
             <div className="space-y-3">
-              <Label className="text-base font-medium flex items-center gap-2">
+              <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                 <Shield className="w-4 h-4 text-green-600" />
                 קרן ביטחון
               </Label>
@@ -541,7 +541,7 @@ export default function MonthlyPlanning({ userId }) {
       {/* Emergency Fund Status */}
       <Card className="border-2 border-purple-300 bg-purple-50/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-purple-700">
+          <CardTitle className="flex items-center gap-2 text-sm md:text-base text-purple-700">
             <Shield className="w-5 h-5 text-purple-600" />
             מצב קרן הביטחון
           </CardTitle>
@@ -559,7 +559,7 @@ export default function MonthlyPlanning({ userId }) {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <Label>יעד קרן ביטחון (3 חודשי מחייה)</Label>
-                <span className="text-lg font-bold text-green-600">₪{emergencyFundTarget.toLocaleString()}</span>
+                <span className="text-base md:text-lg font-bold text-green-600">₪{emergencyFundTarget.toLocaleString()}</span>
               </div>
               <Progress value={emergencyFundProgress} className="h-3" />
               <div className="flex justify-between text-sm">

@@ -240,7 +240,7 @@ export default function GoalSettingsPanel({ userId, registerFlushSave }) {
           <div className="space-y-2">
             <Label className="text-[#105330] font-semibold">מה המטרה?</Label>
             <div className="flex gap-3">
-              <div className="flex-1 rounded-xl py-4 px-4 text-base bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg flex items-center justify-center gap-2">
+              <div className="flex-1 rounded-xl py-3 px-3 text-sm md:py-4 md:px-4 md:text-base bg-gradient-to-r from-[#105330] to-[#1a7a4a] text-white shadow-lg flex items-center justify-center gap-2">
                 <Coins className="w-5 h-5" />
                 תכנון חופש כלכלי מבוסס הכנסה פאסיבית
               </div>
@@ -277,7 +277,7 @@ export default function GoalSettingsPanel({ userId, registerFlushSave }) {
             <FormattedNumberInput
               value={settings.passive_income_target}
               onChange={(val) => updateSettings({ ...settings, passive_income_target: val })}
-              className="border-[#105330]/30 rounded-xl py-6 bg-white text-center font-bold text-lg"
+              className="border-[#105330]/30 rounded-xl py-4 md:py-6 bg-white text-center font-bold text-base md:text-lg"
             />
           </div>
 
@@ -299,7 +299,7 @@ export default function GoalSettingsPanel({ userId, registerFlushSave }) {
 
         {/* Summary */}
         <div className="p-5 bg-gradient-to-r from-[#105330]/10 to-[#c8a863]/10 rounded-2xl border border-[#105330]/20 mb-6 transform hover:scale-[1.01] transition-transform">
-          <p className="text-[#105330] font-bold text-center text-lg">
+          <p className="text-[#105330] font-bold text-center text-base md:text-lg">
             מטרה: הכנסה פאסיבית של ₪{(settings.passive_income_target || 0).toLocaleString()}/חודש בגיל {settings.target_age}
           </p>
         </div>

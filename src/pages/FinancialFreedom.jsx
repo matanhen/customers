@@ -56,7 +56,7 @@ export default function FinancialFreedom() {
     return (
       <div className="max-w-6xl mx-auto" dir="rtl">
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-[#105330] mb-2">תכנון חופש כלכלי</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-[#105330] mb-2">תכנון חופש כלכלי</h1>
           <p className="text-[#105330]/70">בחר קטגוריה להתחלה</p>
         </div>
         <div className="grid grid-cols-2 md:gap-6 gap-3">
@@ -96,12 +96,12 @@ export default function FinancialFreedom() {
           <button onClick={handleBack} className="text-[#105330]/60 hover:text-[#105330] flex items-center gap-1 text-sm font-medium">
             <ArrowRight className="w-4 h-4" />חזרה
           </button>
-          <h1 className="text-2xl font-bold text-[#105330]">תכנון תזרימי</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[#105330]">תכנון תזרימי</h1>
         </div>
         <div className="flex gap-2 mb-6 p-2 bg-[#105330]/10 rounded-2xl w-fit">
           <button
             onClick={() => setCashflowTab('planning')}
-            className={`rounded-xl py-3 px-6 font-semibold transition-all duration-300 flex items-center gap-2 ${
+            className={`rounded-xl py-2.5 px-4 md:py-3 md:px-6 font-semibold text-sm md:text-base transition-all duration-300 flex items-center gap-2 ${
               cashflowTab === 'planning' ? 'bg-[#105330] text-white shadow-xl' : 'bg-transparent text-[#105330] hover:bg-[#105330]/10'
             }`}
           >
@@ -110,7 +110,7 @@ export default function FinancialFreedom() {
           <button
             onClick={handleResultsClick}
             disabled={resultsLoading}
-            className={`rounded-xl py-3 px-6 font-semibold transition-all duration-300 flex items-center gap-2 disabled:opacity-60 disabled:cursor-wait ${
+            className={`rounded-xl py-2.5 px-4 md:py-3 md:px-6 font-semibold text-sm md:text-base transition-all duration-300 flex items-center gap-2 disabled:opacity-60 disabled:cursor-wait ${
               cashflowTab === 'results' ? 'bg-[#105330] text-white shadow-xl' : 'bg-transparent text-[#105330] hover:bg-[#105330]/10'
             }`}
           >

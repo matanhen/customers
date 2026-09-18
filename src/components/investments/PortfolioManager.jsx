@@ -271,7 +271,7 @@ export default function PortfolioManager({ userId }) {
               </div>
               <div>
                 <p className="text-sm text-blue-600 font-medium">שווי תיק</p>
-                <p className="text-2xl font-bold text-blue-700">₪{totalValue.toLocaleString()}</p>
+                <p className="text-xl md:text-2xl font-bold text-blue-700">₪{totalValue.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -293,7 +293,7 @@ export default function PortfolioManager({ userId }) {
                     setPortfolioSettings(next);
                     triggerSettingsAutoSave(next);
                   }}
-                  className="mt-1 text-lg font-bold border-emerald-200 bg-white/50"
+                  className="mt-1 text-base md:text-lg font-bold border-emerald-200 bg-white/50"
                 />
               </div>
             </div>
@@ -316,7 +316,7 @@ export default function PortfolioManager({ userId }) {
                     setPortfolioSettings(next);
                     triggerSettingsAutoSave(next);
                   }}
-                  className="mt-1 text-lg font-bold border-purple-200 bg-white/50"
+                  className="mt-1 text-base md:text-lg font-bold border-purple-200 bg-white/50"
                 />
               </div>
             </div>
@@ -391,7 +391,7 @@ export default function PortfolioManager({ userId }) {
               <div className={`h-1.5 ${isOverTarget ? 'bg-gradient-to-r from-red-400 to-rose-400' : isUnderTarget ? 'bg-gradient-to-r from-emerald-400 to-teal-400' : 'bg-gradient-to-r from-blue-400 to-indigo-400'}`} />
               <CardContent className="p-5">
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-bold text-lg text-slate-800">{stock.name}</h3>
+                  <h3 className="font-bold text-base md:text-lg text-slate-800">{stock.name}</h3>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setEditingStock(stock)} className="hover:bg-slate-100">
                       <Edit2 className="w-4 h-4 text-slate-400" />
