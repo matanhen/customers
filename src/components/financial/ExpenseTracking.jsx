@@ -407,8 +407,8 @@ export default function ExpenseTracking({ userId }) {
   };
 
   // Totals
-  const totalExpensesFromTable = Object.values(trackingData.fixed_expenses || {}).reduce((s, v) => s + (v || 0), 0);
-  const totalVariableActual = Object.values(trackingData.variable_expenses || {}).reduce((s, v) => s + (v || 0), 0);
+  const totalExpensesFromTable = Object.values(trackingData.fixed_expenses || {}).reduce((s, v) => s + getItemMonthTotal(v), 0);
+  const totalVariableActual = Object.values(trackingData.variable_expenses || {}).reduce((s, v) => s + getItemMonthTotal(v), 0);
   const customTotal = (trackingData.custom_expenses || []).reduce((s, e) => s + (e.amount || 0), 0);
   const creditTotal = (trackingData.credit_payments || []).reduce((s, p) => {
     const remaining = (p.total_installments || 1) - (p.paid_installments || 0);
@@ -430,7 +430,7 @@ export default function ExpenseTracking({ userId }) {
   const actualVariableSpent = (() => {
     let total = 0;
     Object.entries(trackingData.fixed_expenses || {}).forEach(([item, amount]) => {
-      if (isVariableItem(item)) total += (amount || 0);
+      if (isVariableItem(item)) total += getItemMonthTotal(amount);
     });
     (trackingData.custom_expenses || []).forEach(exp => {
       if (exp.type === 'variable') total += (exp.amount || 0);

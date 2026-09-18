@@ -1,12 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { isVariableItem, getCurrentMonth, getCurrentFinWeek } from '../../shared/expenseCategories.ts';
+import {
+  isVariableItem,
+  getCurrentMonth,
+  getCurrentFinWeek,
+  addAmountToWeek,
+  getItemMonthTotal,
+} from '../../shared/expenseCategories.ts';
 
 // Adds an expense to the current client's monthly tracking record.
 // Called by the WhatsApp expense agent. Identifies the client via base44.auth.me().
 //
-// IMPORTANT: the app stores ALL expenses (fixed + variable) in `fixed_expenses` as a
-// flat { [item]: monthTotalNumber } map. Variable items are identified by isVariableItem().
-// We must match that structure so the app's totals and weekly tracker reflect the expense.
+// IMPORTANT: the app stores ALL expenses (fixed + variable) in `fixed_expenses`.
+// Each entry can be a flat number (month total) OR a week object { week1..week4 }.
+// We store a week object so the expense appears in the correct financial week,
+// and the app's getItemMonthTotal() handles both shapes for totals.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -45,10 +52,10 @@ export default async function(req) {
       });
     }
 
-    // Accumulate the amount onto the item's month total in fixed_expenses (flat map),
-    // matching the app's data model.
+    // Store the expense in the correct financial week. addAmountToWeek converts a
+    // legacy plain number into a week object and adds the amount to the right week.
     const fixedExpenses = { ...(tracking.fixed_expenses || {}) };
-    fixedExpenses[itemName] = (fixedExpenses[itemName] || 0) + amount;
+    fixedExpenses[itemName] = addAmountToWeek(fixedExpenses[itemName], week, amount);
 
     await base44.entities.ExpenseTracking.update(tracking.id, { fixed_expenses: fixedExpenses });
     const updated = await base44.entities.ExpenseTracking.get(tracking.id);
@@ -56,7 +63,7 @@ export default async function(req) {
     // Compute current variable spend (matches the app's actualVariableSpent logic)
     let variableSpent = 0;
     for (const [item, val] of Object.entries(updated.fixed_expenses || {})) {
-      if (isVariableItem(item)) variableSpent += (val || 0);
+      if (isVariableItem(item)) variableSpent += getItemMonthTotal(val);
     }
 
     return Response.json({

@@ -100,8 +100,8 @@ export default function WeeklyVariableTracker({
 
   const hasData = start !== undefined && end !== undefined;
   const spentThisWeek = hasData ? Math.max(0, end - start) : 0;
-  const remainingThisWeek = weeklyBudget - spentThisWeek;
-  const weekProgress = weeklyBudget > 0 ? Math.min(100, Math.round((spentThisWeek / weeklyBudget) * 100)) : 0;
+  const remainingThisWeek = (Number(weeklyBudget) || 0) - (Number(spentThisWeek) || 0);
+  const weekProgress = weeklyBudget > 0 && Number.isFinite(spentThisWeek) ? Math.min(100, Math.round((spentThisWeek / weeklyBudget) * 100)) : 0;
   const notReached = selectedWeek > currentRealWeek;
 
   const goPrev = () => onWeekChange && onWeekChange(Math.max(1, selectedWeek - 1));
@@ -169,7 +169,7 @@ export default function WeeklyVariableTracker({
               value={weekProgress}
               className={`h-3 ${remainingThisWeek < 0 ? 'bg-red-200' : 'bg-teal-200'}`}
             />
-            <p className="text-sm text-gray-500 mt-1">₪{Math.round(spentThisWeek).toLocaleString()} הוצאו בשבוע זה</p>
+            <p className="text-sm text-gray-500 mt-1">₪{Math.round(spentThisWeek || 0).toLocaleString()} הוצאו בשבוע זה</p>
           </div>
         )}
         <div className="pt-2 border-t border-teal-200 flex justify-between text-sm">

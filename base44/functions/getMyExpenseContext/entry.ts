@@ -4,6 +4,7 @@ import {
   getCurrentFinWeek,
   getCurrentMonth,
   isVariableItem,
+  getItemMonthTotal,
 } from '../../shared/expenseCategories.ts';
 
 // Returns the current client's financial context so the WhatsApp expense agent
@@ -37,7 +38,7 @@ export default async function(req) {
     // Variable spend = sum of variable items in fixed_expenses (matches the app's logic)
     let variableSpent = 0;
     for (const [item, val] of Object.entries(tracking?.fixed_expenses || {})) {
-      if (isVariableItem(item)) variableSpent += (val || 0);
+      if (isVariableItem(item)) variableSpent += getItemMonthTotal(val);
     }
 
     return Response.json({
