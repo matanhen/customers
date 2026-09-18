@@ -1,15 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import {
-  findCategoryKey,
-  isVariableItem,
-  getCurrentFinWeek,
-  getCurrentMonth,
-  addAmountToWeek,
-  sumVariableExpenses,
-} from '../../shared/expenseCategories.ts';
+import { isVariableItem, getCurrentMonth, getCurrentFinWeek } from '../../shared/expenseCategories.ts';
 
-// Adds an expense to the current client's monthly/weekly tracking record.
+// Adds an expense to the current client's monthly tracking record.
 // Called by the WhatsApp expense agent. Identifies the client via base44.auth.me().
+//
+// IMPORTANT: the app stores ALL expenses (fixed + variable) in `fixed_expenses` as a
+// flat { [item]: monthTotalNumber } map. Variable items are identified by isVariableItem().
+// We must match that structure so the app's totals and weekly tracker reflect the expense.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -28,12 +25,9 @@ export default async function(req) {
 
     const month = getCurrentMonth();
     const week = getCurrentFinWeek();
-    const catKey = body.category_key || findCategoryKey(itemName);
-    const variable = body.expense_type
-      ? body.expense_type === 'variable'
-      : isVariableItem(itemName);
+    const variable = body.expense_type ? body.expense_type === 'variable' : isVariableItem(itemName);
 
-    // Find or create the ExpenseTracking record for this month
+    // Find or create the ExpenseTracking record for this month (calendar month key)
     const records = await base44.entities.ExpenseTracking.filter({ user_id: user.id, month });
     let tracking = records[0];
 
@@ -51,26 +45,28 @@ export default async function(req) {
       });
     }
 
-    const field = variable ? 'variable_expenses' : 'fixed_expenses';
-    const expenses = { ...(tracking[field] || {}) };
-    const catData = { ...(expenses[catKey] || {}) };
-    catData[itemName] = addAmountToWeek(catData[itemName], week, amount);
-    expenses[catKey] = catData;
+    // Accumulate the amount onto the item's month total in fixed_expenses (flat map),
+    // matching the app's data model.
+    const fixedExpenses = { ...(tracking.fixed_expenses || {}) };
+    fixedExpenses[itemName] = (fixedExpenses[itemName] || 0) + amount;
 
-    await base44.entities.ExpenseTracking.update(tracking.id, { [field]: expenses });
+    await base44.entities.ExpenseTracking.update(tracking.id, { fixed_expenses: fixedExpenses });
     const updated = await base44.entities.ExpenseTracking.get(tracking.id);
 
-    const variableSpent = sumVariableExpenses(updated.variable_expenses || {});
+    // Compute current variable spend (matches the app's actualVariableSpent logic)
+    let variableSpent = 0;
+    for (const [item, val] of Object.entries(updated.fixed_expenses || {})) {
+      if (isVariableItem(item)) variableSpent += (val || 0);
+    }
 
     return Response.json({
       success: true,
       month,
       week,
       item: itemName,
-      category: catKey,
       amount,
       variable,
-      variableSpent,
+      variableSpent: Math.round(variableSpent),
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

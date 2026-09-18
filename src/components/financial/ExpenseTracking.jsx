@@ -22,6 +22,7 @@ import ExpenseTrackingTable from './ExpenseTrackingTable';
 import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, isVariableItem, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import WeeklyVariableTracker, { getFinMonthAnchor } from './WeeklyVariableTracker';
+import ExpenseTrackerBot from '@/components/chat/ExpenseTrackerBot';
 
 export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -192,6 +193,24 @@ export default function ExpenseTracking({ userId }) {
 
   const trackingDataRef = useRef(trackingData);
   trackingDataRef.current = trackingData;
+
+  // Realtime: when an ExpenseTracking record changes externally (e.g. the WhatsApp
+  // expense bot adds an expense), reload the current month's data immediately.
+  useEffect(() => {
+    const unsubscribe = base44.entities.ExpenseTracking.subscribe((event) => {
+      if (!event.data || event.data.user_id !== userId || event.data.month !== currentMonth) return;
+      if (event.type === 'delete') return;
+      // Skip echoes of this user's own saves (server data matches local state)
+      const serverFixed = JSON.stringify(event.data.fixed_expenses || {});
+      const localFixed = JSON.stringify(trackingDataRef.current.fixed_expenses || {});
+      if (serverFixed === localFixed) return;
+      // External change — force the data-loading effect to pick up the updated record
+      lastLoadedTrackingIdRef.current = null;
+      dataLoadedRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin] });
+    });
+    return unsubscribe;
+  }, [userId, currentMonth, currentUser, isViewingOther, isAdvisorOrAdmin, queryClient]);
 
   // Keep the selected week anchored to the user's chosen cycle start day.
   // When the preference loads (or changes via the toggle), reset the displayed
@@ -455,6 +474,9 @@ export default function ExpenseTracking({ userId }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* WhatsApp Expense Bot */}
+      <ExpenseTrackerBot />
 
       {/* Monthly cycle start day toggle — user/admin can switch between cycle of the 10th (default) or the 1st */}
       <div className="flex items-center justify-end gap-2">

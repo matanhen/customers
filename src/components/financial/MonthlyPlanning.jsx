@@ -17,7 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import FinancialGoals from './FinancialGoals';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import { useAutoSave } from '@/hooks/useAutoSave';
-import ExpenseTrackerBot from '@/components/chat/ExpenseTrackerBot';
 
 export default function MonthlyPlanning({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -291,9 +290,6 @@ export default function MonthlyPlanning({ userId }) {
           </div>
         </CardContent>
       </Card>
-
-      {/* WhatsApp Expense Bot */}
-      <ExpenseTrackerBot userId={userId} />
 
       {/* Checking Account Balance */}
       <Card className="border-2 border-sky-300 bg-sky-50/50">

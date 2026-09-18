@@ -3,7 +3,7 @@ import {
   EXPENSE_CATEGORIES,
   getCurrentFinWeek,
   getCurrentMonth,
-  sumVariableExpenses,
+  isVariableItem,
 } from '../../shared/expenseCategories.ts';
 
 // Returns the current client's financial context so the WhatsApp expense agent
@@ -34,7 +34,11 @@ export default async function(req) {
       if (plans[0]) plannedVariable = plans[0].variable_expenses || 0;
     } catch (e) { /* non-critical */ }
 
-    const variableSpent = sumVariableExpenses(tracking?.variable_expenses || {});
+    // Variable spend = sum of variable items in fixed_expenses (matches the app's logic)
+    let variableSpent = 0;
+    for (const [item, val] of Object.entries(tracking?.fixed_expenses || {})) {
+      if (isVariableItem(item)) variableSpent += (val || 0);
+    }
 
     return Response.json({
       user: { id: user.id, full_name: user.full_name, email: user.email },
@@ -43,10 +47,10 @@ export default async function(req) {
       tracking: tracking ? {
         id: tracking.id,
         actual_income: tracking.actual_income || 0,
-        variableSpent,
+        variableSpent: Math.round(variableSpent),
       } : null,
       plannedVariable,
-      variableSpent,
+      variableSpent: Math.round(variableSpent),
       categories: EXPENSE_CATEGORIES.map((c) => ({ key: c.key, label: c.label, items: c.items })),
       customCategories: customCategories.map((c) => ({ name: c.name, expense_type: c.expense_type })),
     });
