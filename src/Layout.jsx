@@ -505,7 +505,7 @@ export default function Layout({ children }) {
               <button 
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="תפריט"
-                className="lg:hidden p-2 text-white hover:bg-white/10 rounded-xl"
+                className="lg:hidden p-2.5 text-white hover:bg-white/10 rounded-xl min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
