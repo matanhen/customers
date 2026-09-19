@@ -299,10 +299,6 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#105330] via-[#0d4027] to-[#105330]" />
         <div className="relative px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#c8a863]/20 rounded-full text-[#c8a863] text-xs font-medium border border-[#c8a863]/30">
-              <Sparkles className="w-3 h-3" />
-              צעירים מתעשרים
-            </div>
             <div>
               <h1 className="text-xl font-black text-white leading-tight">
                 שלום{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''} 👋

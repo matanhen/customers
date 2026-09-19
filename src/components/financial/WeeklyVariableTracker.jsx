@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { format, lastDayOfMonth } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,56 +52,28 @@ function getRangeLabel(week, finYear, finMonth, cycleStart = 10) {
 }
 
 /**
- * Weekly progress for variable (discretionary) expenses, driven by the same data
- * that powers the monthly Expense Tracking table.
+ * Weekly progress for variable (discretionary) expenses.
  * plannedVariable: the "יתרת הוצאות" budget from the Monthly Plan.
- * actualVariableSpent: cumulative sum of variable items entered so far this month in the tracking table.
- * weeklySnapshots: { week1, week2, week3, week4 } - cumulative actualVariableSpent baseline captured
- *   at the moment each week started, so previous weeks' amounts can be reconstructed.
- * onUpdateSnapshot(newWeeklySnapshots): called to persist backfilled/updated snapshots.
- * cycleStart: 10 (default, weeks run 10→9) or 1 (weeks run 1→31).
+ * actualVariableSpent: cumulative sum of variable items for the whole month.
+ * weeklyTotals: { week1, week2, week3, week4 } — per-week variable spending,
+ *   computed directly from the week objects in fixed_expenses (accurate, no snapshots).
  */
 export default function WeeklyVariableTracker({
   plannedVariable = 0,
   actualVariableSpent = 0,
-  weeklySnapshots = {},
-  onUpdateSnapshot,
+  weeklyTotals = {},
   selectedWeek,
   onWeekChange,
   cycleStart = 10,
 }) {
   const { finYear, finMonth, currentWeek: currentRealWeek } = getFinMonthAnchor(cycleStart);
-  const backfilledRef = useRef(false);
-
-  // Ensure we have a baseline snapshot for every week up to the current real week.
-  useEffect(() => {
-    if (backfilledRef.current) return;
-    const missing = [];
-    for (let w = 1; w <= currentRealWeek; w++) {
-      if (weeklySnapshots[`week${w}`] === undefined) missing.push(w);
-    }
-    if (missing.length > 0) {
-      backfilledRef.current = true;
-      const updated = { ...weeklySnapshots };
-      missing.forEach((w) => {
-        updated[`week${w}`] = w === 1 ? 0 : actualVariableSpent;
-      });
-      onUpdateSnapshot && onUpdateSnapshot(updated);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentRealWeek]);
 
   const rangeLabel = getRangeLabel(selectedWeek, finYear, finMonth, cycleStart);
   const weeklyBudget = plannedVariable / 4;
 
-  const start = weeklySnapshots[`week${selectedWeek}`] ?? (selectedWeek === 1 ? 0 : undefined);
-  const nextSnapshot = weeklySnapshots[`week${selectedWeek + 1}`];
-  const end = nextSnapshot !== undefined ? nextSnapshot : (selectedWeek === currentRealWeek ? actualVariableSpent : undefined);
-
-  const hasData = start !== undefined && end !== undefined;
-  const spentThisWeek = hasData ? Math.max(0, end - start) : 0;
-  const remainingThisWeek = (Number(weeklyBudget) || 0) - (Number(spentThisWeek) || 0);
-  const weekProgress = weeklyBudget > 0 && Number.isFinite(spentThisWeek) ? Math.min(100, Math.round((spentThisWeek / weeklyBudget) * 100)) : 0;
+  const spentThisWeek = Number(weeklyTotals[`week${selectedWeek}`]) || 0;
+  const remainingThisWeek = (Number(weeklyBudget) || 0) - spentThisWeek;
+  const weekProgress = weeklyBudget > 0 ? Math.min(100, Math.round((spentThisWeek / weeklyBudget) * 100)) : 0;
   const notReached = selectedWeek > currentRealWeek;
 
   const goPrev = () => onWeekChange && onWeekChange(Math.max(1, selectedWeek - 1));
@@ -169,7 +141,7 @@ export default function WeeklyVariableTracker({
               value={weekProgress}
               className={`h-3 ${remainingThisWeek < 0 ? 'bg-red-200' : 'bg-teal-200'}`}
             />
-            <p className="text-sm text-gray-500 mt-1">₪{Math.round(spentThisWeek || 0).toLocaleString()} הוצאו בשבוע זה</p>
+            <p className="text-sm text-gray-500 mt-1">₪{Math.round(spentThisWeek).toLocaleString()} הוצאו בשבוע זה</p>
           </div>
         )}
         <div className="pt-2 border-t border-teal-200 flex justify-between text-sm">

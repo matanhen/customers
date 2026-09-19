@@ -438,6 +438,24 @@ export default function ExpenseTracking({ userId }) {
     return total;
   })();
 
+  // Per-week variable spending, computed directly from the week objects in fixed_expenses.
+  // This is the accurate source for "how much was spent in week N" — no snapshots needed.
+  const weeklyVariableTotals = (() => {
+    const totals = { week1: 0, week2: 0, week3: 0, week4: 0 };
+    Object.entries(trackingData.fixed_expenses || {}).forEach(([item, entry]) => {
+      if (!isVariableItem(item)) return;
+      if (typeof entry === 'number') {
+        totals.week1 += entry; // legacy flat number → week 1
+      } else if (entry && typeof entry === 'object') {
+        totals.week1 += entry.week1 || 0;
+        totals.week2 += entry.week2 || 0;
+        totals.week3 += entry.week3 || 0;
+        totals.week4 += entry.week4 || 0;
+      }
+    });
+    return totals;
+  })();
+
   const updateWeeklySnapshot = (newWeeklySnapshots) => {
     const newData = { ...trackingData, weekly_snapshots: newWeeklySnapshots };
     setTrackingData(newData);
@@ -500,8 +518,7 @@ export default function ExpenseTracking({ userId }) {
       <WeeklyVariableTracker
         plannedVariable={plannedVariable}
         actualVariableSpent={actualVariableSpent}
-        weeklySnapshots={trackingData.weekly_snapshots}
-        onUpdateSnapshot={updateWeeklySnapshot}
+        weeklyTotals={weeklyVariableTotals}
         selectedWeek={selectedWeek}
         onWeekChange={setSelectedWeek}
         cycleStart={cycleStart}
