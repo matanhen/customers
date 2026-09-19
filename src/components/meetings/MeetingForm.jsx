@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { MapPin, Video, Phone } from 'lucide-react';
+import { MapPin, Video } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -11,8 +11,17 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import SearchableSelect from '@/components/ui/searchable-select';
 
 const OFFICE_ADDRESS = 'יגאל אלון 94, מגדל אלון 2, קומה 31, תל אביב';
+
+const STATUS_OPTIONS = [
+  { value: 'scheduled', label: 'נקבעה' },
+  { value: 'completed', label: 'התקיימה' },
+  { value: 'no_show', label: 'הבריז/ה מפגישה' },
+  { value: 'cancelled_client', label: 'נדחתה לבקשת הלקוח' },
+  { value: 'cancelled_us', label: 'נדחתה לבקשתינו' },
+];
 
 export default function MeetingForm({
   open, onClose, onSaved, editingMeeting, clients, advisors, currentUser, isAdmin,
@@ -35,7 +44,7 @@ export default function MeetingForm({
       setMeetingType(editingMeeting.meeting_type || 'meeting');
       setMeetingDate(editingMeeting.meeting_date || '');
       setMeetingTime(editingMeeting.meeting_time || '');
-      setLocationType(editingMeeting.location_type || 'office');
+      setLocationType(editingMeeting.location_type === 'none' ? 'office' : (editingMeeting.location_type || 'office'));
       setStatus(editingMeeting.status || 'scheduled');
       setNotes(editingMeeting.notes || '');
     } else {
@@ -111,29 +120,31 @@ export default function MeetingForm({
           {isAdmin && (
             <div className="space-y-2">
               <Label className="text-[#105330] font-semibold">יועץ</Label>
-              <Select value={advisorId} onValueChange={setAdvisorId}>
-                <SelectTrigger className="border-[#105330]/30 rounded-xl"><SelectValue placeholder="בחר יועץ" /></SelectTrigger>
-                <SelectContent>
-                  {advisors.map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.full_name || a.email}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={advisorId}
+                onValueChange={setAdvisorId}
+                placeholder="חפש ובחר יועץ..."
+                items={advisors.map(a => ({
+                  value: a.id,
+                  label: a.full_name || a.email,
+                  searchText: a.email,
+                }))}
+              />
             </div>
           )}
 
           <div className="space-y-2">
             <Label className="text-[#105330] font-semibold">לקוח</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger className="border-[#105330]/30 rounded-xl"><SelectValue placeholder="בחר לקוח" /></SelectTrigger>
-              <SelectContent>
-                {clients.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.full_name || c.email}{c.phone ? ` (${c.phone})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={clientId}
+              onValueChange={setClientId}
+              placeholder="חפש לפי שם, אימייל או טלפון..."
+              items={clients.map(c => ({
+                value: c.id,
+                label: `${c.full_name || c.email}${c.phone ? ` (${c.phone})` : ''}`,
+                searchText: `${c.email} ${c.phone || ''}`,
+              }))}
+            />
           </div>
 
           <div className="space-y-2">
@@ -178,19 +189,17 @@ export default function MeetingForm({
             </div>
           )}
 
-          {editingMeeting && (
-            <div className="space-y-2">
-              <Label className="text-[#105330] font-semibold">סטטוס</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="border-[#105330]/30 rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scheduled">מתוכננת</SelectItem>
-                  <SelectItem value="completed">הושלמה</SelectItem>
-                  <SelectItem value="cancelled">בוטלה</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label className="text-[#105330] font-semibold">סטטוס</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="border-[#105330]/30 rounded-xl"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-2">
             <Label className="text-[#105330] font-semibold">הערות</Label>

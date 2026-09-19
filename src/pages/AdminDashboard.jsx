@@ -37,6 +37,7 @@ import { format } from 'date-fns';
 import LogoUploader from '@/components/admin/LogoUploader';
 import NavbarLogoUploader from '@/components/admin/NavbarLogoUploader';
 import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
+import PhoneBulkUpdate from '@/components/admin/PhoneBulkUpdate';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
   const [editUser, setEditUser] = useState(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
@@ -508,6 +510,9 @@ export default function AdminDashboard() {
       {/* Manual macro rates editor (admin updates BoI + prime, inflation stays auto) */}
       <MacroRatesEditor />
 
+      {/* Bulk phone update from PDF */}
+      <PhoneBulkUpdate />
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="border-0 shadow-xl shadow-purple-100/50 bg-gradient-to-br from-purple-50 to-indigo-50 overflow-hidden">
@@ -766,6 +771,7 @@ export default function AdminDashboard() {
                             setEditUser(u);
                             setEditName(u.full_name || '');
                             setEditEmail(u.email || '');
+                            setEditPhone(u.phone || '');
                             setShowEditDialog(true);
                           }}
                           className="border-[#105330]/30 text-[#105330] hover:bg-[#105330]/10 rounded-xl"
@@ -871,6 +877,17 @@ export default function AdminDashboard() {
               />
               <p className="text-xs text-slate-400">לא ניתן לשנות אימייל</p>
             </div>
+            <div className="space-y-2">
+              <Label className="text-[#105330] font-semibold">מספר טלפון</Label>
+              <Input
+                type="tel"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                placeholder="לדוגמה: 0501234567"
+                className="border-[#105330]/30 rounded-xl py-6"
+              />
+              <p className="text-xs text-slate-400">מספר הטלפון משמש את הסוכן בווצאפ לזיהוי הלקוח</p>
+            </div>
             {saveSuccess && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-medium text-center">
                 ✓ הפרטים נשמרו בהצלחה
@@ -883,9 +900,16 @@ export default function AdminDashboard() {
             </Button>
             <Button 
               onClick={async () => {
+                if (editUser.id) {
+                  await base44.entities.User.update(editUser.id, { full_name: editName, phone: editPhone });
+                }
                 if (editUser.allowedUserId) {
-                  // Update AllowedUser
-                  await base44.entities.AllowedUser.update(editUser.allowedUserId, { full_name: editName });
+                  await base44.entities.AllowedUser.update(editUser.allowedUserId, { full_name: editName, phone: editPhone });
+                } else if (editUser.email) {
+                  const found = await base44.entities.AllowedUser.filter({ email: editUser.email });
+                  if (found.length > 0) {
+                    await base44.entities.AllowedUser.update(found[0].id, { full_name: editName, phone: editPhone });
+                  }
                 }
                 setSaveSuccess(true);
                 queryClient.invalidateQueries({ queryKey: ['allUsers'] });

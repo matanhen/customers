@@ -70,6 +70,13 @@ export default async function(req) {
         { value: 'intro_call', label: 'שיחת היכרות' },
         { value: 'meeting', label: 'פגישה' },
       ],
+      meeting_statuses: [
+        { value: 'scheduled', label: 'נקבעה' },
+        { value: 'completed', label: 'התקיימה' },
+        { value: 'no_show', label: 'הבריז/ה מפגישה' },
+        { value: 'cancelled_client', label: 'נדחתה לבקשת הלקוח' },
+        { value: 'cancelled_us', label: 'נדחתה לבקשתינו' },
+      ],
       location_types: [
         { value: 'office', label: 'משרד', address: 'יגאל אלון 94, מגדל אלון 2, קומה 31, תל אביב' },
         { value: 'zoom', label: 'זום' },

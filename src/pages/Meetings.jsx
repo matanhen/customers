@@ -55,6 +55,10 @@ export default function Meetings() {
   const past = sortedMeetings.filter(m => {
     const dt = new Date(m.meeting_date + 'T' + (m.meeting_time || '00:00'));
     return dt < now || m.status !== 'scheduled';
+  }).sort((a, b) => {
+    const da = new Date(a.meeting_date + 'T' + (a.meeting_time || '00:00'));
+    const db = new Date(b.meeting_date + 'T' + (b.meeting_time || '00:00'));
+    return db - da;
   });
 
   const display = tab === 'upcoming' ? upcoming : past;
@@ -169,10 +173,16 @@ export default function Meetings() {
                         </Badge>
                         <Badge className={
                           m.status === 'scheduled' ? 'bg-emerald-100 text-emerald-700 border-0'
-                          : m.status === 'completed' ? 'bg-slate-100 text-slate-600 border-0'
+                          : m.status === 'completed' ? 'bg-blue-100 text-blue-700 border-0'
+                          : m.status === 'no_show' ? 'bg-orange-100 text-orange-700 border-0'
+                          : m.status === 'cancelled_client' ? 'bg-amber-100 text-amber-700 border-0'
                           : 'bg-red-100 text-red-700 border-0'
                         }>
-                          {m.status === 'scheduled' ? 'מתוכננת' : m.status === 'completed' ? 'הושלמה' : 'בוטלה'}
+                          {m.status === 'scheduled' ? 'נקבעה'
+                          : m.status === 'completed' ? 'התקיימה'
+                          : m.status === 'no_show' ? 'הבריז/ה'
+                          : m.status === 'cancelled_client' ? 'נדחתה - לקוח'
+                          : 'נדחתה - יוזמה'}
                         </Badge>
                       </div>
 
