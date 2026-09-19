@@ -44,7 +44,51 @@ export default async function(req) {
     const clientUser = users[0];
     const userId = clientUser.id;
 
-    // --- Parse expense ---
+    // --- File (image/PDF): analyze and return confirmation question (don't add yet) ---
+    if (body.file_url) {
+      const categoryList = EXPENSE_CATEGORIES.map(c => `${c.label}: ${c.items.join(', ')}`).join('\n');
+      const llmRes = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt: `נתח את הקובץ המצורף וחלץ ממנו את פרטי ההוצאה: שם בית העסק/סעיף ההוצאה והסכום לתשלום. התאם את שם הסעיף לרשימה הבאה (בחר את הסעיף הקרוב ביותר, החזר את השם המדויק מהרשימה):\n${categoryList}\nהחזר JSON בלבד.`,
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            item_name: { type: 'string' },
+            amount: { type: 'number' },
+          },
+        },
+        file_urls: [body.file_url],
+      });
+
+      const extractedItem = (llmRes.item_name || '').toString().trim();
+      const extractedAmount = parseFloat(llmRes.amount);
+      const categoryKey = findCategoryKey(extractedItem);
+      const categoryLabel = EXPENSE_CATEGORIES.find(c => c.key === categoryKey)?.label || '';
+
+      if (!extractedItem || !extractedAmount || isNaN(extractedAmount)) {
+        return Response.json({
+          needs_confirmation: true,
+          client_email: clientEmail,
+          client_name: clientUser.full_name || '',
+          extracted: null,
+          question: 'לא הצלחתי לקרוא את הסכום או את שם העסק מהקובץ. אנא שלח/י את הסכום והסעיף בטקסט.',
+        });
+      }
+
+      return Response.json({
+        needs_confirmation: true,
+        client_email: clientEmail,
+        client_name: clientUser.full_name || '',
+        extracted: {
+          item_name: extractedItem,
+          category: categoryKey,
+          category_label: categoryLabel,
+          amount: extractedAmount,
+        },
+        question: `שם ההוצאה: ${extractedItem}. אני משייך לקטגוריית ${categoryLabel}, סעיף ${extractedItem}, סכום ${extractedAmount} ₪. האם לאשר או לשנות?`,
+      });
+    }
+
+    // --- Text mode: add immediately (no confirmation needed) ---
     let amount = parseFloat(body.amount);
     let itemName = (body.item_name || '').toString().trim();
 
