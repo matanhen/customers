@@ -1,0 +1,145 @@
+{
+  "name": "Meeting",
+  "type": "object",
+  "properties": {
+    "advisor_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05d9\u05d5\u05e2\u05e5"
+    },
+    "advisor_name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05d4\u05d9\u05d5\u05e2\u05e5"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05dc\u05e7\u05d5\u05d7"
+    },
+    "client_name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05d4\u05dc\u05e7\u05d5\u05d7"
+    },
+    "client_phone": {
+      "type": "string",
+      "description": "\u05de\u05e1\u05e4\u05e8 \u05d8\u05dc\u05e4\u05d5\u05df \u05d4\u05dc\u05e7\u05d5\u05d7"
+    },
+    "meeting_type": {
+      "type": "string",
+      "enum": [
+        "intro_call",
+        "meeting"
+      ],
+      "description": "\u05e1\u05d5\u05d2: \u05e9\u05d9\u05d7\u05ea \u05d4\u05d9\u05db\u05e8\u05d5\u05ea \u05d0\u05d5 \u05e4\u05d2\u05d9\u05e9\u05d4"
+    },
+    "meeting_date": {
+      "type": "string",
+      "format": "date",
+      "description": "\u05ea\u05d0\u05e8\u05d9\u05da \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4 (YYYY-MM-DD)"
+    },
+    "meeting_time": {
+      "type": "string",
+      "description": "\u05e9\u05e2\u05ea \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4 (HH:mm)"
+    },
+    "location_type": {
+      "type": "string",
+      "enum": [
+        "office",
+        "zoom",
+        "none"
+      ],
+      "default": "none",
+      "description": "\u05de\u05d9\u05e7\u05d5\u05dd: \u05de\u05e9\u05e8\u05d3, \u05d6\u05d5\u05dd, \u05d0\u05d5 \u05dc\u05dc\u05d0"
+    },
+    "address": {
+      "type": "string",
+      "default": "",
+      "description": "\u05db\u05ea\u05d5\u05d1\u05ea \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "completed",
+        "cancelled"
+      ],
+      "default": "scheduled",
+      "description": "\u05e1\u05d8\u05d8\u05d5\u05e1 \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4"
+    },
+    "notes": {
+      "type": "string",
+      "default": "",
+      "description": "\u05d4\u05e2\u05e8\u05d5\u05ea"
+    },
+    "created_by_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d9\u05d5\u05e6\u05e8 \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4"
+    },
+    "created_by_type": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "advisor"
+      ],
+      "description": "\u05e1\u05d5\u05d2 \u05d9\u05d5\u05e6\u05e8 \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4"
+    }
+  },
+  "required": [
+    "advisor_id",
+    "client_id",
+    "meeting_type",
+    "meeting_date",
+    "meeting_time"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.advisor_id": "{{user.id}}"
+        },
+        {
+          "data.client_id": "{{user.id}}"
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.advisor_id": "{{user.id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.advisor_id": "{{user.id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.advisor_id": "{{user.id}}"
+        }
+      ]
+    }
+  }
+}

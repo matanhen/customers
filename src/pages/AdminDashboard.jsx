@@ -51,6 +51,7 @@ export default function AdminDashboard() {
   const [editEmail, setEditEmail] = useState('');
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
   const [newUserType, setNewUserType] = useState('client');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [userFilter, setUserFilter] = useState('all'); // all, clients, advisors, admins, unassigned
@@ -223,6 +224,7 @@ export default function AdminDashboard() {
         email: data.email,
         full_name: data.full_name,
         user_type: userType,
+        phone: data.phone || '',
       });
 
       // Invite the user so they appear in the system immediately
@@ -233,12 +235,13 @@ export default function AdminDashboard() {
       const systemUsers = await base44.entities.User.filter({ email: data.email });
       const newUserId = systemUsers[0]?.id || '';
 
-      // Update user_type (and built-in role for admins) + name
+      // Update user_type (and built-in role for admins) + name + phone
       if (newUserId) {
         await base44.entities.User.update(newUserId, {
           user_type: userType,
           full_name: data.full_name,
-          role: userType === 'admin' ? 'admin' : 'user'
+          role: userType === 'admin' ? 'admin' : 'user',
+          phone: data.phone || '',
         });
       }
 
@@ -262,6 +265,7 @@ export default function AdminDashboard() {
       setAddClientSuccess(true);
       setNewClientName('');
       setNewClientEmail('');
+      setNewClientPhone('');
       setSelectedAdvisor('');
       setNewUserType('client');
       setTimeout(() => {
@@ -997,6 +1001,16 @@ export default function AdminDashboard() {
                 className="border-[#105330]/30 rounded-xl py-6"
               />
             </div>
+            <div className="space-y-2">
+              <Label className="text-[#105330] font-semibold">מספר טלפון</Label>
+              <Input
+                type="tel"
+                value={newClientPhone}
+                onChange={(e) => setNewClientPhone(e.target.value)}
+                placeholder="לדוגמה: 0501234567"
+                className="border-[#105330]/30 rounded-xl py-6"
+              />
+            </div>
             {newUserType === 'client' && (
               <div className="space-y-2">
                 <Label className="text-[#105330] font-semibold">שיוך ליועץ</Label>
@@ -1027,16 +1041,17 @@ export default function AdminDashboard() {
             <Button 
               onClick={() => {
                 const needsAdvisor = newUserType === 'client';
-                if (newClientName && newClientEmail && (!needsAdvisor || selectedAdvisor)) {
+                if (newClientName && newClientEmail && newClientPhone && (!needsAdvisor || selectedAdvisor)) {
                   createClientMutation.mutate({
                     full_name: newClientName,
                     email: newClientEmail,
+                    phone: newClientPhone,
                     user_type: newUserType,
                     advisor_id: selectedAdvisor
                   });
                 }
               }}
-              disabled={!newClientName || !newClientEmail || (newUserType === 'client' && !selectedAdvisor) || createClientMutation.isPending}
+              disabled={!newClientName || !newClientEmail || !newClientPhone || (newUserType === 'client' && !selectedAdvisor) || createClientMutation.isPending}
               className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl shadow-lg"
             >
               {createClientMutation.isPending ? 'יוצר...' : 'הוסף משתמש'}
