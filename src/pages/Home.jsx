@@ -301,7 +301,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-xl font-black text-white leading-tight">
-                שלום{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''} 👋
+                שלום{(user?.custom_name || user?.full_name) ? `, ${(user.custom_name || user.full_name).split(' ')[0]}` : ''} 👋
               </h1>
               <p className="text-white/70 text-xs">מערכת פרימיום לניהול כסף של ה-1%</p>
             </div>

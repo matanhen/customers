@@ -70,7 +70,7 @@ export default function AdvisorDashboard() {
     queryKey: ['advisorAssignments', user?.id, isAdmin],
     queryFn: async () => {
       try {
-        const allAssignments = await base44.entities.ClientAdvisorAssignment.list();
+        const allAssignments = await base44.entities.ClientAdvisorAssignment.list('-created_date', 500);
         if (isAdmin) {
           return allAssignments;
         }
@@ -91,7 +91,7 @@ export default function AdvisorDashboard() {
     queryKey: ['allUsersForAdvisor'],
     queryFn: async () => {
       try {
-        return await base44.entities.User.list();
+        return await base44.entities.User.list('-created_date', 500);
       } catch (error) {
         console.error('Error loading users:', error);
         return [];
@@ -108,7 +108,7 @@ export default function AdvisorDashboard() {
     queryKey: ['allowedUsersForAdvisor'],
     queryFn: async () => {
       try {
-        return await base44.entities.AllowedUser.list();
+        return await base44.entities.AllowedUser.list('-created_date', 500);
       } catch (error) {
         console.error('Error loading allowed users:', error);
         return [];

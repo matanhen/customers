@@ -104,14 +104,14 @@ export default function AdminDashboard() {
 
   const { data: allUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['allUsers'],
-    queryFn: () => base44.entities.User.list(),
+    queryFn: () => base44.entities.User.list('-created_date', 500),
     enabled: !!user,
   });
 
   // Get allowed users that haven't logged in yet
   const { data: allowedUsers = [], isLoading: loadingAllowed } = useQuery({
     queryKey: ['allowedUsers'],
-    queryFn: () => base44.entities.AllowedUser.list(),
+    queryFn: () => base44.entities.AllowedUser.list('-created_date', 500),
     enabled: !!user,
   });
 
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
   // Get all assignments
   const { data: assignments = [] } = useQuery({
     queryKey: ['allAssignments'],
-    queryFn: () => base44.entities.ClientAdvisorAssignment.list(),
+    queryFn: () => base44.entities.ClientAdvisorAssignment.list('-created_date', 500),
     enabled: !!user,
   });
 
