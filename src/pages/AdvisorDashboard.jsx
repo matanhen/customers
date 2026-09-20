@@ -215,7 +215,7 @@ export default function AdvisorDashboard() {
 
   const filterList = (list, query) =>
     list.filter(c =>
-      c.full_name?.toLowerCase().includes(query.toLowerCase()) ||
+      (c.custom_name || c.full_name)?.toLowerCase().includes(query.toLowerCase()) ||
       c.email?.toLowerCase().includes(query.toLowerCase())
     );
 
@@ -247,7 +247,7 @@ export default function AdvisorDashboard() {
     }
     sessionStorage.setItem('viewingClient', JSON.stringify({
       id: clientId,
-      full_name: client.full_name || client.email,
+      full_name: client.custom_name || client.full_name || client.email,
       email: clientEmail,
     }));
     window.location.href = createPageUrl('Home');
@@ -322,10 +322,10 @@ export default function AdvisorDashboard() {
           <div key={client.id} className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:justify-between p-4 lg:p-6 bg-gradient-to-r from-slate-50 to-slate-100/30 rounded-2xl hover:from-slate-100 hover:to-slate-100 transition-all border border-slate-200/50 group">
             <div className="flex items-center gap-3 lg:gap-5 w-full lg:w-auto">
               <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg lg:text-2xl shadow-xl shadow-indigo-500/30 group-hover:scale-105 transition-transform flex-shrink-0">
-                {client.full_name?.[0] || client.email?.[0] || '?'}
+                {(client.custom_name || client.full_name)?.[0] || client.email?.[0] || '?'}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.full_name || 'ללא שם'}</h3>
+                <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.custom_name || client.full_name || 'ללא שם'}</h3>
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
                   <span className="flex items-center gap-1.5 truncate"><Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" /><span className="truncate">{client.email}</span></span>
                   {client.personal_code && (

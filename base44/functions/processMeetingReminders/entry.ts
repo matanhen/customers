@@ -32,7 +32,7 @@ export default async function(req) {
       // 72h reminder: meeting is within 72-73h from now (within the next hour window)
       if (!m.reminder_72h_sent && hoursUntilMeeting <= 72 && hoursUntilMeeting > 71) {
         const message = `היי!\nמזכיר שיש לך פגישה עוד 3 ימים בשעה ${m.meeting_time} ${locationStr}`;
-        const result = await sendWhatsappNotification(base44, m.client_phone, message);
+        const result = await sendWhatsappNotification(base44, m.client_phone, message, { name: m.client_name || '' });
         if (result.success) {
           await base44.asServiceRole.entities.Meeting.update(m.id, { reminder_72h_sent: true });
           sent72h++;
@@ -52,7 +52,7 @@ export default async function(req) {
       }).format(now));
       if (!m.reminder_day_of_sent && m.meeting_date === jerusalemDateStr && jerusalemHour >= 8 && jerusalemHour < 9) {
         const message = `היי!\nמזכיר שיש לך פגישה היום בשעה ${m.meeting_time} ${locationStr}\nנתראה! 🥳`;
-        const result = await sendWhatsappNotification(base44, m.client_phone, message);
+        const result = await sendWhatsappNotification(base44, m.client_phone, message, { name: m.client_name || '' });
         if (result.success) {
           await base44.asServiceRole.entities.Meeting.update(m.id, { reminder_day_of_sent: true });
           sentDayOf++;
@@ -64,7 +64,7 @@ export default async function(req) {
       // 48h follow-up: created 48-49h ago, not confirmed, follow-up not sent, and meeting hasn't passed
       if (!m.follow_up_sent && !m.attendance_confirmed && hoursSinceCreation >= 48 && hoursSinceCreation < 49 && meetingDateTime > now) {
         const message = `היי, עדיין לא אישרת הגעה לפגישה שלך. אשמח לקבל ממך אישור הגעה.`;
-        const result = await sendWhatsappNotification(base44, m.client_phone, message);
+        const result = await sendWhatsappNotification(base44, m.client_phone, message, { name: m.client_name || '' });
         if (result.success) {
           await base44.asServiceRole.entities.Meeting.update(m.id, { follow_up_sent: true });
           sentFollowUp++;

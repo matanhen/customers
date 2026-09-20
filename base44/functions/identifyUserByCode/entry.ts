@@ -27,15 +27,18 @@ export default async function(req) {
     // Update the user's phone from the WhatsApp conversation if provided.
     // This is critical: sendClientNotification finds the client's conversation
     // by matching their phone. Without it, notifications silently fail.
+    // Store the phone in international format (972...) so that sendWhatsappNotification
+    // can match it against conversation metadata (which uses 972... format).
     const whatsappPhone = (body.whatsapp_phone || '').toString().trim();
     if (whatsappPhone) {
-      let normalizedPhone = whatsappPhone.replace(/[\s\-()]/g, '');
-      if (normalizedPhone.startsWith('+972')) normalizedPhone = '0' + normalizedPhone.slice(4);
-      else if (normalizedPhone.startsWith('972')) normalizedPhone = '0' + normalizedPhone.slice(3);
+      let internationalPhone = whatsappPhone.replace(/[\s\-()]/g, '');
+      if (internationalPhone.startsWith('+972')) internationalPhone = '972' + internationalPhone.slice(4);
+      else if (internationalPhone.startsWith('972')) internationalPhone = internationalPhone;
+      else if (internationalPhone.startsWith('0')) internationalPhone = '972' + internationalPhone.slice(1);
 
-      if (normalizedPhone && normalizedPhone !== (user.phone || '')) {
+      if (internationalPhone && internationalPhone !== (user.phone || '')) {
         try {
-          await base44.asServiceRole.entities.User.update(user.id, { phone: normalizedPhone });
+          await base44.asServiceRole.entities.User.update(user.id, { phone: internationalPhone });
         } catch (e) { /* non-critical */ }
       }
     }

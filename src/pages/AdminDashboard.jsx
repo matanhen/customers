@@ -436,7 +436,7 @@ export default function AdminDashboard() {
     }
     sessionStorage.setItem('viewingClient', JSON.stringify({
       id: clientId,
-      full_name: client.full_name || client.email,
+      full_name: client.custom_name || client.full_name || client.email,
       email: client.email,
     }));
     window.location.href = createPageUrl('Home');
@@ -1028,17 +1028,36 @@ export default function AdminDashboard() {
             </Button>
             <Button 
               onClick={async () => {
-                if (editUser.id) {
-                  await base44.entities.User.update(editUser.id, { full_name: editName, phone: editPhone, custom_name: editName });
+                // Normalize phone to 972... format for WhatsApp
+                let normalizedPhone = editPhone.replace(/[\s\-()]/g, '');
+                if (normalizedPhone.startsWith('+972')) normalizedPhone = '972' + normalizedPhone.slice(4);
+                else if (normalizedPhone.startsWith('972')) normalizedPhone = normalizedPhone;
+                else if (normalizedPhone.startsWith('0')) normalizedPhone = '972' + normalizedPhone.slice(1);
+
+                // Only update User entity if the user is in the system (id !== allowedUserId)
+                if (editUser.id && editUser.id !== editUser.allowedUserId) {
+                  try {
+                    await base44.entities.User.update(editUser.id, { custom_name: editName, phone: normalizedPhone });
+                  } catch (e) { console.error('Failed to update User:', e); }
                 }
-                if (editUser.allowedUserId) {
-                  await base44.entities.AllowedUser.update(editUser.allowedUserId, { full_name: editName, phone: editPhone });
-                } else if (editUser.email) {
-                  const found = await base44.entities.AllowedUser.filter({ email: editUser.email });
-                  if (found.length > 0) {
-                    await base44.entities.AllowedUser.update(found[0].id, { full_name: editName, phone: editPhone });
+                // Always update or create AllowedUser
+                try {
+                  if (editUser.allowedUserId) {
+                    await base44.entities.AllowedUser.update(editUser.allowedUserId, { full_name: editName, phone: normalizedPhone });
+                  } else if (editUser.email) {
+                    const found = await base44.entities.AllowedUser.filter({ email: editUser.email });
+                    if (found.length > 0) {
+                      await base44.entities.AllowedUser.update(found[0].id, { full_name: editName, phone: normalizedPhone });
+                    } else {
+                      await base44.entities.AllowedUser.create({ 
+                        email: editUser.email, 
+                        full_name: editName, 
+                        phone: normalizedPhone,
+                        user_type: editUser.user_type || 'client' 
+                      });
+                    }
                   }
-                }
+                } catch (e) { console.error('Failed to update AllowedUser:', e); }
                 setSaveSuccess(true);
                 queryClient.invalidateQueries({ queryKey: ['allUsers'] });
                 queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });

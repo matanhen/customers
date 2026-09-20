@@ -5,8 +5,9 @@ import { sendWhatsappNotification } from '../../shared/whatsappNotification.ts';
 function normalizePhone(p) {
   if (!p) return '';
   let cleaned = p.replace(/[\s\-()]/g, '');
-  if (cleaned.startsWith('+972')) cleaned = '0' + cleaned.slice(4);
-  else if (cleaned.startsWith('972')) cleaned = '0' + cleaned.slice(3);
+  if (cleaned.startsWith('+972')) cleaned = '972' + cleaned.slice(4);
+  else if (cleaned.startsWith('972')) cleaned = cleaned;
+  else if (cleaned.startsWith('0')) cleaned = '972' + cleaned.slice(1);
   return cleaned;
 }
 
@@ -110,7 +111,9 @@ export default async function(req) {
     let clientNotificationResult = null;
     if (changes.length > 0 && targetMeeting.client_phone) {
       const clientMessage = `עדכון פרטי פגישה:\n* *תאריך:* ${formatDate(finalDate)}\n* *שעה:* ${finalTime}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש.`;
-      clientNotificationResult = await sendWhatsappNotification(base44, targetMeeting.client_phone, clientMessage);
+      clientNotificationResult = await sendWhatsappNotification(base44, targetMeeting.client_phone, clientMessage, {
+        name: targetMeeting.client_name || '',
+      });
     }
 
     const confirmation = `פרטי הפגישה עם ${targetMeeting.client_name} עודכנו בהצלחה.\n* *תאריך:* ${formatDate(finalDate)}\n* *שעה:* ${finalTime}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;

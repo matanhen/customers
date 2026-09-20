@@ -7,8 +7,9 @@ const OFFICE_ADDRESS = 'יגאל אלון 94, מגדל אלון 2, קומה 31, 
 function normalizePhone(p) {
   if (!p) return '';
   let cleaned = p.replace(/[\s\-()]/g, '');
-  if (cleaned.startsWith('+972')) cleaned = '0' + cleaned.slice(4);
-  else if (cleaned.startsWith('972')) cleaned = '0' + cleaned.slice(3);
+  if (cleaned.startsWith('+972')) cleaned = '972' + cleaned.slice(4);
+  else if (cleaned.startsWith('972')) cleaned = cleaned;
+  else if (cleaned.startsWith('0')) cleaned = '972' + cleaned.slice(1);
   return cleaned;
 }
 
@@ -121,7 +122,10 @@ export default async function(req) {
       : '';
     const clientMessage = `הפגישה עם ${advisorName} נקבעה בהצלחה 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}${clientLocationStr ? `\n* *מיקום:* ${clientLocationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש. במידה ולא הפגישה תיחשב כהתקיימה.\nאשמח לקבל ממך אישור הגעה כאן בהודעה 📥`;
 
-    const clientNotificationResult = await sendWhatsappNotification(base44, client.phone || client_phone, clientMessage);
+    const clientNotificationResult = await sendWhatsappNotification(base44, client.phone || client_phone, clientMessage, {
+      name: client.custom_name || client.full_name || '',
+      email: client.email || '',
+    });
 
     // If admin created for another advisor, notify the advisor too
     let advisorNotificationResult = null;

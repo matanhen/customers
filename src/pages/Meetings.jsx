@@ -51,6 +51,12 @@ export default function Meetings() {
   const clients = allUsers.filter(u => u.user_type === 'client');
   const advisors = allUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
 
+  // Look up current user name by ID (prefers custom_name set by admin)
+  const getUserName = (id, fallback) => {
+    const u = allUsers.find(x => x.id === id);
+    return (u && (u.custom_name || u.full_name)) || fallback || '';
+  };
+
   const now = new Date();
 
   // Filter by time
@@ -218,7 +224,7 @@ export default function Meetings() {
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-slate-800 dark:text-slate-100">
-                          {m.client_name || 'לקוח לא מזוהה'}
+                          {getUserName(m.client_id, m.client_name) || 'לקוח לא מזוהה'}
                         </h3>
                         <Badge className={
                           m.meeting_type === 'intro_call'
@@ -281,10 +287,10 @@ export default function Meetings() {
                         </div>
                       )}
 
-                      {isAdmin && m.advisor_name && (
+                      {isAdmin && (getUserName(m.advisor_id, m.advisor_name) || m.advisor_name) && (
                         <div className="flex items-center gap-1 text-sm text-slate-500">
                           <User className="w-4 h-4" />
-                          יועץ: {m.advisor_name}
+                          יועץ: {getUserName(m.advisor_id, m.advisor_name) || m.advisor_name}
                         </div>
                       )}
 
