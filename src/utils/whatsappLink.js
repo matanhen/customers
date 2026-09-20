@@ -2,17 +2,11 @@
 // the user's role, and their personal code — so the WhatsApp bot/agent
 // recognizes the message as coming from this Base44 app.
 
-const APP_NAME = "צעירים מתעשרים";
-const APP_URL = "matanhen-customers.base44.app";
-
-function getRoleLabel(userType) {
-  if (userType === 'admin') return 'מנהל מערכת';
-  if (userType === 'advisor') return 'יועץ';
-  return 'לקוח';
-}
+// Builds a WhatsApp link with an activation message the bot recognizes.
+// Format: "Send this message to connect and start chatting!\n\nActivation code: B44-XXXX"
+// where B44- identifies this Base44 app and XXXX is the user's personal code.
 
 export function buildWhatsappOpenLink(botPhone, personalCode, userType) {
-  const role = getRoleLabel(userType);
-  const message = `שלום! אני ${role} במערכת "${APP_NAME}" (${APP_URL}).\nקוד אישי: ${personalCode}`;
+  const message = `Send this message to connect and start chatting!\n\nActivation code: B44-${personalCode}`;
   return `https://wa.me/${botPhone}?text=${encodeURIComponent(message)}`;
 }
