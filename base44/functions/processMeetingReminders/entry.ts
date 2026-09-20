@@ -90,9 +90,15 @@ export default async function(req) {
       }
 
       // Day-of reminder: meeting is today, current time is 8:00-9:00 AM (Jerusalem time)
-      const todayStr = now.toISOString().split('T')[0];
-      if (!m.reminder_day_of_sent && m.meeting_date === todayStr && now.getUTCHours() >= 5 && now.getUTCHours() < 6) {
-        // 8:00 AM Jerusalem = 5:00 AM UTC (roughly, ignoring DST)
+      const jerusalemDateStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jerusalem',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(now);
+      const jerusalemHour = parseInt(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Jerusalem',
+        hour: 'numeric', hour12: false
+      }).format(now));
+      if (!m.reminder_day_of_sent && m.meeting_date === jerusalemDateStr && jerusalemHour >= 8 && jerusalemHour < 9) {
         const message = `היי!\nמזכיר שיש לך פגישה היום בשעה ${m.meeting_time} ${locationStr}\nנתראה! 🥳`;
         const result = await sendNotification(base44, m.client_phone, message);
         if (result.success) {
