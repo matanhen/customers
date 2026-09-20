@@ -1,8 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { generateUniquePersonalCode } from '../../shared/userIdentification.ts';
 
 // Generates personal codes for all users who don't have one yet.
-// Admin-only. Called from the admin dashboard.
+// Admin-only. Uses parallel batch updates for efficiency.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -13,20 +12,52 @@ export default async function(req) {
     }
 
     const users = await base44.asServiceRole.entities.User.list();
-    let generated = 0;
-    let skipped = 0;
+
+    // Generate codes for users without one, ensuring uniqueness
+    const existingCodes = new Set(users.map(u => (u.personal_code || '').toUpperCase()));
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const updates = [];
 
     for (const u of users) {
-      if (u.personal_code) {
-        skipped++;
-        continue;
-      }
-      const code = await generateUniquePersonalCode(base44);
-      await base44.asServiceRole.entities.User.update(u.id, { personal_code: code });
-      generated++;
+      if (u.personal_code) continue;
+
+      let code;
+      let attempts = 0;
+      do {
+        code = '';
+        for (let i = 0; i < 4; i++) {
+          code += letters[Math.floor(Math.random() * letters.length)];
+        }
+        attempts++;
+        if (attempts > 100) break;
+      } while (existingCodes.has(code));
+
+      existingCodes.add(code);
+      updates.push({ id: u.id, personal_code: code });
     }
 
-    return Response.json({ success: true, generated, skipped, total: users.length });
+    // Update in parallel batches of 10
+    const batchSize = 10;
+    let success = 0;
+    let failed = 0;
+    for (let i = 0; i < updates.length; i += batchSize) {
+      const batch = updates.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(u => base44.asServiceRole.entities.User.update(u.id, { personal_code: u.personal_code }))
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') success++;
+        else failed++;
+      }
+    }
+
+    return Response.json({
+      success: true,
+      generated: success,
+      failed,
+      skipped: users.length - updates.length,
+      total: users.length,
+    });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
