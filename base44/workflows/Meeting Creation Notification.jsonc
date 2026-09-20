@@ -1,0 +1,40 @@
+{
+  "name": "Meeting Creation Notification",
+  "description": "\u05e9\u05d5\u05dc\u05d7 \u05d0\u05d5\u05d8\u05d5\u05de\u05d8\u05d9\u05ea \u05d4\u05d5\u05d3\u05e2\u05ea WhatsApp \u05dc\u05dc\u05e7\u05d5\u05d7 \u05db\u05e9\u05e0\u05e7\u05d1\u05e2\u05ea \u05e4\u05d2\u05d9\u05e9\u05d4 \u05d7\u05d3\u05e9\u05d4 \u05d1\u05de\u05e2\u05e8\u05db\u05ea",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create"
+      ],
+      "entity_name": "Meeting"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "meeting_creation_notification",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "notify_client": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "sendMeetingNotification",
+            "args": {
+              "meeting_id": "${ .trigger.data.id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "\u05e9\u05dc\u05d9\u05d7\u05ea \u05d4\u05d5\u05d3\u05e2\u05d4 \u05dc\u05dc\u05e7\u05d5\u05d7",
+            "description": "\u05e9\u05d5\u05dc\u05d7 \u05d4\u05d5\u05d3\u05e2\u05ea WhatsApp \u05e2\u05dd \u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05d2\u05d9\u05e9\u05d4"
+          }
+        }
+      }
+    ]
+  }
+}

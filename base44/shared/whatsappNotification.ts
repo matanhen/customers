@@ -1,13 +1,9 @@
 // Shared helper for sending WhatsApp notifications to clients via the expense_tracker agent.
 //
-// We add the notification as an ASSISTANT message directly to the client's existing
-// WhatsApp conversation. Using role: 'assistant' (not 'user' with [SYSTEM] prefix)
-// makes the platform deliver the message to WhatsApp — when a 'user' message is added
-// programmatically, the agent's response is NOT delivered to WhatsApp because the
-// trigger didn't originate from WhatsApp.
-//
-// We prefer the conversation with the most messages (the original one the client started
-// via WhatsApp), because it has an active WhatsApp session.
+// We add a [SYSTEM]-prefixed USER message to the client's existing WhatsApp conversation.
+// The agent sees the [SYSTEM] prefix and passes the text verbatim to the user. The message
+// appears in the Conversation log. We prefer the conversation with the most messages (the
+// original one the client started via WhatsApp), because it has an active WhatsApp session.
 //
 // All phone numbers are handled in international format (972...) for matching, because
 // that's how the WhatsApp channel stores them in conversation metadata.
@@ -79,18 +75,13 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
     }
   }
 
-  // Add the notification as an ASSISTANT message directly to the conversation.
-  // Using role: 'assistant' (not 'user' with [SYSTEM] prefix) because:
-  // - When we add a 'user' message, the agent processes it and responds, but the
-  //   platform does NOT deliver the response to WhatsApp (the user message didn't
-  //   originate from WhatsApp, so the platform treats it as an internal message).
-  // - Adding an 'assistant' message directly makes the platform deliver it to
-  //   WhatsApp as the agent "speaking" in the active WhatsApp conversation.
+  // Add the [SYSTEM] message to the conversation. The agent sees the [SYSTEM] prefix
+  // and passes the text verbatim to the user. The message appears in the Conversation log.
   for (const conv of phoneConvs) {
     try {
       await base44.agents.addMessage(conv, {
-        role: 'assistant',
-        content: message,
+        role: 'user',
+        content: `[SYSTEM] ${message}`,
       });
       return { success: true, method: 'existing_conversation', conversation_id: conv.id, message_count: conv.messages?.length || 0 };
     } catch (e: any) {
@@ -112,8 +103,8 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
     });
 
     await base44.agents.addMessage(newConv, {
-      role: 'assistant',
-      content: message,
+      role: 'user',
+      content: `[SYSTEM] ${message}`,
     });
 
     return { success: true, method: 'new_conversation', conversation_id: newConv.id };

@@ -116,16 +116,9 @@ export default async function(req) {
     const typeLabel = meeting_type === 'intro_call' ? 'שיחת היכרות' : 'פגישה';
     const dateStr = formatDate(meeting_date);
 
-    // Send notification to the client
-    const clientLocationStr = finalLocationType === 'office' ? `משרד (${OFFICE_ADDRESS})`
-      : finalLocationType === 'zoom' ? 'זום'
-      : '';
-    const clientMessage = `הפגישה עם ${advisorName} נקבעה בהצלחה 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}${clientLocationStr ? `\n* *מיקום:* ${clientLocationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש. במידה ולא הפגישה תיחשב כהתקיימה.\nאשמח לקבל ממך אישור הגעה כאן בהודעה 📥`;
-
-    const clientNotificationResult = await sendWhatsappNotification(base44, client.phone || client_phone, clientMessage, {
-      name: client.custom_name || client.full_name || '',
-      email: client.email || '',
-    });
+    // Client notification is handled by the "Meeting Creation Notification" workflow
+    // (entity trigger on Meeting create → sendMeetingNotification), so we don't send
+    // it here to avoid double notifications.
 
     // If admin created for another advisor, notify the advisor too
     let advisorNotificationResult = null;
@@ -178,9 +171,7 @@ export default async function(req) {
       location_type: finalLocationType,
       address,
       confirmation,
-      client_notified: clientNotificationResult?.success || false,
-      client_notification_method: clientNotificationResult?.method || null,
-      client_notification_error: clientNotificationResult?.success ? null : clientNotificationResult?.error,
+      client_notified: true, // handled by workflow
       advisor_notified: advisorNotificationResult?.success || false,
     });
   } catch (error) {
