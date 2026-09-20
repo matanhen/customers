@@ -1,9 +1,13 @@
 // Shared helper for sending WhatsApp notifications to clients via the expense_tracker agent.
 //
-// The agent's addMessage API triggers the agent to process the message and respond.
+// We add the notification as an ASSISTANT message directly to the client's existing
+// WhatsApp conversation. Using role: 'assistant' (not 'user' with [SYSTEM] prefix)
+// makes the platform deliver the message to WhatsApp — when a 'user' message is added
+// programmatically, the agent's response is NOT delivered to WhatsApp because the
+// trigger didn't originate from WhatsApp.
+//
 // We prefer the conversation with the most messages (the original one the client started
-// via WhatsApp), because it has an active WhatsApp session and the platform will deliver
-// the agent's response to WhatsApp.
+// via WhatsApp), because it has an active WhatsApp session.
 //
 // All phone numbers are handled in international format (972...) for matching, because
 // that's how the WhatsApp channel stores them in conversation metadata.
