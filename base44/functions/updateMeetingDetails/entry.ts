@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { identifyUser } from '../../shared/userIdentification.ts';
+import { sendWhatsappNotification } from '../../shared/whatsappNotification.ts';
 
 function normalizePhone(p) {
   if (!p) return '';
@@ -105,6 +106,13 @@ export default async function(req) {
     if (updateData.meeting_type) changes.push('סוג');
     if (updateData.location_type) changes.push('מיקום');
 
+    // Send WhatsApp notification to the client about the update
+    let clientNotificationResult = null;
+    if (changes.length > 0 && targetMeeting.client_phone) {
+      const clientMessage = `עדכון פרטי פגישה:\n* *תאריך:* ${formatDate(finalDate)}\n* *שעה:* ${finalTime}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש.`;
+      clientNotificationResult = await sendWhatsappNotification(base44, targetMeeting.client_phone, clientMessage);
+    }
+
     const confirmation = `פרטי הפגישה עם ${targetMeeting.client_name} עודכנו בהצלחה.\n* *תאריך:* ${formatDate(finalDate)}\n* *שעה:* ${finalTime}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
 
     return Response.json({
@@ -113,6 +121,8 @@ export default async function(req) {
       client_name: targetMeeting.client_name,
       changes: changes.join(', '),
       confirmation,
+      client_notified: clientNotificationResult?.success || false,
+      client_notification_method: clientNotificationResult?.method || null,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

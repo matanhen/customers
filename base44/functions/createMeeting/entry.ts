@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { identifyUser } from '../../shared/userIdentification.ts';
+import { sendWhatsappNotification } from '../../shared/whatsappNotification.ts';
 
 const OFFICE_ADDRESS = 'יגאל אלון 94, מגדל אלון 2, קומה 31, תל אביב';
 
@@ -15,34 +16,6 @@ function formatDate(dateStr) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
-}
-
-// Sends a WhatsApp notification to the client by finding their conversation
-async function sendClientNotification(base44, phone, message) {
-  try {
-    if (!phone) return;
-    const targetPhone = normalizePhone(phone);
-    const conversations = await base44.agents.listConversations({ agent_name: 'expense_tracker' });
-    let clientConversation = null;
-    for (const conv of conversations) {
-      const metadata = conv.metadata || {};
-      const convPhone = normalizePhone(
-        metadata.phone || metadata.whatsapp_phone || metadata.from || metadata.phone_number || metadata.phoneNumber || metadata.user_phone || ''
-      );
-      if (convPhone && convPhone === targetPhone) {
-        clientConversation = conv;
-        break;
-      }
-    }
-    if (clientConversation) {
-      await base44.agents.addMessage(clientConversation, {
-        role: 'user',
-        content: `[SYSTEM] ${message}`,
-      });
-    }
-  } catch (e) {
-    // Non-critical - meeting is still created even if notification fails
-  }
 }
 
 // Creates a meeting from the WhatsApp bot. Called by the expense_tracker agent.
@@ -148,14 +121,15 @@ export default async function(req) {
       : '';
     const clientMessage = `הפגישה עם ${advisorName} נקבעה בהצלחה 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}${clientLocationStr ? `\n* *מיקום:* ${clientLocationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש. במידה ולא הפגישה תיחשב כהתקיימה.\nאשמח לקבל ממך אישור הגעה כאן בהודעה 📥`;
 
-    await sendClientNotification(base44, client.phone || client_phone, clientMessage);
+    const clientNotificationResult = await sendWhatsappNotification(base44, client.phone || client_phone, clientMessage);
 
     // If admin created for another advisor, notify the advisor too
+    let advisorNotificationResult = null;
     if (createdByType === 'admin' && advisorId !== user.id) {
       const advisor = allUsers.find(u => u.id === advisorId);
       if (advisor && advisor.phone) {
         const advisorMessage = `נקבעה עבורך פגישה חדשה עם ${client.full_name || ''} 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
-        await sendClientNotification(base44, advisor.phone, advisorMessage);
+        advisorNotificationResult = await sendWhatsappNotification(base44, advisor.phone, advisorMessage);
       }
     }
 
@@ -200,7 +174,10 @@ export default async function(req) {
       location_type: finalLocationType,
       address,
       confirmation,
-      client_notified: true,
+      client_notified: clientNotificationResult?.success || false,
+      client_notification_method: clientNotificationResult?.method || null,
+      client_notification_error: clientNotificationResult?.success ? null : clientNotificationResult?.error,
+      advisor_notified: advisorNotificationResult?.success || false,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
