@@ -93,15 +93,16 @@ export default async function(req) {
     const [year, monthNum] = month.split('-');
     const hebrewMonth = HEBREW_MONTHS[parseInt(monthNum) - 1] || '';
     const sectionLabel = categoryLabel === 'שונות' ? itemName : categoryLabel;
-    const budgetPart = variableBudget > 0
-      ? ` מתוך ${variableBudget.toLocaleString('he-IL')}₪ נותר לך לבזבז החודש עוד: ${Math.round(remaining).toLocaleString('he-IL')}₪`
-      : '';
+    const remainingRounded = Math.round(remaining);
+    const remainingStr = remainingRounded < 0
+      ? `-${Math.abs(remainingRounded).toLocaleString('he-IL')}`
+      : remainingRounded.toLocaleString('he-IL');
     const confirmationMessage =
       `הוצאה נרשמה ✅\n` +
       `שבוע ${week}, חודש ${hebrewMonth} ${year}.\n\n` +
       `📋 ${itemName} - ${amount} ₪ 📂\n` +
       `סעיף: ${sectionLabel}\n\n` +
-      `סה"כ הוצאות משתנות החודש: ${Math.round(variableSpent)} ₪${budgetPart}\n\n` +
+      `סה"כ הוצאות משתנות החודש: ${Math.round(variableSpent)} ₪ מתוך ${variableBudget.toLocaleString('he-IL')}₪ נותר לך לבזבז החודש עוד: ${remainingStr}₪\n\n` +
       `משהו נוסף? 😊`;
 
     return Response.json({
