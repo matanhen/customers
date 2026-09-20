@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
-// Updates phone numbers for existing users by matching emails from a PDF file.
-// The PDF should contain email + phone pairs.
+// Updates phone numbers AND names for existing users by matching emails from a PDF file.
+// The PDF should contain name + email + phone columns.
 // Admin-only function.
 export default async function(req) {
   try {
@@ -17,7 +17,7 @@ export default async function(req) {
     const { file_url } = body;
     if (!file_url) return Response.json({ error: 'נדרש file_url' }, { status: 400 });
 
-    // Extract email+phone pairs from the PDF
+    // Extract name+email+phone from the PDF
     const extractRes = await base44.integrations.Core.ExtractDataFromUploadedFile({
       file_url,
       json_schema: {
@@ -28,6 +28,7 @@ export default async function(req) {
             items: {
               type: 'object',
               properties: {
+                name: { type: 'string' },
                 email: { type: 'string' },
                 phone: { type: 'string' },
               },
@@ -54,29 +55,49 @@ export default async function(req) {
 
     let updated = 0;
     let notFound = 0;
+    let failed = 0;
     const results = [];
+    const notFoundClients = [];
 
     for (const contact of contacts) {
-      if (!contact.email || !contact.phone) continue;
+      if (!contact.email || !contact.phone) {
+        failed++;
+        results.push({ email: contact.email || '', name: contact.name || '', phone: contact.phone || '', status: 'failed', error: 'חסר אימייל או טלפון' });
+        continue;
+      }
       const email = contact.email.toLowerCase().trim();
       const phone = contact.phone.trim();
+      const name = (contact.name || '').trim();
 
-      // Find user by email
-      const userRecord = allUsers.find(u => u.email?.toLowerCase() === email);
-      const allowedRecord = allAllowed.find(a => a.email?.toLowerCase() === email);
+      try {
+        const userRecord = allUsers.find(u => u.email?.toLowerCase() === email);
+        const allowedRecord = allAllowed.find(a => a.email?.toLowerCase() === email);
 
-      if (userRecord || allowedRecord) {
-        if (userRecord) {
-          await base44.asServiceRole.entities.User.update(userRecord.id, { phone });
+        if (userRecord || allowedRecord) {
+          const updateData = { phone };
+          if (name) {
+            updateData.full_name = name;
+            updateData.custom_name = name;
+          }
+
+          if (userRecord) {
+            await base44.asServiceRole.entities.User.update(userRecord.id, updateData);
+          }
+          if (allowedRecord) {
+            const allowedUpdate = { phone };
+            if (name) allowedUpdate.full_name = name;
+            await base44.asServiceRole.entities.AllowedUser.update(allowedRecord.id, allowedUpdate);
+          }
+          updated++;
+          results.push({ email, phone, name, status: 'updated', name: name || userRecord?.full_name || allowedRecord?.full_name || '' });
+        } else {
+          notFound++;
+          notFoundClients.push({ email, phone, name });
+          results.push({ email, phone, name, status: 'not_found' });
         }
-        if (allowedRecord) {
-          await base44.asServiceRole.entities.AllowedUser.update(allowedRecord.id, { phone });
-        }
-        updated++;
-        results.push({ email, phone, status: 'updated', name: userRecord?.full_name || allowedRecord?.full_name || '' });
-      } else {
-        notFound++;
-        results.push({ email, phone, status: 'not_found' });
+      } catch (e) {
+        failed++;
+        results.push({ email, phone, name, status: 'failed', error: e.message });
       }
     }
 
@@ -85,6 +106,8 @@ export default async function(req) {
       total: contacts.length,
       updated,
       notFound,
+      failed,
+      notFoundClients,
       results,
     });
   } catch (error) {

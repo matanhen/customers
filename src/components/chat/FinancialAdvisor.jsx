@@ -538,6 +538,7 @@ export default function FinancialAdvisor() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
   const [userContext, setUserContext] = useState('');
   const [contextLoaded, setContextLoaded] = useState(false);
   const [loadingContext, setLoadingContext] = useState(false);
@@ -545,7 +546,10 @@ export default function FinancialAdvisor() {
 
   useEffect(() => {
     base44.auth.me().then(u => {
-      if (u?.id) setUserId(u.id);
+      if (u?.id) {
+        setUserId(u.id);
+        setUserInfo(u);
+      }
     }).catch(() => {});
   }, []);
 
@@ -624,6 +628,18 @@ export default function FinancialAdvisor() {
     setMessages(newMessages);
     setIsLoading(true);
 
+    // Log user message
+    try {
+      await base44.entities.ConversationLog.create({
+        channel: 'ai_advisor',
+        user_id: userId || '',
+        user_name: userInfo?.custom_name || userInfo?.full_name || '',
+        user_email: userInfo?.email || '',
+        role: 'user',
+        content: text,
+      });
+    } catch (e) { /* non-critical */ }
+
     try {
       const conversationHistory = newMessages.slice(-12).map(m =>
         `${m.role === 'user' ? 'משתמש' : 'יועץ'}: ${m.content}`
@@ -643,6 +659,18 @@ ${conversationHistory}
 
       const response = await base44.integrations.Core.InvokeLLM({ prompt });
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+
+      // Log assistant response
+      try {
+        await base44.entities.ConversationLog.create({
+          channel: 'ai_advisor',
+          user_id: userId || '',
+          user_name: userInfo?.custom_name || userInfo?.full_name || '',
+          user_email: userInfo?.email || '',
+          role: 'assistant',
+          content: typeof response === 'string' ? response : JSON.stringify(response),
+        });
+      } catch (e) { /* non-critical */ }
     } catch (e) {
       setMessages(prev => [...prev, {
         role: 'assistant',

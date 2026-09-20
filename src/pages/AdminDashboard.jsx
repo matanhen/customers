@@ -38,6 +38,7 @@ import LogoUploader from '@/components/admin/LogoUploader';
 import NavbarLogoUploader from '@/components/admin/NavbarLogoUploader';
 import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
 import PhoneBulkUpdate from '@/components/admin/PhoneBulkUpdate';
+import ConversationHistory from '@/components/admin/ConversationHistory';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -514,6 +515,9 @@ export default function AdminDashboard() {
 
       {/* Bulk phone update from PDF */}
       <PhoneBulkUpdate />
+
+      {/* Conversation History */}
+      <ConversationHistory />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

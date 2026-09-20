@@ -1,21 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, Plus, Pencil, Trash2, MapPin, Video, Phone, Clock, User } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CalendarClock, Plus, Pencil, Trash2, MapPin, Video, Phone, Clock, User, Search } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import MeetingForm from '@/components/meetings/MeetingForm';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 
 const OFFICE_ADDRESS = 'יגאל אלון 94, מגדל אלון 2, קומה 31, תל אביב';
+
+const TIME_FILTERS = [
+  { key: 'upcoming', label: 'פגישות עתידיות' },
+  { key: 'today', label: 'פגישות היום' },
+  { key: 'week', label: 'פגישות השבוע' },
+  { key: 'month', label: 'פגישות החודש' },
+  { key: 'last_month', label: 'פגישות חודש שעבר' },
+];
 
 export default function Meetings() {
   const [user, setUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState(null);
-  const [tab, setTab] = useState('upcoming');
+  const [timeFilter, setTimeFilter] = useState('upcoming');
+  const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -42,26 +52,57 @@ export default function Meetings() {
   const advisors = allUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
 
   const now = new Date();
-  const sortedMeetings = [...meetings].sort((a, b) => {
-    const da = new Date(a.meeting_date + 'T' + (a.meeting_time || '00:00'));
-    const db = new Date(b.meeting_date + 'T' + (b.meeting_time || '00:00'));
-    return tab === 'upcoming' ? da - db : db - da;
-  });
 
-  const upcoming = sortedMeetings.filter(m => {
-    const dt = new Date(m.meeting_date + 'T' + (m.meeting_time || '00:00'));
-    return dt >= now && m.status === 'scheduled';
-  });
-  const past = sortedMeetings.filter(m => {
-    const dt = new Date(m.meeting_date + 'T' + (m.meeting_time || '00:00'));
-    return dt < now || m.status !== 'scheduled';
-  }).sort((a, b) => {
-    const da = new Date(a.meeting_date + 'T' + (a.meeting_time || '00:00'));
-    const db = new Date(b.meeting_date + 'T' + (b.meeting_time || '00:00'));
-    return db - da;
-  });
+  // Filter by time
+  const filteredByTime = useMemo(() => {
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
+    const weekStart = startOfWeek(now, { weekStartsOn: 0 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-  const display = tab === 'upcoming' ? upcoming : past;
+    return meetings.filter(m => {
+      const dt = parseISO(m.meeting_date + 'T' + (m.meeting_time || '00:00'));
+      switch (timeFilter) {
+        case 'upcoming':
+          return dt >= now && m.status === 'scheduled';
+        case 'today':
+          return dt >= todayStart && dt <= todayEnd;
+        case 'week':
+          return dt >= weekStart && dt <= weekEnd;
+        case 'month':
+          return dt >= monthStart && dt <= monthEnd;
+        case 'last_month':
+          return dt >= lastMonthStart && dt <= lastMonthEnd;
+        default:
+          return true;
+      }
+    });
+  }, [meetings, timeFilter]);
+
+  // Filter by search (advisors/admins only)
+  const display = useMemo(() => {
+    if (!canEdit || !searchQuery.trim()) return filteredByTime;
+    const q = searchQuery.toLowerCase().trim();
+    return filteredByTime.filter(m =>
+      (m.client_name || '').toLowerCase().includes(q) ||
+      (m.client_phone || '').toLowerCase().includes(q) ||
+      (m.advisor_name || '').toLowerCase().includes(q)
+    );
+  }, [filteredByTime, searchQuery, canEdit]);
+
+  // Sort: upcoming ascending, others descending
+  const sortedDisplay = useMemo(() => {
+    const sorted = [...display].sort((a, b) => {
+      const da = parseISO(a.meeting_date + 'T' + (a.meeting_time || '00:00'));
+      const db = parseISO(b.meeting_date + 'T' + (b.meeting_time || '00:00'));
+      return timeFilter === 'upcoming' ? da - db : db - da;
+    });
+    return sorted;
+  }, [display, timeFilter]);
 
   const handleDelete = async (id) => {
     if (!confirm('האם למחוק את הפגישה?')) return;
@@ -115,28 +156,43 @@ export default function Meetings() {
         </CardContent>
       </Card>
 
-      {/* Tabs */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setTab('upcoming')}
-          className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${
-            tab === 'upcoming'
-              ? 'bg-[#105330] text-white shadow-lg'
-              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-          }`}
-        >
-          פגישות עתידיות ({upcoming.length})
-        </button>
-        <button
-          onClick={() => setTab('past')}
-          className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${
-            tab === 'past'
-              ? 'bg-[#105330] text-white shadow-lg'
-              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-          }`}
-        >
-          פגישות עבר ({past.length})
-        </button>
+      {/* Search bar (advisors/admins only) */}
+      {canEdit && (
+        <div className="relative">
+          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Input
+            placeholder="חיפוש לפי שם לקוח, טלפון או יועץ..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-12 py-3 text-base border-slate-200 focus:border-[#105330] rounded-xl"
+          />
+        </div>
+      )}
+
+      {/* Time Filters */}
+      <div className="flex gap-2 flex-wrap">
+        {TIME_FILTERS.map(tf => (
+          <button
+            key={tf.key}
+            onClick={() => setTimeFilter(tf.key)}
+            className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${
+              timeFilter === tf.key
+                ? 'bg-[#105330] text-white shadow-lg'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+            }`}
+          >
+            {tf.label} ({tf.key === 'upcoming'
+              ? meetings.filter(m => parseISO(m.meeting_date + 'T' + (m.meeting_time || '00:00')) >= now && m.status === 'scheduled').length
+              : tf.key === 'today'
+              ? meetings.filter(m => { const dt = parseISO(m.meeting_date + 'T' + (m.meeting_time || '00:00')); return dt >= startOfDay(now) && dt <= endOfDay(now); }).length
+              : tf.key === 'week'
+              ? meetings.filter(m => { const dt = parseISO(m.meeting_date + 'T' + (m.meeting_time || '00:00')); return dt >= startOfWeek(now, { weekStartsOn: 0 }) && dt <= endOfWeek(now, { weekStartsOn: 0 }); }).length
+              : tf.key === 'month'
+              ? meetings.filter(m => { const dt = parseISO(m.meeting_date + 'T' + (m.meeting_time || '00:00')); return dt >= startOfMonth(now) && dt <= endOfMonth(now); }).length
+              : meetings.filter(m => { const dt = parseISO(m.meeting_date + 'T' + (m.meeting_time || '00:00')); return dt >= startOfMonth(subMonths(now, 1)) && dt <= endOfMonth(subMonths(now, 1)); }).length
+            })
+          </button>
+        ))}
       </div>
 
       {/* Meeting List */}
@@ -144,16 +200,16 @@ export default function Meetings() {
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-4 border-[#105330] border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : display.length === 0 ? (
+      ) : sortedDisplay.length === 0 ? (
         <Card className="border-0 shadow-lg">
           <CardContent className="py-16 text-center">
             <CalendarClock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">אין {tab === 'upcoming' ? 'פגישות עתידיות' : 'פגישות עבר'}</p>
+            <p className="text-slate-500">אין פגישות בתקופה הנבחרת</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {display.map((m) => {
+          {sortedDisplay.map((m) => {
             const meetingDate = parseISO(m.meeting_date + 'T' + (m.meeting_time || '00:00'));
             return (
               <Card key={m.id} className="border-0 shadow-md hover:shadow-lg transition-shadow">
