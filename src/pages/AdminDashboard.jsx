@@ -122,35 +122,34 @@ export default function AdminDashboard() {
     syncDoneRef.current = true;
 
     const syncUsers = async () => {
-      // Remove duplicate users by email (keep the first one)
+      // Check for duplicate users by email
       const emailMap = new Map();
-      const duplicates = [];
+      let hasDuplicates = false;
       
       for (const u of allUsers) {
-        if (emailMap.has(u.email)) {
-          duplicates.push(u.id);
-        } else {
-          emailMap.set(u.email, u);
+        const key = (u.email || '').toLowerCase().trim();
+        if (emailMap.has(key)) {
+          hasDuplicates = true;
+          break;
         }
+        emailMap.set(key, u);
       }
 
-      for (const dupId of duplicates) {
+      // Merge duplicates via backend function (transfers data, then deletes)
+      if (hasDuplicates) {
         try {
-          await base44.entities.User.delete(dupId);
+          await base44.functions.invoke('mergeDuplicateUsers', {});
+          queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+          return;
         } catch (e) {
-          console.log('Failed to delete duplicate', e);
+          console.log('Failed to merge duplicates', e);
         }
-      }
-
-      if (duplicates.length > 0) {
-        queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-        return;
       }
 
       // Create User entities for AllowedUsers that don't have one yet
       if (allowedUsers.length > 0) {
-        const userEmails = new Set(allUsers.map(u => u.email));
-        const missingUsers = allowedUsers.filter(au => !userEmails.has(au.email));
+        const userEmails = new Set(allUsers.map(u => (u.email || '').toLowerCase().trim()));
+        const missingUsers = allowedUsers.filter(au => !userEmails.has((au.email || '').toLowerCase().trim()));
 
         // Generate unique personal codes for new users
       const existingCodes = new Set(allUsers.map(u => (u.personal_code || '').toUpperCase()));

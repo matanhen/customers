@@ -60,17 +60,22 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
     }
   }
 
-  // Try to add the [SYSTEM] message to an existing conversation for this phone.
-  // Start with the one with the most messages (the original WhatsApp conversation).
+  // Add the notification as an ASSISTANT message directly to the conversation.
+  // Using role: 'assistant' (not 'user' with [SYSTEM] prefix) because:
+  // - When we add a 'user' message, the agent processes it and responds, but the
+  //   platform does NOT deliver the response to WhatsApp (the user message didn't
+  //   originate from WhatsApp, so the platform treats it as an internal message).
+  // - Adding an 'assistant' message directly makes the platform deliver it to
+  //   WhatsApp as the agent "speaking" in the active WhatsApp conversation.
   for (const conv of phoneConvs) {
     try {
       await base44.agents.addMessage(conv, {
-        role: 'user',
-        content: `[SYSTEM] ${message}`,
+        role: 'assistant',
+        content: message,
       });
       return { success: true, method: 'existing_conversation', conversation_id: conv.id, message_count: conv.messages?.length || 0 };
     } catch (e: any) {
-      // Can't add to this conversation (Access denied) - try the next one
+      // Can't add to this conversation - try the next one
     }
   }
 
@@ -88,8 +93,8 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
     });
 
     await base44.agents.addMessage(newConv, {
-      role: 'user',
-      content: `[SYSTEM] ${message}`,
+      role: 'assistant',
+      content: message,
     });
 
     return { success: true, method: 'new_conversation', conversation_id: newConv.id };

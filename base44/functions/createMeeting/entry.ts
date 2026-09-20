@@ -165,7 +165,7 @@ export default async function(req) {
     }
 
     // Build advisor confirmation in the new format
-    const confirmation = `הפגישה עם ${client.custom_name || client.full_name || client.email} נקבעה בהצלחה👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
+    const confirmation = `הפגישה עם ${client.custom_name || client.full_name || client.email} נקבעה בהצלחה ✅\n\n* **תאריך:** ${dateStr}\n* **שעה:** ${meeting_time}\n* **סוג:** ${typeLabel}${locationStr ? `\n* **מיקום:** ${locationStr}` : ''}\n\nהאם תרצה עזרה נוספת?`;
 
     return Response.json({
       success: true,
