@@ -43,7 +43,7 @@ export default async function(req) {
           : '';
         const dateStr = formatDate(meeting.meeting_date);
 
-        message = `הפגישה עם ${meeting.advisor_name} נקבעה בהצלחה 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting.meeting_time}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש. במידה ולא הפגישה תיחשב כהתקיימה.\nאשמח לקבל ממך אישור הגעה כאן בהודעה 📥`;
+        message = `הפגישה עם ${meeting.advisor_name} נקבעה בהצלחה 👏🏼\nתאריך: ${dateStr}\nשעה: ${meeting.meeting_time}${locationStr ? `\nמיקום: ${locationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש. במידה ולא הפגישה תיחשב כהתקיימה.\nאשמח לקבל ממך אישור הגעה כאן בהודעה 📥`;
       } catch (e) {
         return Response.json({ error: 'פגישה לא נמצאה: ' + e.message }, { status: 404 });
       }

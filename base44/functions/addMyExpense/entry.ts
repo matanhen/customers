@@ -87,20 +87,21 @@ export default async function(req) {
 
     const remaining = variableBudget - variableSpent;
 
-    // Build a formatted confirmation message with week and month in Hebrew
+    // Build a formatted confirmation message with week and month in Hebrew.
+    // The "סעיף" shows the sub-item name when the category is "שונות" (misc — too generic),
+    // otherwise shows the category label (e.g. "רכבים ונסיעות").
     const [year, monthNum] = month.split('-');
     const hebrewMonth = HEBREW_MONTHS[parseInt(monthNum) - 1] || '';
-    const budgetLines = variableBudget > 0
-      ? `מתוך ${variableBudget.toLocaleString('he-IL')}₪\n` +
-        `נותר לך לבזבז החודש עוד: ${Math.round(remaining).toLocaleString('he-IL')}₪\n\n`
-      : `\n`;
+    const sectionLabel = categoryLabel === 'שונות' ? itemName : categoryLabel;
+    const budgetPart = variableBudget > 0
+      ? ` מתוך ${variableBudget.toLocaleString('he-IL')}₪ נותר לך לבזבז החודש עוד: ${Math.round(remaining).toLocaleString('he-IL')}₪`
+      : '';
     const confirmationMessage =
       `הוצאה נרשמה ✅\n` +
       `שבוע ${week}, חודש ${hebrewMonth} ${year}.\n\n` +
-      `📋 **${itemName}** - ${amount} ₪\n` +
-      `📂 סעיף: ${categoryLabel}\n\n` +
-      `**סה"כ הוצאות משתנות החודש:** ${Math.round(variableSpent)} ₪\n` +
-      budgetLines +
+      `📋 ${itemName} - ${amount} ₪ 📂\n` +
+      `סעיף: ${sectionLabel}\n\n` +
+      `סה"כ הוצאות משתנות החודש: ${Math.round(variableSpent)} ₪${budgetPart}\n\n` +
       `משהו נוסף? 😊`;
 
     return Response.json({

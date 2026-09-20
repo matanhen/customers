@@ -47,15 +47,18 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
     return { success: false, error: 'שגיאה בגישה לשיחות: ' + e.message };
   }
 
-  // Find all conversations for this phone number (in 972... format), sorted by message count (descending).
-  // The conversation with the most messages is the client's original WhatsApp conversation,
-  // which has an active WhatsApp session — the platform will deliver the response to WhatsApp.
+  // Find all conversations for this phone number (in 972... format).
+  // KEY: only conversations with `last_received_message_id_tracked` in metadata are truly
+  // connected to WhatsApp — they've received at least one real WhatsApp message and have an
+  // active WhatsApp session. Conversations without this field (e.g. ones we created
+  // programmatically) will NOT deliver agent responses to WhatsApp.
+  // Among the connected ones, sort by updated_date descending to pick the most recent/active.
   const phoneConvs = conversations
     .filter((c: any) => {
       const cp = c.metadata?.phone_number || '';
-      return cp === internationalPhone;
+      return cp === internationalPhone && c.metadata?.last_received_message_id_tracked;
     })
-    .sort((a: any, b: any) => (b.messages?.length || 0) - (a.messages?.length || 0));
+    .sort((a: any, b: any) => new Date(b.updated_date || 0).getTime() - new Date(a.updated_date || 0).getTime());
 
   // If we found the original conversation, update its metadata with user info (name, email)
   // so the dashboard shows who the conversation belongs to.
@@ -73,6 +76,14 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
         });
       } catch (e) { /* non-critical */ }
     }
+  }
+
+  // If no WhatsApp-connected conversation exists for this phone, we cannot deliver
+  // the message to WhatsApp. Adding a [SYSTEM] message to a non-connected conversation
+  // would only show in the dashboard, not on the client's WhatsApp. Return failure so
+  // the caller knows delivery didn't happen.
+  if (phoneConvs.length === 0) {
+    return { success: false, error: 'אין שיחת WhatsApp פעילה עבור מספר זה. הלקוח צרך לשלוח הודעה לבוט לפחות פעם אחת כדי לקבל הודעות פרואקטיביות.' };
   }
 
   // Add the [SYSTEM] message to the conversation. The agent sees the [SYSTEM] prefix

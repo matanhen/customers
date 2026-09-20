@@ -157,8 +157,8 @@ export default async function(req) {
       // Non-critical
     }
 
-    // Build advisor confirmation in the new format
-    const confirmation = `הפגישה עם ${client.custom_name || client.full_name || client.email} נקבעה בהצלחה ✅\n\n* **תאריך:** ${dateStr}\n* **שעה:** ${meeting_time}\n* **סוג:** ${typeLabel}${locationStr ? `\n* **מיקום:** ${locationStr}` : ''}\n\nהאם תרצה עזרה נוספת?`;
+    // Build confirmation for the advisor/admin/meeting creator (plain text, no markdown)
+    const confirmation = `הפגישה עם ${client.custom_name || client.full_name || client.email} נקבעה בהצלחה ✅\n\nתאריך: ${dateStr}\nשעה: ${meeting_time}\nסוג: ${typeLabel}${locationStr ? `\nמיקום: ${locationStr}` : ''}\n\nהאם תרצה עזרה נוספת?`;
 
     return Response.json({
       success: true,
