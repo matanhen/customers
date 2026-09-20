@@ -1,12 +1,10 @@
 // Shared helper for sending WhatsApp notifications to clients via the expense_tracker agent.
 //
 // The agent's addMessage API only allows the conversation owner to add messages.
-// When an advisor/admin creates a meeting, their base44 client can't add messages
-// to the client's conversation ("Access denied: conversation belongs to another user").
-//
-// Solution: try the client's existing conversation first. If that fails, create a
-// new conversation with the client's phone number — the platform sends the agent's
-// response to that phone via WhatsApp.
+// The admin (agent owner) can add messages to conversations they own — including the
+// client's original WhatsApp conversation. We prefer the conversation with the most
+// messages (the original one the client started), because it has an active WhatsApp
+// session and the platform will deliver the agent's response to WhatsApp.
 
 function normalizePhone(p: string): string {
   if (!p) return '';
@@ -37,11 +35,15 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
     return { success: false, error: 'שגיאה בגישה לשיחות: ' + e.message };
   }
 
-  // Find all conversations for this phone number
-  const phoneConvs = conversations.filter((c: any) => {
-    const cp = normalizePhone(c.metadata?.phone_number || '');
-    return cp && cp === targetPhone;
-  });
+  // Find all conversations for this phone number, sorted by message count (descending).
+  // The conversation with the most messages is the client's original WhatsApp conversation,
+  // which has an active WhatsApp session — the platform will deliver the response to WhatsApp.
+  const phoneConvs = conversations
+    .filter((c: any) => {
+      const cp = normalizePhone(c.metadata?.phone_number || '');
+      return cp && cp === targetPhone;
+    })
+    .sort((a: any, b: any) => (b.messages?.length || 0) - (a.messages?.length || 0));
 
   // Try to add the [SYSTEM] message to an existing conversation for this phone
   for (const conv of phoneConvs) {

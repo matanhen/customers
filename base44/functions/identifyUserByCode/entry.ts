@@ -44,7 +44,7 @@ export default async function(req) {
       success: true,
       user: {
         id: user.id,
-        full_name: user.full_name || user.custom_name || '',
+        full_name: user.custom_name || user.full_name || '',
         email: user.email || '',
         phone: user.phone || '',
         user_type: user.user_type || 'client',

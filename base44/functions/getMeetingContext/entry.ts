@@ -31,7 +31,7 @@ export default async function(req) {
       .filter(u => u.user_type === 'client' && u.phone)
       .map(u => ({
         id: u.id,
-        name: u.full_name || '',
+        name: u.custom_name || u.full_name || '',
         phone: normalizePhone(u.phone),
         email: u.email,
       }));
@@ -40,33 +40,39 @@ export default async function(req) {
     const advisors = isAdmin
       ? allUsers
           .filter(u => u.user_type === 'advisor' || u.user_type === 'admin')
-          .map(u => ({ id: u.id, name: u.full_name || u.email }))
+          .map(u => ({ id: u.id, name: u.custom_name || u.full_name || u.email }))
       : [];
 
-    // Upcoming meetings for this advisor
-    const meetings = await base44.entities.Meeting.filter({ advisor_id: user.id });
-    const now = new Date();
-    const upcoming = meetings
-      .filter(m => m.status === 'scheduled' && new Date(m.meeting_date + 'T' + (m.meeting_time || '00:00')) >= now)
-      .sort((a, b) => new Date(a.meeting_date + 'T' + (a.meeting_time || '00:00')) - new Date(b.meeting_date + 'T' + (b.meeting_time || '00:00')))
-      .slice(0, 10);
+    // Meetings: for advisors/admin, get meetings they're the advisor of.
+    // For clients, get meetings where they are the client.
+    const isClient = user.user_type === 'client';
+    const meetings = isClient
+      ? await base44.entities.Meeting.filter({ client_id: user.id })
+      : await base44.entities.Meeting.filter({ advisor_id: user.id });
+
+    // All scheduled meetings (not just future), sorted by date ascending
+    const allScheduled = meetings
+      .filter(m => m.status === 'scheduled')
+      .sort((a, b) => new Date(a.meeting_date + 'T' + (a.meeting_time || '00:00')) - new Date(b.meeting_date + 'T' + (b.meeting_time || '00:00')));
 
     return Response.json({
       user: {
         id: user.id,
-        name: user.full_name || '',
+        name: user.custom_name || user.full_name || '',
         role: user.role,
         user_type: user.user_type,
       },
       is_admin: isAdmin,
       clients,
       advisors,
-      upcoming_meetings: upcoming.map(m => ({
+      upcoming_meetings: allScheduled.map(m => ({
         date: m.meeting_date,
         time: m.meeting_time,
         client_name: m.client_name,
+        advisor_name: m.advisor_name,
         type: m.meeting_type === 'intro_call' ? 'שיחת היכרות' : 'פגישה',
         location: m.location_type === 'office' ? 'משרד' : m.location_type === 'zoom' ? 'זום' : 'ללא',
+        status: m.status,
       })),
       meeting_types: [
         { value: 'intro_call', label: 'שיחת היכרות' },

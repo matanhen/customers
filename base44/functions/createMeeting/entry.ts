@@ -39,19 +39,19 @@ export default async function(req) {
 
     // Determine advisor
     let advisorId = user.id;
-    let advisorName = user.full_name || user.email;
+    let advisorName = user.custom_name || user.full_name || user.email;
     let createdByType = 'advisor';
 
     const allUsers = await base44.asServiceRole.entities.User.list();
 
     if ((user.role === 'admin' || user.user_type === 'admin') && advisor_name) {
       const advisor = allUsers.find(u =>
-        (u.full_name || '').includes(advisor_name) &&
+        ((u.custom_name || '') + ' ' + (u.full_name || '')).includes(advisor_name) &&
         (u.user_type === 'advisor' || u.user_type === 'admin')
       );
       if (advisor) {
         advisorId = advisor.id;
-        advisorName = advisor.full_name || advisor.email;
+        advisorName = advisor.custom_name || advisor.full_name || advisor.email;
       }
       createdByType = 'admin';
     }
@@ -92,7 +92,7 @@ export default async function(req) {
       advisor_id: advisorId,
       advisor_name: advisorName,
       client_id: client.id,
-      client_name: client.full_name || '',
+      client_name: client.custom_name || client.full_name || '',
       client_phone: client.phone || client_phone,
       meeting_type,
       meeting_date,
@@ -128,7 +128,7 @@ export default async function(req) {
     if (createdByType === 'admin' && advisorId !== user.id) {
       const advisor = allUsers.find(u => u.id === advisorId);
       if (advisor && advisor.phone) {
-        const advisorMessage = `נקבעה עבורך פגישה חדשה עם ${client.full_name || ''} 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
+        const advisorMessage = `נקבעה עבורך פגישה חדשה עם ${client.custom_name || client.full_name || ''} 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
         advisorNotificationResult = await sendWhatsappNotification(base44, advisor.phone, advisorMessage);
       }
     }
@@ -161,12 +161,12 @@ export default async function(req) {
     }
 
     // Build advisor confirmation in the new format
-    const confirmation = `הפגישה עם ${client.full_name || client.email} נקבעה בהצלחה👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
+    const confirmation = `הפגישה עם ${client.custom_name || client.full_name || client.email} נקבעה בהצלחה👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
 
     return Response.json({
       success: true,
       meeting_id: meeting.id,
-      client_name: client.full_name || '',
+      client_name: client.custom_name || client.full_name || '',
       client_phone: client.phone || '',
       meeting_type,
       meeting_date,

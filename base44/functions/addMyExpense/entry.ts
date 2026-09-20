@@ -5,11 +5,18 @@ import {
   getCurrentFinWeek,
   addAmountToWeek,
   getItemMonthTotal,
+  findCategoryKey,
+  EXPENSE_CATEGORIES,
 } from '../../shared/expenseCategories.ts';
 import { identifyUser } from '../../shared/userIdentification.ts';
 
+const HEBREW_MONTHS = [
+  'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
+  'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר',
+];
+
 // Adds an expense to the current client's monthly tracking record.
-// Called by the WhatsApp expense agent. Identifies the client via base44.auth.me().
+// Called by the WhatsApp expense agent. Identifies the client via personal_code.
 //
 // IMPORTANT: the app stores ALL expenses (fixed + variable) in `fixed_expenses`.
 // Each entry can be a flat number (month total) OR a week object { week1..week4 }.
@@ -34,6 +41,8 @@ export default async function(req) {
     const month = getCurrentMonth();
     const week = getCurrentFinWeek();
     const variable = body.expense_type ? body.expense_type === 'variable' : isVariableItem(itemName);
+    const categoryKey = findCategoryKey(itemName);
+    const categoryLabel = EXPENSE_CATEGORIES.find(c => c.key === categoryKey)?.label || 'שונות';
 
     // Find or create the ExpenseTracking record for this month (calendar month key)
     const records = await base44.entities.ExpenseTracking.filter({ user_id: user.id, month });
@@ -67,6 +76,17 @@ export default async function(req) {
       if (isVariableItem(item)) variableSpent += getItemMonthTotal(val);
     }
 
+    // Build a formatted confirmation message with week and month in Hebrew
+    const [year, monthNum] = month.split('-');
+    const hebrewMonth = HEBREW_MONTHS[parseInt(monthNum) - 1] || '';
+    const confirmationMessage =
+      `הוצאה נרשמה ✅\n` +
+      `שבוע ${week}, חודש ${hebrewMonth} ${year}.\n\n` +
+      `📋 **${itemName}** - ${amount} ₪\n` +
+      `📂 סעיף: ${categoryLabel}\n\n` +
+      `**סה"כ הוצאות משתנות החודש:** ${Math.round(variableSpent)} ₪\n\n` +
+      `משהו נוסף? 😊`;
+
     return Response.json({
       success: true,
       month,
@@ -74,7 +94,10 @@ export default async function(req) {
       item: itemName,
       amount,
       variable,
+      category: categoryKey,
+      category_label: categoryLabel,
       variableSpent: Math.round(variableSpent),
+      confirmation_message: confirmationMessage,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
