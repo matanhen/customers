@@ -133,6 +133,7 @@ export default function AdminDashboard() {
             await base44.entities.User.create({
               email: allowedUser.email,
               full_name: allowedUser.full_name,
+              custom_name: allowedUser.full_name,
               user_type: allowedUser.user_type,
               advisor_id: 0,
               phone: 0,
@@ -185,7 +186,7 @@ export default function AdminDashboard() {
   });
 
   const handleDeleteUser = async (u) => {
-    if (!confirm(`האם למחוק את ${u.full_name || u.email}?`)) return;
+    if (!confirm(`האם למחוק את ${u.custom_name || u.full_name || u.email}?`)) return;
 
     try {
       // Delete assignments first
@@ -242,6 +243,7 @@ export default function AdminDashboard() {
         await base44.entities.User.update(newUserId, {
           user_type: userType,
           full_name: data.full_name,
+          custom_name: data.full_name,
           role: userType === 'admin' ? 'admin' : 'user',
           phone: data.phone || '',
         });
@@ -700,7 +702,7 @@ export default function AdminDashboard() {
                       </TableCell>
                     )}
                     <TableCell className="font-semibold text-slate-800">
-                      {u.full_name || 'ללא שם'}
+                      {u.custom_name || u.full_name || 'ללא שם'}
                     </TableCell>
                     <TableCell className="text-slate-600">{u.email}</TableCell>
                     <TableCell>
@@ -769,7 +771,7 @@ export default function AdminDashboard() {
                           size="sm"
                           onClick={() => {
                             setEditUser(u);
-                            setEditName(u.full_name || '');
+                            setEditName(u.custom_name || u.full_name || '');
                             setEditEmail(u.email || '');
                             setEditPhone(u.phone || '');
                             setShowEditDialog(true);
@@ -901,7 +903,7 @@ export default function AdminDashboard() {
             <Button 
               onClick={async () => {
                 if (editUser.id) {
-                  await base44.entities.User.update(editUser.id, { full_name: editName, phone: editPhone });
+                  await base44.entities.User.update(editUser.id, { full_name: editName, phone: editPhone, custom_name: editName });
                 }
                 if (editUser.allowedUserId) {
                   await base44.entities.AllowedUser.update(editUser.allowedUserId, { full_name: editName, phone: editPhone });

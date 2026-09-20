@@ -109,8 +109,8 @@ export default async function(req) {
         }
       }
 
-      // 48h follow-up: created 48-49h ago, not confirmed, follow-up not sent
-      if (!m.follow_up_sent && !m.attendance_confirmed && hoursSinceCreation >= 48 && hoursSinceCreation < 49) {
+      // 48h follow-up: created 48-49h ago, not confirmed, follow-up not sent, and meeting hasn't passed
+      if (!m.follow_up_sent && !m.attendance_confirmed && hoursSinceCreation >= 48 && hoursSinceCreation < 49 && meetingDateTime > now) {
         const message = `היי, עדיין לא אישרת הגעה לפגישה שלך. אשמח לקבל ממך אישור הגעה.`;
         const result = await sendNotification(base44, m.client_phone, message);
         if (result.success) {

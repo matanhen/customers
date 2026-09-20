@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
 
         // Parse request body
         const body = await req.json();
-        const { name, email } = body;
+        const { name, email, phone } = body;
 
         if (!name || !email) {
             return Response.json({ error: 'Missing required fields: name and email' }, { status: 400 });
@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
         const allowedUser = await base44.asServiceRole.entities.AllowedUser.create({
             email: email,
             full_name: name,
-            user_type: 'client'
+            user_type: 'client',
+            phone: phone || ''
         });
 
         // Invite the user so they appear in the system immediately
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
 
         // Update user_type to client
         if (newUserId) {
-            await base44.asServiceRole.entities.User.update(newUserId, { user_type: 'client', full_name: name });
+            await base44.asServiceRole.entities.User.update(newUserId, { user_type: 'client', full_name: name, phone: phone || '', custom_name: name });
         }
 
         // Create ClientAdvisorAssignment

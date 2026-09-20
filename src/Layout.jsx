@@ -55,7 +55,7 @@ export default function Layout({ children }) {
         // Use cached user if less than 5 minutes old
         if (Date.now() - parsed.timestamp < 5 * 60 * 1000) {
           setUser(parsed.user);
-          setEditName(parsed.user.full_name || '');
+          setEditName(parsed.user.custom_name || parsed.user.full_name || '');
           setIsLoading(false);
           return;
         }
@@ -105,7 +105,7 @@ export default function Layout({ children }) {
       // If user already has a valid user_type - use immediately (fast path)
       if (currentUser.user_type && ['client', 'advisor', 'admin'].includes(currentUser.user_type)) {
         setUser(currentUser);
-        setEditName(currentUser.full_name || '');
+        setEditName(currentUser.custom_name || currentUser.full_name || '');
         try {
           sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
         } catch (e) { /* storage full */ }
@@ -144,7 +144,8 @@ export default function Layout({ children }) {
       try {
         await base44.entities.User.update(currentUser.id, { 
           user_type: allowedUser.user_type,
-          full_name: currentUser.full_name || allowedUser.full_name || ''
+          full_name: allowedUser.full_name || currentUser.full_name || '',
+          custom_name: allowedUser.full_name || ''
         });
         
         // Update ClientAdvisorAssignment in background
@@ -165,7 +166,7 @@ export default function Layout({ children }) {
       }
       
       setUser(currentUser);
-      setEditName(currentUser.full_name || '');
+      setEditName(currentUser.custom_name || currentUser.full_name || '');
       try {
         sessionStorage.setItem('currentUser', JSON.stringify({ user: currentUser, timestamp: Date.now() }));
       } catch (e) { /* storage full */ }
@@ -181,8 +182,8 @@ export default function Layout({ children }) {
     setSaving(true);
     try {
       // Update user entity in database
-      await base44.entities.User.update(user.id, { full_name: editName });
-      const updatedUser = { ...user, full_name: editName };
+      await base44.entities.User.update(user.id, { full_name: editName, custom_name: editName });
+      const updatedUser = { ...user, full_name: editName, custom_name: editName };
       setUser(updatedUser);
       sessionStorage.setItem('currentUser', JSON.stringify({ user: updatedUser, timestamp: Date.now() }));
       setShowProfileDialog(false);
@@ -395,7 +396,7 @@ export default function Layout({ children }) {
                     key={item.page}
                     to={createPageUrl(item.page)}
                     className={`
-                      flex items-center gap-2 px-5 py-3 rounded-xl transition-all duration-300 font-medium text-base
+                      flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-300 font-medium text-sm
                       ${isActive 
                         ? 'bg-[#c8a863] text-[#105330] shadow-lg' 
                         : 'text-white/80 hover:bg-white/10 hover:text-white'}
@@ -418,7 +419,7 @@ export default function Layout({ children }) {
                         <User className="w-4 h-4 text-[#105330]" />
                       </div>
                       <div className="text-right">
-                        <p className="text-white font-semibold text-sm">{user.full_name || user.email}</p>
+                        <p className="text-white font-semibold text-sm">{user.custom_name || user.full_name || user.email}</p>
                         <p className="text-[#c8a863] text-xs font-medium">{getUserRoleLabel()}</p>
                       </div>
                     </button>
@@ -549,7 +550,7 @@ export default function Layout({ children }) {
                     <User className="w-4 h-4 text-[#105330]" />
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-sm">{user.full_name || user.email}</p>
+                    <p className="text-white font-semibold text-sm">{user.custom_name || user.full_name || user.email}</p>
                     <p className="text-[#c8a863] text-xs font-medium">{getUserRoleLabel()}</p>
                   </div>
                 </div>

@@ -149,6 +149,42 @@ export default async function(req) {
 
     await sendClientNotification(base44, client.phone || client_phone, clientMessage);
 
+    // If admin created for another advisor, notify the advisor too
+    if (createdByType === 'admin' && advisorId !== user.id) {
+      const advisor = allUsers.find(u => u.id === advisorId);
+      if (advisor && advisor.phone) {
+        const advisorMessage = `נקבעה עבורך פגישה חדשה עם ${client.full_name || ''} 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
+        await sendClientNotification(base44, advisor.phone, advisorMessage);
+      }
+    }
+
+    // Send webhook based on meeting type
+    const meetingDatetime = `${meeting_date}T${meeting_time}:00`;
+    const webhookPayload = {
+      guest_phone: client.phone || client_phone,
+      advisor_name: advisorName,
+      meeting_datetime: meetingDatetime,
+    };
+
+    try {
+      if (meeting_type === 'intro_call') {
+        await fetch('https://hook.eu2.make.com/q3ywke7jenm2ib1rl7qnuflnft8pjnfa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(webhookPayload),
+        });
+      } else if (meeting_type === 'meeting') {
+        webhookPayload.location = finalLocationType === 'office' ? 'office' : 'zoom';
+        await fetch('https://hook.eu2.make.com/15q5eau4jwbsm7rsaaijek8xkwaj4z4c', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(webhookPayload),
+        });
+      }
+    } catch (e) {
+      // Non-critical
+    }
+
     // Build advisor confirmation in the new format
     const confirmation = `הפגישה עם ${client.full_name || client.email} נקבעה בהצלחה👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
 
