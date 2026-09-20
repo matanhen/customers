@@ -40,7 +40,16 @@ export default function AdvisorDashboard() {
   useEffect(() => {
     loadUser();
     base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' })
-      .then(res => { if (res[0]?.value) setWhatsappBotPhone(res[0].value); })
+      .then(res => {
+        if (res[0]?.value) {
+          setWhatsappBotPhone(res[0].value);
+        } else {
+          // Auto-detect the bot phone number from the WhatsApp agent
+          base44.functions.invoke('getWhatsappBotPhone', {})
+            .then(r => { if (r?.data?.phone) setWhatsappBotPhone(r.data.phone); })
+            .catch(() => {});
+        }
+      })
       .catch(() => {});
   }, []);
 

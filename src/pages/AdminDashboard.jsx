@@ -74,7 +74,22 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadUser();
     base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' })
-      .then(res => { if (res[0]?.value) { setWhatsappBotPhone(res[0].value); setWhatsappPhoneInput(res[0].value); } })
+      .then(res => {
+        if (res[0]?.value) {
+          setWhatsappBotPhone(res[0].value);
+          setWhatsappPhoneInput(res[0].value);
+        } else {
+          // Auto-detect the bot phone number from the WhatsApp agent
+          base44.functions.invoke('getWhatsappBotPhone', {})
+            .then(r => {
+              if (r?.data?.phone) {
+                setWhatsappBotPhone(r.data.phone);
+                setWhatsappPhoneInput(r.data.phone);
+              }
+            })
+            .catch(() => {});
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -556,7 +571,7 @@ export default function AdminDashboard() {
         <CardContent className="p-5 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 items-start">
             <div className="flex-1 w-full">
-              <Label className="text-[#105330] font-semibold mb-2 block">מספר טלפון הבוט בווצאפ (ליצירת קישורים אישיים)</Label>
+              <Label className="text-[#105330] font-semibold mb-2 block">מספר טלפון הבוט בווצאפ (מזוהה אוטומטית - ניתן לערוך ידנית)</Label>
               <Input
                 placeholder="לדוגמה: 972501234567"
                 value={whatsappPhoneInput}
