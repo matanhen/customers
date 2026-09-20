@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { buildWhatsappOpenLink } from '../utils/whatsappLink';
 
 
 const IDAN_EMAIL = 'idanhen012@gmail.com';
@@ -332,7 +333,7 @@ export default function AdvisorDashboard() {
                     <span className="flex items-center gap-1.5">
                       <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono font-bold text-xs">קוד: {client.personal_code}</span>
                       {whatsappBotPhone ? (
-                        <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + client.personal_code)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors">
+                        <a href={buildWhatsappOpenLink(whatsappBotPhone, client.personal_code, client.user_type)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors">
                           <MessageCircle className="w-3 h-3" />
                           קישור אישי
                         </a>

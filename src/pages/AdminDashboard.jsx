@@ -40,6 +40,7 @@ import NavbarLogoUploader from '@/components/admin/NavbarLogoUploader';
 import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
 import PhoneBulkUpdate from '@/components/admin/PhoneBulkUpdate';
 import ConversationHistory from '@/components/admin/ConversationHistory';
+import { buildWhatsappOpenLink } from '../utils/whatsappLink';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -863,7 +864,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2">
                           <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md font-mono font-bold text-sm">{u.personal_code}</span>
                           {whatsappBotPhone ? (
-                            <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + u.personal_code)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors">
+                            <a href={buildWhatsappOpenLink(whatsappBotPhone, u.personal_code, u.user_type)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors">
                               <MessageCircle className="w-3 h-3" />
                               קישור אישי
                             </a>
