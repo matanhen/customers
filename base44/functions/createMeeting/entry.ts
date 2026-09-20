@@ -10,11 +10,42 @@ function normalizePhone(p) {
   return cleaned;
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// Sends a WhatsApp notification to the client by finding their conversation
+async function sendClientNotification(base44, phone, message) {
+  try {
+    if (!phone) return;
+    const targetPhone = normalizePhone(phone);
+    const conversations = await base44.agents.listConversations({ agent_name: 'expense_tracker' });
+    let clientConversation = null;
+    for (const conv of conversations) {
+      const metadata = conv.metadata || {};
+      const convPhone = normalizePhone(
+        metadata.phone || metadata.whatsapp_phone || metadata.from || metadata.phone_number || metadata.phoneNumber || metadata.user_phone || ''
+      );
+      if (convPhone && convPhone === targetPhone) {
+        clientConversation = conv;
+        break;
+      }
+    }
+    if (clientConversation) {
+      await base44.agents.addMessage(clientConversation, {
+        role: 'user',
+        content: `[SYSTEM] ${message}`,
+      });
+    }
+  } catch (e) {
+    // Non-critical - meeting is still created even if notification fails
+  }
+}
+
 // Creates a meeting from the WhatsApp bot. Called by the expense_tracker agent.
 // The current user is the advisor or admin who sent the bot message.
-//
-// Params: client_phone, meeting_type ('intro_call'|'meeting'), meeting_date (YYYY-MM-DD),
-//         meeting_time (HH:mm), location_type ('office'|'zoom'|'none'), advisor_name (optional, admin only)
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -39,7 +70,6 @@ export default async function(req) {
 
     const allUsers = await base44.asServiceRole.entities.User.list();
 
-    // If admin is creating for another advisor (by name)
     if ((user.role === 'admin' || user.user_type === 'admin') && advisor_name) {
       const advisor = allUsers.find(u =>
         (u.full_name || '').includes(advisor_name) &&
@@ -96,17 +126,31 @@ export default async function(req) {
       location_type: finalLocationType,
       address,
       status: 'scheduled',
+      attendance_confirmed: false,
+      reminder_72h_sent: false,
+      reminder_day_of_sent: false,
+      follow_up_sent: false,
       created_by_id: user.id,
       created_by_type: createdByType,
     });
 
-    // Format confirmation
+    // Format location string for messages
+    const locationStr = finalLocationType === 'office' ? `משרד (${OFFICE_ADDRESS})`
+      : finalLocationType === 'zoom' ? 'זום'
+      : '';
     const typeLabel = meeting_type === 'intro_call' ? 'שיחת היכרות' : 'פגישה';
-    let locationStr = '';
-    if (finalLocationType === 'office') locationStr = ` במשרב - ${OFFICE_ADDRESS}`;
-    else if (finalLocationType === 'zoom') locationStr = ' בזום';
+    const dateStr = formatDate(meeting_date);
 
-    const confirmation = `נקבעה ${typeLabel} עם ${client.full_name || client.email} בתאריך ${meeting_date} בשעה ${meeting_time}${locationStr}.`;
+    // Send notification to the client
+    const clientLocationStr = finalLocationType === 'office' ? `משרד (${OFFICE_ADDRESS})`
+      : finalLocationType === 'zoom' ? 'זום'
+      : '';
+    const clientMessage = `הפגישה עם ${advisorName} נקבעה בהצלחה 👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}${clientLocationStr ? `\n* *מיקום:* ${clientLocationStr}` : ''}\n\nבמידה ויש שינוי כלשהו, יש להודיע לפחות 24 שעות מראש. במידה ולא הפגישה תיחשב כהתקיימה.\nאשמח לקבל ממך אישור הגעה כאן בהודעה 📥`;
+
+    await sendClientNotification(base44, client.phone || client_phone, clientMessage);
+
+    // Build advisor confirmation in the new format
+    const confirmation = `הפגישה עם ${client.full_name || client.email} נקבעה בהצלחה👏🏼\n* *תאריך:* ${dateStr}\n* *שעה:* ${meeting_time}\n* *סוג:* ${typeLabel}${locationStr ? `\n* *מיקום:* ${locationStr}` : ''}`;
 
     return Response.json({
       success: true,
@@ -119,6 +163,7 @@ export default async function(req) {
       location_type: finalLocationType,
       address,
       confirmation,
+      client_notified: true,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

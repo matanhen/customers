@@ -184,6 +184,15 @@ export default function Meetings() {
                           : m.status === 'cancelled_client' ? 'נדחתה - לקוח'
                           : 'נדחתה - יוזמה'}
                         </Badge>
+                        {m.status === 'scheduled' && (
+                          <Badge className={
+                            m.attendance_confirmed
+                              ? 'bg-emerald-100 text-emerald-700 border-0'
+                              : 'bg-red-50 text-red-600 border border-red-200'
+                          }>
+                            {m.attendance_confirmed ? 'קיים אישור הגעה ✅' : 'עדיין ללא אישור הגעה ❌'}
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-4 flex-wrap text-sm text-slate-600 dark:text-slate-300">
