@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, Search, Eye, 
-  Mail, AlertCircle, UserPlus
+  Mail, AlertCircle, UserPlus, MessageCircle
 } from 'lucide-react';
 import ExpenseCoach from '../components/advisor/ExpenseCoach';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -322,8 +322,13 @@ export default function AdvisorDashboard() {
                   {client.personal_code && (
                     <span className="flex items-center gap-1.5">
                       <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono font-bold text-xs">קוד: {client.personal_code}</span>
-                      {whatsappBotPhone && (
-                        <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + client.personal_code)}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 text-xs underline">קישור אישי</a>
+                      {whatsappBotPhone ? (
+                        <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + client.personal_code)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors">
+                          <MessageCircle className="w-3 h-3" />
+                          קישור אישי
+                        </a>
+                      ) : (
+                        <span className="text-orange-500 text-xs">הגדר מספר בוט</span>
                       )}
                     </span>
                   )}

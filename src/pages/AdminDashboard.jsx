@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, UserCog, Link2, Search, Check, X, 
   Shield, User, Briefcase, Unlink, Pencil, Eye, Trash2,
-  Key, Save, Loader2
+  Key, Save, Loader2, MessageCircle
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -137,8 +137,21 @@ export default function AdminDashboard() {
         const userEmails = new Set(allUsers.map(u => u.email));
         const missingUsers = allowedUsers.filter(au => !userEmails.has(au.email));
 
-        for (const allowedUser of missingUsers) {
+        // Generate unique personal codes for new users
+      const existingCodes = new Set(allUsers.map(u => (u.personal_code || '').toUpperCase()));
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+      for (const allowedUser of missingUsers) {
           try {
+            let code;
+            do {
+              code = '';
+              for (let i = 0; i < 4; i++) {
+                code += letters[Math.floor(Math.random() * letters.length)];
+              }
+            } while (existingCodes.has(code));
+            existingCodes.add(code);
+
             await base44.entities.User.create({
               email: allowedUser.email,
               full_name: allowedUser.full_name,
@@ -146,7 +159,8 @@ export default function AdminDashboard() {
               user_type: allowedUser.user_type,
               advisor_id: 0,
               phone: 0,
-              last_login_date: new Date().toISOString()
+              last_login_date: new Date().toISOString(),
+              personal_code: code
             });
           } catch (e) {
             console.log('Failed to create user', e);
@@ -155,6 +169,8 @@ export default function AdminDashboard() {
 
         if (missingUsers.length > 0) {
           queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+          // Generate codes for any users that still don't have one
+          try { await base44.functions.invoke('generatePersonalCodes', {}); } catch (e) { /* non-critical */ }
         }
       }
     };
@@ -832,8 +848,13 @@ export default function AdminDashboard() {
                       {u.personal_code ? (
                         <div className="flex items-center gap-2">
                           <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md font-mono font-bold text-sm">{u.personal_code}</span>
-                          {whatsappBotPhone && (
-                            <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + u.personal_code)}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 text-xs underline">קישור</a>
+                          {whatsappBotPhone ? (
+                            <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + u.personal_code)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors">
+                              <MessageCircle className="w-3 h-3" />
+                              קישור אישי
+                            </a>
+                          ) : (
+                            <span className="text-orange-500 text-xs">הגדר מספר בוט</span>
                           )}
                         </div>
                       ) : (
