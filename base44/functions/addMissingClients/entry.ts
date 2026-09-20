@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { generateUniquePersonalCode } from '../../shared/userIdentification.ts';
 
 // Bulk-adds missing clients from a PDF import.
 // Admin-only. Accepts a list of {name, email, phone}.
@@ -55,11 +56,13 @@ export default async function(req) {
         await new Promise(r => setTimeout(r, 1500));
         const systemUsers = await base44.asServiceRole.entities.User.filter({ email: normalizedEmail });
         if (systemUsers[0]) {
+          const personalCode = await generateUniquePersonalCode(base44);
           await base44.asServiceRole.entities.User.update(systemUsers[0].id, {
             user_type: 'client',
             full_name: client.name || '',
             custom_name: client.name || '',
             phone: client.phone || '',
+            personal_code: personalCode,
           });
         }
 

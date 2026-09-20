@@ -4,7 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, UserCog, Link2, Search, Check, X, 
-  Shield, User, Briefcase, Unlink, Pencil, Eye, Trash2
+  Shield, User, Briefcase, Unlink, Pencil, Eye, Trash2,
+  Key, Save, Loader2
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,10 +65,17 @@ export default function AdminDashboard() {
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [whatsappBotPhone, setWhatsappBotPhone] = useState('');
+  const [whatsappPhoneInput, setWhatsappPhoneInput] = useState('');
+  const [generatingCodes, setGeneratingCodes] = useState(false);
+  const [codesResult, setCodesResult] = useState(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     loadUser();
+    base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' })
+      .then(res => { if (res[0]?.value) { setWhatsappBotPhone(res[0].value); setWhatsappPhoneInput(res[0].value); } })
+      .catch(() => {});
   }, []);
 
   const loadUser = async () => {
@@ -519,6 +527,71 @@ export default function AdminDashboard() {
       {/* Conversation History */}
       <ConversationHistory />
 
+      {/* Personal Codes & WhatsApp Bot Phone */}
+      <Card className="mb-6 border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
+        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100/50">
+          <CardTitle className="flex items-center gap-3 text-slate-800">
+            <div className="p-2 rounded-xl bg-indigo-100">
+              <Key className="w-5 h-5 text-indigo-600" />
+            </div>
+            קודים אישיים וזיהוי ווצאפ
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 items-start">
+            <div className="flex-1 w-full">
+              <Label className="text-[#105330] font-semibold mb-2 block">מספר טלפון הבוט בווצאפ (ליצירת קישורים אישיים)</Label>
+              <Input
+                placeholder="לדוגמה: 972501234567"
+                value={whatsappPhoneInput}
+                onChange={(e) => setWhatsappPhoneInput(e.target.value)}
+                className="border-slate-200 focus:border-indigo-400 rounded-xl"
+              />
+            </div>
+            <Button
+              onClick={async () => {
+                try {
+                  const existing = await base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' });
+                  if (existing[0]) {
+                    await base44.entities.SiteSettings.update(existing[0].id, { value: whatsappPhoneInput });
+                  } else {
+                    await base44.entities.SiteSettings.create({ key: 'whatsapp_bot_phone', value: whatsappPhoneInput });
+                  }
+                  setWhatsappBotPhone(whatsappPhoneInput);
+                  queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+                } catch (e) { console.error(e); }
+              }}
+              className="bg-[#105330] hover:bg-[#0d4027] rounded-xl shadow-lg sm:mt-7"
+            >
+              <Save className="w-4 h-4 ml-2" />
+              שמור מספר
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 flex-wrap">
+            <Button
+              onClick={async () => {
+                setGeneratingCodes(true);
+                try {
+                  const res = await base44.functions.invoke('generatePersonalCodes', {});
+                  setCodesResult(res.data);
+                  queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+                } catch (e) { console.error(e); }
+                setGeneratingCodes(false);
+              }}
+              disabled={generatingCodes}
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-xl shadow-lg"
+            >
+              {generatingCodes ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> מחולל...</> : <><Key className="w-4 h-4 ml-2" /> חולל קודים למשתמשים ללא קוד</>}
+            </Button>
+            {codesResult && (
+              <span className="text-sm text-emerald-600 font-medium">
+                נוצרו {codesResult.generated} קודים חדשים ({codesResult.skipped} כבר היו)
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="border-0 shadow-xl shadow-purple-100/50 bg-gradient-to-br from-purple-50 to-indigo-50 overflow-hidden">
@@ -683,6 +756,7 @@ export default function AdminDashboard() {
                   <TableHead className="text-right font-semibold text-slate-600">אימייל</TableHead>
                   <TableHead className="text-right font-semibold text-slate-600">תפקיד</TableHead>
                   <TableHead className="text-right font-semibold text-slate-600">יועץ משויך</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-600">קוד אישי</TableHead>
                   <TableHead className="text-right font-semibold text-slate-600">תאריך הצטרפות</TableHead>
                   <TableHead className="text-right font-semibold text-slate-600">פעולות</TableHead>
                 </TableRow>
@@ -753,6 +827,18 @@ export default function AdminDashboard() {
                           </Badge>
                         )
                       ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {u.personal_code ? (
+                        <div className="flex items-center gap-2">
+                          <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md font-mono font-bold text-sm">{u.personal_code}</span>
+                          {whatsappBotPhone && (
+                            <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + u.personal_code)}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 text-xs underline">קישור</a>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 text-xs">אין קוד</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-slate-500">
                       {format(new Date(u.created_date), 'dd/MM/yyyy')}

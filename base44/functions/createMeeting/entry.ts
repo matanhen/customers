@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { identifyUser } from '../../shared/userIdentification.ts';
 
 const OFFICE_ADDRESS = 'יגאל אלון 94, מגדל אלון 2, קומה 31, תל אביב';
 
@@ -49,10 +50,10 @@ async function sendClientNotification(base44, phone, message) {
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
     const body = await req.json();
+    const user = await identifyUser(base44, body);
+    if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
+
     const { client_phone, meeting_type, meeting_date, meeting_time, location_type, advisor_name } = body;
 
     if (!client_phone || !meeting_date || !meeting_time) {

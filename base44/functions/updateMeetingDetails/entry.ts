@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { identifyUser } from '../../shared/userIdentification.ts';
 
 function normalizePhone(p) {
   if (!p) return '';
@@ -24,15 +25,15 @@ function formatDate(dateStr) {
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await req.json();
+    const user = await identifyUser(base44, body);
+    if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
 
     // Only advisors and admins can edit meetings
     if (user.user_type !== 'advisor' && user.user_type !== 'admin' && user.role !== 'admin') {
       return Response.json({ error: 'אין הרשאה - רק יועץ או מנהל יכול לערוך פגישות' }, { status: 403 });
     }
 
-    const body = await req.json();
     const { client_phone, current_meeting_date, new_date, new_time, new_location_type, new_meeting_type } = body;
 
     if (!client_phone) {

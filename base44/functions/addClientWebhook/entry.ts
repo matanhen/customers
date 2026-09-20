@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { generateUniquePersonalCode } from '../../shared/userIdentification.ts';
 
 Deno.serve(async (req) => {
     try {
@@ -50,7 +51,8 @@ Deno.serve(async (req) => {
 
         // Update user_type to client
         if (newUserId) {
-            await base44.asServiceRole.entities.User.update(newUserId, { user_type: 'client', full_name: name, phone: phone || '', custom_name: name });
+            const personalCode = await generateUniquePersonalCode(base44);
+            await base44.asServiceRole.entities.User.update(newUserId, { user_type: 'client', full_name: name, phone: phone || '', custom_name: name, personal_code: personalCode });
         }
 
         // Create ClientAdvisorAssignment

@@ -34,10 +34,14 @@ export default function AdvisorDashboard() {
   const [newClientName, setNewClientName] = useState('');
   const [addingClient, setAddingClient] = useState(false);
   const [addError, setAddError] = useState('');
+  const [whatsappBotPhone, setWhatsappBotPhone] = useState('');
   const queryClient = useQueryClient();
 
   useEffect(() => {
     loadUser();
+    base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' })
+      .then(res => { if (res[0]?.value) setWhatsappBotPhone(res[0].value); })
+      .catch(() => {});
   }, []);
 
   const loadUser = async () => {
@@ -315,6 +319,14 @@ export default function AdvisorDashboard() {
                 <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.full_name || 'ללא שם'}</h3>
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
                   <span className="flex items-center gap-1.5 truncate"><Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" /><span className="truncate">{client.email}</span></span>
+                  {client.personal_code && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono font-bold text-xs">קוד: {client.personal_code}</span>
+                      {whatsappBotPhone && (
+                        <a href={`https://wa.me/${whatsappBotPhone}?text=${encodeURIComponent('קוד אישי: ' + client.personal_code)}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 text-xs underline">קישור אישי</a>
+                      )}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1.5">
                     {client.first_login_date ? `כניסה ראשונה: ${format(new Date(client.first_login_date), 'dd/MM/yyyy HH:mm')}` : 'לא נכנס עדיין'}
                   </span>

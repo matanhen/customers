@@ -6,14 +6,16 @@ import {
   isVariableItem,
   getItemMonthTotal,
 } from '../../shared/expenseCategories.ts';
+import { identifyUser } from '../../shared/userIdentification.ts';
 
 // Returns the current client's financial context so the WhatsApp expense agent
 // can identify the user and know their categories, budget, and current spending.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await req.json().catch(() => ({}));
+    const user = await identifyUser(base44, body);
+    if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
 
     const month = getCurrentMonth();
     const week = getCurrentFinWeek();

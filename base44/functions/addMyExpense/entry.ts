@@ -6,6 +6,7 @@ import {
   addAmountToWeek,
   getItemMonthTotal,
 } from '../../shared/expenseCategories.ts';
+import { identifyUser } from '../../shared/userIdentification.ts';
 
 // Adds an expense to the current client's monthly tracking record.
 // Called by the WhatsApp expense agent. Identifies the client via base44.auth.me().
@@ -17,10 +18,10 @@ import {
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
     const body = await req.json();
+    const user = await identifyUser(base44, body);
+    if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
+
     const amount = parseFloat(body.amount);
     if (!amount || isNaN(amount) || amount <= 0) {
       return Response.json({ error: 'נדרש סכום חיובי' }, { status: 400 });
