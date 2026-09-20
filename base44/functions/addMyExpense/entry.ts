@@ -76,15 +76,31 @@ export default async function(req) {
       if (isVariableItem(item)) variableSpent += getItemMonthTotal(val);
     }
 
+    // Look up the monthly plan to get the variable expenses budget for this month
+    let variableBudget = 0;
+    try {
+      const plans = await base44.entities.MonthlyPlan.filter({ user_id: user.id, month });
+      if (plans.length > 0) {
+        variableBudget = plans[0].variable_expenses || 0;
+      }
+    } catch (e) { /* non-critical */ }
+
+    const remaining = variableBudget - variableSpent;
+
     // Build a formatted confirmation message with week and month in Hebrew
     const [year, monthNum] = month.split('-');
     const hebrewMonth = HEBREW_MONTHS[parseInt(monthNum) - 1] || '';
+    const budgetLines = variableBudget > 0
+      ? `מתוך ${variableBudget.toLocaleString('he-IL')}₪\n` +
+        `נותר לך לבזבז החודש עוד: ${Math.round(remaining).toLocaleString('he-IL')}₪\n\n`
+      : `\n`;
     const confirmationMessage =
       `הוצאה נרשמה ✅\n` +
       `שבוע ${week}, חודש ${hebrewMonth} ${year}.\n\n` +
       `📋 **${itemName}** - ${amount} ₪\n` +
       `📂 סעיף: ${categoryLabel}\n\n` +
-      `**סה"כ הוצאות משתנות החודש:** ${Math.round(variableSpent)} ₪\n\n` +
+      `**סה"כ הוצאות משתנות החודש:** ${Math.round(variableSpent)} ₪\n` +
+      budgetLines +
       `משהו נוסף? 😊`;
 
     return Response.json({
@@ -97,6 +113,8 @@ export default async function(req) {
       category: categoryKey,
       category_label: categoryLabel,
       variableSpent: Math.round(variableSpent),
+      variableBudget,
+      remaining: Math.round(remaining),
       confirmation_message: confirmationMessage,
     });
   } catch (error) {
