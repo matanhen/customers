@@ -11,8 +11,9 @@ function toInternational(p: string): string {
 }
 
 // Sends a WhatsApp message to a client via the expense_tracker agent.
-// Params: client_phone, message_text, client_name (optional)
-// Identifies the client name from meeting details (by phone) if not provided.
+// Params: client_phone (required), message_text (required)
+// client_name is NOT required — the client is identified by phone number alone.
+// Looks up the user by phone to retrieve their personal code and name (for metadata).
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -23,21 +24,31 @@ export default async function(req) {
       return Response.json({ error: 'נדרשים: client_phone, message_text' }, { status: 400 });
     }
 
-    // Identify the client name from meeting details (by phone number)
-    let client_name = body.client_name || '';
-    if (!client_name) {
-      const internationalPhone = toInternational(client_phone);
-      try {
-        const meetings = await base44.asServiceRole.entities.Meeting.filter({ client_phone: internationalPhone });
-        if (meetings.length > 0) {
-          client_name = meetings[0].client_name || '';
-        }
-      } catch (e) { /* non-critical */ }
-    }
+    const internationalPhone = toInternational(client_phone);
 
-    const result = await sendWhatsappNotification(base44, client_phone, message_text, { name: client_name });
+    // Look up the user by phone number to get their personal code and name
+    let personal_code = '';
+    let client_name = '';
+    let client_email = '';
+    try {
+      const allUsers = await base44.asServiceRole.entities.User.list();
+      const user = allUsers.find(u => {
+        const uPhone = toInternational(u.phone);
+        return uPhone && uPhone === internationalPhone;
+      });
+      if (user) {
+        personal_code = user.personal_code || '';
+        client_name = user.custom_name || user.full_name || '';
+        client_email = user.email || '';
+      }
+    } catch (e) { /* non-critical */ }
 
-    return Response.json({ ...result, client_name });
+    const result = await sendWhatsappNotification(base44, client_phone, message_text, {
+      name: client_name,
+      email: client_email,
+    });
+
+    return Response.json({ ...result, personal_code, client_name });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

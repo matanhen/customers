@@ -28,6 +28,21 @@ export async function sendWhatsappNotification(base44: any, phone: string, messa
   const internationalPhone = toInternational(phone);
   if (!internationalPhone) return { success: false, error: 'מספר טלפון לא תקין' };
 
+  // If no user info provided, try to look up the user by phone for metadata enrichment.
+  // This allows callers to send notifications based on phone number alone.
+  if (!userInfo?.name) {
+    try {
+      const allUsers = await base44.asServiceRole.entities.User.list();
+      const user = allUsers.find((u: any) => toInternational(u.phone) === internationalPhone);
+      if (user) {
+        userInfo = {
+          name: user.custom_name || user.full_name || '',
+          email: user.email || '',
+        };
+      }
+    } catch (e) { /* non-critical — proceed without user info */ }
+  }
+
   // List all conversations for the agent
   let conversations: any[] = [];
   try {
