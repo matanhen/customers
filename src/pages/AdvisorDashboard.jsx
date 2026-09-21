@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Users, Search, Eye, 
-  Mail, AlertCircle, UserPlus, MessageCircle
+  Mail, AlertCircle, UserPlus, MessageCircle, Loader2
 } from 'lucide-react';
 import ExpenseCoach from '../components/advisor/ExpenseCoach';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { buildWhatsappOpenLink } from '../utils/whatsappLink';
 
 
 const IDAN_EMAIL = 'idanhen012@gmail.com';
@@ -35,31 +34,11 @@ export default function AdvisorDashboard() {
   const [newClientName, setNewClientName] = useState('');
   const [addingClient, setAddingClient] = useState(false);
   const [addError, setAddError] = useState('');
-  const [whatsappBotPhone, setWhatsappBotPhone] = useState('');
-  const [whatsappActivationCode, setWhatsappActivationCode] = useState('');
+  const [generatingLinkFor, setGeneratingLinkFor] = useState(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     loadUser();
-    Promise.all([
-      base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' }),
-      base44.entities.SiteSettings.filter({ key: 'whatsapp_activation_code' }),
-    ])
-      .then(([phoneRes, codeRes]) => {
-        const cachedPhone = phoneRes[0]?.value;
-        const cachedCode = codeRes[0]?.value;
-        if (cachedPhone) setWhatsappBotPhone(cachedPhone);
-        if (cachedCode) setWhatsappActivationCode(cachedCode);
-        if (!cachedPhone || !cachedCode) {
-          base44.functions.invoke('getWhatsappBotPhone', {})
-            .then(r => {
-              if (r?.data?.phone) setWhatsappBotPhone(r.data.phone);
-              if (r?.data?.activation_code) setWhatsappActivationCode(r.data.activation_code);
-            })
-            .catch(() => {});
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const loadUser = async () => {
@@ -69,6 +48,21 @@ export default function AdvisorDashboard() {
     } catch (e) {
       console.log('User not logged in');
     }
+  };
+
+  // Generate a fresh, per-user WhatsApp link (unique activation code per call)
+  const handleOpenWhatsappLink = async (clientRow) => {
+    if (!clientRow.id) return;
+    setGeneratingLinkFor(clientRow.id);
+    try {
+      const res = await base44.functions.invoke('getUserWhatsappLink', { user_id: clientRow.id });
+      if (res?.data?.link) {
+        window.open(res.data.link, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {
+      console.error('Failed to generate WhatsApp link', e);
+    }
+    setGeneratingLinkFor(null);
   };
 
   const isAdvisor = user?.user_type === 'advisor';
@@ -340,13 +334,22 @@ export default function AdvisorDashboard() {
                   {client.personal_code && (
                     <span className="flex items-center gap-1.5">
                       <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono font-bold text-xs">קוד: {client.personal_code}</span>
-                      {whatsappBotPhone ? (
-                        <a               href={buildWhatsappOpenLink(whatsappBotPhone, client.personal_code, client.user_type, whatsappActivationCode)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors">
-                          <MessageCircle className="w-3 h-3" />
+                      {client.id ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenWhatsappLink(client)}
+                          disabled={generatingLinkFor === client.id}
+                          className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50"
+                        >
+                          {generatingLinkFor === client.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <MessageCircle className="w-3 h-3" />
+                          )}
                           קישור אישי
-                        </a>
+                        </button>
                       ) : (
-                        <span className="text-orange-500 text-xs">הגדר מספר בוט</span>
+                        <span className="text-orange-500 text-xs">אין משתמש</span>
                       )}
                     </span>
                   )}

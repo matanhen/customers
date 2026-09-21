@@ -98,12 +98,11 @@ export default async function(req) {
       ? `-${Math.abs(remainingRounded).toLocaleString('he-IL')}`
       : remainingRounded.toLocaleString('he-IL');
     const confirmationMessage =
-      `הוצאה נרשמה ✅\n` +
-      `שבוע ${week}, חודש ${hebrewMonth} ${year}.\n\n` +
-      `📋 ${itemName} - ${amount} ₪ 📂\n` +
-      `סעיף: ${sectionLabel}\n\n` +
-      `סה"כ הוצאות משתנות החודש: ${Math.round(variableSpent)} ₪ מתוך ${variableBudget.toLocaleString('he-IL')}₪ נותר לך לבזבז החודש עוד: ${remainingStr}₪\n\n` +
-      `משהו נוסף? 😊`;
+      `ההוצאה תועדה בהצלחה בשבוע ${week} בחודש ${hebrewMonth} ${year} ✅\n` +
+      `סעיף: ${sectionLabel}\n` +
+      `סכום: ${amount} ₪\n` +
+      `סך הכל נותר לבזבז החודש: ${remainingStr} ₪\n` +
+      ` האם יש עוד משהו שאוכל לעזור איתו? 😊`;
 
     return Response.json({
       success: true,
