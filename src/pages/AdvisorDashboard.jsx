@@ -36,18 +36,26 @@ export default function AdvisorDashboard() {
   const [addingClient, setAddingClient] = useState(false);
   const [addError, setAddError] = useState('');
   const [whatsappBotPhone, setWhatsappBotPhone] = useState('');
+  const [whatsappActivationCode, setWhatsappActivationCode] = useState('');
   const queryClient = useQueryClient();
 
   useEffect(() => {
     loadUser();
-    base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' })
-      .then(res => {
-        if (res[0]?.value) {
-          setWhatsappBotPhone(res[0].value);
-        } else {
-          // Auto-detect the bot phone number from the WhatsApp agent
+    Promise.all([
+      base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' }),
+      base44.entities.SiteSettings.filter({ key: 'whatsapp_activation_code' }),
+    ])
+      .then(([phoneRes, codeRes]) => {
+        const cachedPhone = phoneRes[0]?.value;
+        const cachedCode = codeRes[0]?.value;
+        if (cachedPhone) setWhatsappBotPhone(cachedPhone);
+        if (cachedCode) setWhatsappActivationCode(cachedCode);
+        if (!cachedPhone || !cachedCode) {
           base44.functions.invoke('getWhatsappBotPhone', {})
-            .then(r => { if (r?.data?.phone) setWhatsappBotPhone(r.data.phone); })
+            .then(r => {
+              if (r?.data?.phone) setWhatsappBotPhone(r.data.phone);
+              if (r?.data?.activation_code) setWhatsappActivationCode(r.data.activation_code);
+            })
             .catch(() => {});
         }
       })
@@ -333,7 +341,7 @@ export default function AdvisorDashboard() {
                     <span className="flex items-center gap-1.5">
                       <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono font-bold text-xs">קוד: {client.personal_code}</span>
                       {whatsappBotPhone ? (
-                        <a href={buildWhatsappOpenLink(whatsappBotPhone, client.personal_code, client.user_type)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors">
+                        <a               href={buildWhatsappOpenLink(whatsappBotPhone, client.personal_code, client.user_type, whatsappActivationCode)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors">
                           <MessageCircle className="w-3 h-3" />
                           קישור אישי
                         </a>

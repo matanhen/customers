@@ -67,6 +67,7 @@ export default function AdminDashboard() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [whatsappBotPhone, setWhatsappBotPhone] = useState('');
+  const [whatsappActivationCode, setWhatsappActivationCode] = useState('');
   const [whatsappPhoneInput, setWhatsappPhoneInput] = useState('');
   const [generatingCodes, setGeneratingCodes] = useState(false);
   const [codesResult, setCodesResult] = useState(null);
@@ -74,18 +75,31 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadUser();
-    base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' })
-      .then(res => {
-        if (res[0]?.value) {
-          setWhatsappBotPhone(res[0].value);
-          setWhatsappPhoneInput(res[0].value);
-        } else {
-          // Auto-detect the bot phone number from the WhatsApp agent
+    // Load both the bot phone and activation code
+    Promise.all([
+      base44.entities.SiteSettings.filter({ key: 'whatsapp_bot_phone' }),
+      base44.entities.SiteSettings.filter({ key: 'whatsapp_activation_code' }),
+    ])
+      .then(([phoneRes, codeRes]) => {
+        const cachedPhone = phoneRes[0]?.value;
+        const cachedCode = codeRes[0]?.value;
+        if (cachedPhone) {
+          setWhatsappBotPhone(cachedPhone);
+          setWhatsappPhoneInput(cachedPhone);
+        }
+        if (cachedCode) {
+          setWhatsappActivationCode(cachedCode);
+        }
+        // If either is missing, auto-detect from the WhatsApp agent
+        if (!cachedPhone || !cachedCode) {
           base44.functions.invoke('getWhatsappBotPhone', {})
             .then(r => {
               if (r?.data?.phone) {
                 setWhatsappBotPhone(r.data.phone);
                 setWhatsappPhoneInput(r.data.phone);
+              }
+              if (r?.data?.activation_code) {
+                setWhatsappActivationCode(r.data.activation_code);
               }
             })
             .catch(() => {});
@@ -864,7 +878,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2">
                           <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md font-mono font-bold text-sm">{u.personal_code}</span>
                           {whatsappBotPhone ? (
-                            <a href={buildWhatsappOpenLink(whatsappBotPhone, u.personal_code, u.user_type)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors">
+                            <a href={buildWhatsappOpenLink(whatsappBotPhone, u.personal_code, u.user_type, whatsappActivationCode)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors">
                               <MessageCircle className="w-3 h-3" />
                               קישור אישי
                             </a>
