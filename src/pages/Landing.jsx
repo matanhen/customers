@@ -72,7 +72,7 @@ export default function Landing() {
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                  className="text-right h-12 rounded-xl border-slate-200 focus:border-[#105330] focus:ring-[#105330]"
+                  className="text-right h-12 rounded-xl border-slate-200 focus:border-[#105330] focus:ring-[#105330] text-black"
                 />
               </div>
 
