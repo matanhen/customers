@@ -6,6 +6,7 @@ import {
   addAmountToWeek,
   getItemMonthTotal,
   findCategoryKey,
+  normalizeItemName,
   EXPENSE_CATEGORIES,
 } from '../../shared/expenseCategories.ts';
 import { identifyUser } from '../../shared/userIdentification.ts';
@@ -33,10 +34,34 @@ export default async function(req) {
     if (!amount || isNaN(amount) || amount <= 0) {
       return Response.json({ error: 'נדרש סכום חיובי' }, { status: 400 });
     }
-    const itemName = (body.item_name || body.item || '').toString().trim();
-    if (!itemName) {
+    const rawItemName = (body.item_name || body.item || '').toString().trim();
+    if (!rawItemName) {
       return Response.json({ error: 'נדרש שם סעיף הוצאה' }, { status: 400 });
     }
+
+    // 1. Check advisor-defined ExpenseMapping (keyword → target_item) for this user
+    let mappedItem = null;
+    try {
+      const mappings = await base44.entities.ExpenseMapping.filter({ created_by: user.id });
+      const lower = rawItemName.toLowerCase();
+      for (const m of mappings) {
+        if (m.keyword && lower.includes(m.keyword.toLowerCase())) {
+          mappedItem = m.target_item;
+          break;
+        }
+      }
+    } catch (e) { /* non-critical */ }
+
+    // 2. Load custom categories for the user (for normalizeItemName)
+    let customCategories = [];
+    try {
+      customCategories = await base44.entities.CustomExpenseCategory.filter({ user_id: user.id });
+    } catch (e) { /* non-critical */ }
+
+    // 3. Normalize: mapped item → normalizeItemName → original
+    const itemName = mappedItem
+      ? normalizeItemName(mappedItem, customCategories)
+      : normalizeItemName(rawItemName, customCategories);
 
     const month = getCurrentMonth();
     const week = getCurrentFinWeek();
