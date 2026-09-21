@@ -4,14 +4,14 @@
 // Message format:
 //   Send this message to connect and start chatting!
 //
-//   Activation code: B44-2ZWQ9VLC
+//   Activation code: B44-UKWUZRNH
 //
 //   קוד אישי : XXXX
 //
-// - B44-2ZWQ9VLC is the app's WhatsApp activation code (same for all users).
+// - B44-UKWUZRNH is the app's WhatsApp activation code (same for all users).
 // - XXXX is the user's 4-letter personal code (unique per user).
 
-const APP_ACTIVATION_CODE = "B44-2ZWQ9VLC";
+const APP_ACTIVATION_CODE = "B44-UKWUZRNH";
 
 export function buildWhatsappOpenLink(botPhone, personalCode, userType) {
   const message =
