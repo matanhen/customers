@@ -123,6 +123,20 @@ export default function AdvisorDashboard() {
     refetchOnWindowFocus: false,
   });
 
+  // Get client details (personal_code, phone) via backend function.
+  // Advisors can't read User entities directly (RLS blocks User.list).
+  const { data: advisorClientDetails = [] } = useQuery({
+    queryKey: ['advisorClientDetails', user?.id],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getAdvisorClients', {});
+      return res?.data?.clients || [];
+    },
+    enabled: !!user?.id && (isAdvisor || isAdmin),
+    staleTime: 3 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
   const isLoading = loadingAssignments || loadingUsers || loadingAllowed;
   const hasError = assignmentsError || usersError || allowedError;
 
@@ -154,7 +168,23 @@ export default function AdvisorDashboard() {
     };
   };
 
-  const combinedUsers = [...allUsers.map(enrichWithLoginDates), ...allowedUsersNotInSystem];
+  // For advisors: allUsers is empty (RLS), so merge registered clients from
+  // the backend function — these have personal_code and phone.
+  const advisorDetailUsers = isAdvisor
+    ? advisorClientDetails
+        .filter(c => c.id)
+        .map(c => ({
+          id: c.id,
+          email: c.email,
+          full_name: c.full_name,
+          custom_name: c.custom_name,
+          phone: c.phone,
+          personal_code: c.personal_code,
+          user_type: 'client',
+        }))
+    : [];
+
+  const combinedUsers = [...allUsers.map(enrichWithLoginDates), ...advisorDetailUsers, ...allowedUsersNotInSystem];
 
   // Helper: dedupe by email
   const dedupeByEmail = (arr) => {

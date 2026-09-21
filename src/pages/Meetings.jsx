@@ -38,17 +38,31 @@ export default function Meetings() {
     enabled: !!user,
   });
 
-  const { data: allUsers = [] } = useQuery({
-    queryKey: ['allUsersMeetings'],
-    queryFn: () => base44.entities.User.list(),
-    enabled: !!user,
-  });
-
   const isAdmin = user?.role === 'admin' || user?.user_type === 'admin';
   const isAdvisor = user?.user_type === 'advisor';
   const canEdit = isAdmin || isAdvisor;
 
-  const clients = allUsers.filter(u => u.user_type === 'client');
+  // Advisors can't list User entities (RLS) — use backend function instead.
+  // Admins can use User.list() directly.
+  const { data: advisorClients = [] } = useQuery({
+    queryKey: ['advisorClients', user?.id],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getAdvisorClients', {});
+      return res?.data?.clients || [];
+    },
+    enabled: !!user && (isAdvisor || isAdmin),
+  });
+
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['allUsersMeetings'],
+    queryFn: () => base44.entities.User.list('-created_date', 500),
+    enabled: !!user && isAdmin,
+  });
+
+  // Build clients list: backend function for advisors, User.list for admins
+  const clients = isAdmin
+    ? allUsers.filter(u => u.user_type === 'client')
+    : advisorClients;
   const advisors = allUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
 
   // Look up current user name by ID (prefers custom_name set by admin)

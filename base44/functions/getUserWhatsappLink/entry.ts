@@ -16,10 +16,12 @@ export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Admin-only: building a connect link for arbitrary users
+    // Admin or advisor: building a connect link for clients
     const caller = await base44.auth.me();
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (caller.role !== 'admin' && caller.user_type !== 'admin') {
+    const isAdmin = caller.role === 'admin' || caller.user_type === 'admin';
+    const isAdvisor = caller.user_type === 'advisor';
+    if (!isAdmin && !isAdvisor) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -32,6 +34,21 @@ export default async function(req) {
     const users = await base44.asServiceRole.entities.User.filter({ id: userId });
     const targetUser = users[0];
     if (!targetUser) return Response.json({ error: 'User not found' }, { status: 404 });
+
+    // Advisors can only generate links for their own assigned clients
+    if (!isAdmin && isAdvisor) {
+      const assignments = await base44.asServiceRole.entities.ClientAdvisorAssignment.list('-created_date', 500);
+      const isAssigned = assignments.some(a =>
+        a.advisor_id === caller.id ||
+        (a.advisor_email && a.advisor_email.toLowerCase() === (caller.email || '').toLowerCase())
+      ) && assignments.some(a =>
+        a.client_id === userId ||
+        (a.client_email && a.client_email.toLowerCase() === (targetUser.email || '').toLowerCase())
+      );
+      if (!isAssigned) {
+        return Response.json({ error: 'Forbidden - not your client' }, { status: 403 });
+      }
+    }
 
     const personalCode = (targetUser.personal_code || '').toUpperCase();
 
