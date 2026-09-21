@@ -113,17 +113,16 @@ export default async function(req) {
     const remaining = variableBudget - variableSpent;
 
     // Build a formatted confirmation message with week and month in Hebrew.
-    // The "סעיף" shows the sub-item name when the category is "שונות" (misc — too generic),
-    // otherwise shows the category label (e.g. "רכבים ונסיעות").
+    // "סעיף" shows the item name (e.g. "בילויים ומסעדות", "דלק"), not the category.
     const [year, monthNum] = month.split('-');
     const hebrewMonth = HEBREW_MONTHS[parseInt(monthNum) - 1] || '';
-    const sectionLabel = categoryLabel === 'שונות' ? itemName : categoryLabel;
+    const sectionLabel = itemName;
     const remainingRounded = Math.round(remaining);
     const remainingStr = remainingRounded < 0
       ? `-${Math.abs(remainingRounded).toLocaleString('he-IL')}`
       : remainingRounded.toLocaleString('he-IL');
     const confirmationMessage =
-      `ההוצאה תועדה בהצלחה בשבוע ${week} בחודש ${hebrewMonth} ${year} ✅\n` +
+      `ההוצאה תועדה בהצלחה בשבוע ${week} בחודש ${hebrewMonth} ${year} ✅\n\n` +
       `סעיף: ${sectionLabel}\n` +
       `סכום: ${amount} ₪\n` +
       `סך הכל נותר לבזבז החודש: ${remainingStr} ₪\n` +
