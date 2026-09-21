@@ -40,7 +40,6 @@ import NavbarLogoUploader from '@/components/admin/NavbarLogoUploader';
 import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
 import PhoneBulkUpdate from '@/components/admin/PhoneBulkUpdate';
 import ConversationHistory from '@/components/admin/ConversationHistory';
-import { buildWhatsappOpenLink } from '../utils/whatsappLink';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -71,6 +70,7 @@ export default function AdminDashboard() {
   const [whatsappPhoneInput, setWhatsappPhoneInput] = useState('');
   const [generatingCodes, setGeneratingCodes] = useState(false);
   const [codesResult, setCodesResult] = useState(null);
+  const [generatingLinkFor, setGeneratingLinkFor] = useState(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -454,6 +454,22 @@ export default function AdminDashboard() {
       email: client.email,
     }));
     window.location.href = createPageUrl('Home');
+  };
+
+  // Generate a fresh, per-user WhatsApp link (unique activation code per call)
+  // and open it in a new tab.
+  const handleOpenWhatsappLink = async (userRow) => {
+    if (!userRow.id) return;
+    setGeneratingLinkFor(userRow.id);
+    try {
+      const res = await base44.functions.invoke('getUserWhatsappLink', { user_id: userRow.id });
+      if (res?.data?.link) {
+        window.open(res.data.link, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {
+      console.error('Failed to generate WhatsApp link', e);
+    }
+    setGeneratingLinkFor(null);
   };
 
   const handleRemoveAdvisor = async (client) => {
@@ -877,13 +893,22 @@ export default function AdminDashboard() {
                       {u.personal_code ? (
                         <div className="flex items-center gap-2">
                           <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md font-mono font-bold text-sm">{u.personal_code}</span>
-                          {whatsappBotPhone ? (
-                            <a href={buildWhatsappOpenLink(whatsappBotPhone, u.personal_code, u.user_type, whatsappActivationCode)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors">
-                              <MessageCircle className="w-3 h-3" />
+                          {u.id ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenWhatsappLink(u)}
+                              disabled={generatingLinkFor === u.id}
+                              className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                            >
+                              {generatingLinkFor === u.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <MessageCircle className="w-3 h-3" />
+                              )}
                               קישור אישי
-                            </a>
+                            </button>
                           ) : (
-                            <span className="text-orange-500 text-xs">הגדר מספר בוט</span>
+                            <span className="text-slate-400 text-xs">אין משתמש</span>
                           )}
                         </div>
                       ) : (
