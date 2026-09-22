@@ -187,7 +187,7 @@ export default function AdminDashboard() {
               custom_name: allowedUser.full_name,
               user_type: allowedUser.user_type,
               advisor_id: 0,
-              phone: 0,
+              phone: allowedUser.phone || '',
               last_login_date: new Date().toISOString(),
               personal_code: code
             });
@@ -343,6 +343,7 @@ export default function AdminDashboard() {
       full_name: au.full_name,
       user_type: au.user_type,
       allowedUserId: au.id,
+      phone: au.phone || '',
       created_date: au.created_date
     }));
 
@@ -1067,11 +1068,11 @@ export default function AdminDashboard() {
             </Button>
             <Button 
               onClick={async () => {
-                // Normalize phone to 972... format for WhatsApp
+                // Normalize phone to local Israeli format 05XXXXXXXX
                 let normalizedPhone = editPhone.replace(/[\s\-()]/g, '');
-                if (normalizedPhone.startsWith('+972')) normalizedPhone = '972' + normalizedPhone.slice(4);
-                else if (normalizedPhone.startsWith('972')) normalizedPhone = normalizedPhone;
-                else if (normalizedPhone.startsWith('0')) normalizedPhone = '972' + normalizedPhone.slice(1);
+                if (normalizedPhone.startsWith('+972')) normalizedPhone = '0' + normalizedPhone.slice(4);
+                else if (normalizedPhone.startsWith('972')) normalizedPhone = '0' + normalizedPhone.slice(3);
+                else if (normalizedPhone.startsWith('00972')) normalizedPhone = '0' + normalizedPhone.slice(5);
 
                 // Only update User entity if the user is in the system (id !== allowedUserId)
                 if (editUser.id && editUser.id !== editUser.allowedUserId) {
