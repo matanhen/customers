@@ -78,7 +78,7 @@ export default function PhoneBulkUpdate() {
       </CardHeader>
       <CardContent className="p-5 space-y-4">
         <p className="text-sm text-slate-500">
-          העלה קובץ PDF עם עמודות: שם, אימייל, טלפון. המערכת תזהה לקוחות קיימים לפי האימייל ותעדכן את השם והטלפון שלהם. לקוחות שלא קיימים יוצגו עם אפשרות להוסיפם.
+          העלה קובץ PDF עם עמודות: שם, אימייל, טלפון, ושם יועץ (אופציונלי). המערכת תזהה לקוחות קיימים לפי האימייל ותעדכן את השם, הטלפון והיועץ המשויך. לקוחות שלא קיימים יוצגו עם אפשרות להוסיפם.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 items-start">
           <div className="flex-1 w-full">
