@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { normalizePhone } from '../../shared/phoneUtils.ts';
 
 // Identifies a user by their personal code.
 // Called by the WhatsApp agent when a user sends "קוד אישי: XXXX".
@@ -29,10 +30,7 @@ export default async function(req) {
     // to 972... at match time, so no need to store international format.
     const whatsappPhone = (body.whatsapp_phone || '').toString().trim();
     if (whatsappPhone) {
-      let localPhone = whatsappPhone.replace(/[\s\-()]/g, '');
-      if (localPhone.startsWith('+972')) localPhone = '0' + localPhone.slice(4);
-      else if (localPhone.startsWith('972')) localPhone = '0' + localPhone.slice(3);
-      // else: already 0XX or other format — keep as-is
+      const localPhone = normalizePhone(whatsappPhone);
 
       if (localPhone && localPhone !== (user.phone || '')) {
         try {

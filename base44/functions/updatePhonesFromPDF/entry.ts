@@ -1,7 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { normalizePhone } from '../../shared/phoneUtils.ts';
 
-// Updates phone numbers AND names for existing users by matching emails from a PDF file.
-// The PDF should contain name + email + phone columns.
+// Updates phone numbers, names, AND advisor assignments for existing users by matching
+// emails from a PDF file. The PDF should contain name + email + phone + advisor_name columns.
 // Admin-only function.
 export default async function(req) {
   try {
@@ -17,7 +18,7 @@ export default async function(req) {
     const { file_url } = body;
     if (!file_url) return Response.json({ error: 'נדרש file_url' }, { status: 400 });
 
-    // Extract name+email+phone from the PDF
+    // Extract name+email+phone+advisor from the PDF
     const extractRes = await base44.integrations.Core.ExtractDataFromUploadedFile({
       file_url,
       json_schema: {
@@ -31,6 +32,8 @@ export default async function(req) {
                 name: { type: 'string' },
                 email: { type: 'string' },
                 phone: { type: 'string' },
+                advisor_name: { type: 'string' },
+                advisor_email: { type: 'string' },
               },
               required: ['email', 'phone'],
             },
@@ -49,13 +52,34 @@ export default async function(req) {
       return Response.json({ error: 'לא נמצאו אנשי קשר עם אימייל וטלפון בקובץ' }, { status: 400 });
     }
 
-    // Get all users and allowed users
+    // Get all users, allowed users, advisors, and assignments
     const allUsers = await base44.asServiceRole.entities.User.list();
     const allAllowed = await base44.asServiceRole.entities.AllowedUser.list();
+    const allAssignments = await base44.asServiceRole.entities.ClientAdvisorAssignment.list();
+
+    // Build advisor lookup by name and email
+    const advisors = allUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
+    const findAdvisor = (name, email) => {
+      const nameLower = (name || '').trim().toLowerCase();
+      const emailLower = (email || '').trim().toLowerCase();
+      if (emailLower) {
+        const byEmail = advisors.find(a => (a.email || '').toLowerCase() === emailLower);
+        if (byEmail) return byEmail;
+      }
+      if (nameLower) {
+        const byName = advisors.find(a => {
+          const full = (a.custom_name || a.full_name || '').toLowerCase();
+          return full === nameLower || full.includes(nameLower) || nameLower.includes(full);
+        });
+        if (byName) return byName;
+      }
+      return null;
+    };
 
     let updated = 0;
     let notFound = 0;
     let failed = 0;
+    let advisorsUpdated = 0;
     const results = [];
     const notFoundClients = [];
 
@@ -66,7 +90,7 @@ export default async function(req) {
         continue;
       }
       const email = contact.email.toLowerCase().trim();
-      const phone = contact.phone.trim();
+      const phone = normalizePhone(contact.phone);
       const name = (contact.name || '').trim();
 
       try {
@@ -88,11 +112,39 @@ export default async function(req) {
             if (name) allowedUpdate.full_name = name;
             await base44.asServiceRole.entities.AllowedUser.update(allowedRecord.id, allowedUpdate);
           }
+
+          // Update advisor assignment if advisor info provided
+          const advisor = findAdvisor(contact.advisor_name, contact.advisor_email);
+          if (advisor && userRecord) {
+            const existingAssignment = allAssignments.find(a =>
+              a.client_id === userRecord.id ||
+              (a.client_email && a.client_email.toLowerCase() === email)
+            );
+            if (existingAssignment && existingAssignment.advisor_id !== advisor.id) {
+              // Reassign to new advisor
+              await base44.asServiceRole.entities.ClientAdvisorAssignment.update(existingAssignment.id, {
+                advisor_id: advisor.id,
+                advisor_email: advisor.email,
+              });
+              advisorsUpdated++;
+            } else if (!existingAssignment) {
+              // Create new assignment
+              await base44.asServiceRole.entities.ClientAdvisorAssignment.create({
+                client_id: userRecord.id,
+                client_email: email,
+                client_name: name || userRecord.full_name || '',
+                advisor_id: advisor.id,
+                advisor_email: advisor.email,
+              });
+              advisorsUpdated++;
+            }
+          }
+
           updated++;
-          results.push({ email, phone, name, status: 'updated', name: name || userRecord?.full_name || allowedRecord?.full_name || '' });
+          results.push({ email, phone, name, status: 'updated', advisor: advisor ? (advisor.custom_name || advisor.full_name) : '' });
         } else {
           notFound++;
-          notFoundClients.push({ email, phone, name });
+          notFoundClients.push({ email, phone, name, advisor_name: contact.advisor_name || '', advisor_email: contact.advisor_email || '' });
           results.push({ email, phone, name, status: 'not_found' });
         }
       } catch (e) {
@@ -107,6 +159,7 @@ export default async function(req) {
       updated,
       notFound,
       failed,
+      advisorsUpdated,
       notFoundClients,
       results,
     });

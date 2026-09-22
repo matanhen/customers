@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { generateUniquePersonalCode } from '../../shared/userIdentification.ts';
+import { normalizePhone } from '../../shared/phoneUtils.ts';
 
 // Bulk-adds missing clients from a PDF import.
 // Admin-only. Accepts a list of {name, email, phone}.
@@ -42,11 +43,12 @@ export default async function(req) {
         }
 
         // Create AllowedUser
+        const normalizedPhone = normalizePhone(client.phone || '');
         await base44.asServiceRole.entities.AllowedUser.create({
           email: normalizedEmail,
           full_name: client.name || '',
           user_type: 'client',
-          phone: client.phone || '',
+          phone: normalizedPhone,
         });
 
         // Invite the user
@@ -61,7 +63,7 @@ export default async function(req) {
             user_type: 'client',
             full_name: client.name || '',
             custom_name: client.name || '',
-            phone: client.phone || '',
+            phone: normalizedPhone,
             personal_code: personalCode,
           });
         }
