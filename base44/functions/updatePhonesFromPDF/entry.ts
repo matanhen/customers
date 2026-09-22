@@ -1,5 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { normalizePhone } from '../../shared/phoneUtils.ts';
+import { fixScrambledEmail } from '../../shared/emailUtils.ts';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Retries an entity write on platform rate-limit errors with exponential backoff.
+async function withRetry(fn, retries = 5, baseDelay = 600) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const isRateLimit = /rate limit/i.test(e.message || '');
+      if (!isRateLimit || i === retries) throw e;
+      await sleep(baseDelay * Math.pow(2, i));
+    }
+  }
+}
 
 // Updates phone numbers, names, AND advisor assignments for existing users by matching
 // emails from a PDF file. The PDF has 4 columns: שם מלא, טלפון, דואר אלקטרוני, יועץ אחראי.
@@ -91,7 +107,7 @@ export default async function(req) {
         results.push({ email: contact.email || '', name: contact.name || '', phone: contact.phone || '', status: 'failed', error: 'חסר אימייל או טלפון' });
         continue;
       }
-      const email = contact.email.toLowerCase().trim();
+      const email = fixScrambledEmail(contact.email).toLowerCase().trim();
       const phone = normalizePhone(contact.phone);
       const name = (contact.name || '').trim();
 
@@ -107,13 +123,13 @@ export default async function(req) {
               updateData.full_name = name;
               updateData.custom_name = name;
             }
-            await base44.entities.User.update(userRecord.id, updateData);
+            await withRetry(() => base44.entities.User.update(userRecord.id, updateData));
           }
           // Update AllowedUser entity if exists
           if (allowedRecord) {
             const allowedUpdate = { phone };
             if (name) allowedUpdate.full_name = name;
-            await base44.entities.AllowedUser.update(allowedRecord.id, allowedUpdate);
+            await withRetry(() => base44.entities.AllowedUser.update(allowedRecord.id, allowedUpdate));
           }
 
           // Update advisor assignment if advisor info provided
@@ -125,20 +141,20 @@ export default async function(req) {
             );
             if (existingAssignment && existingAssignment.advisor_id !== advisor.id) {
               // Reassign to new advisor
-              await base44.entities.ClientAdvisorAssignment.update(existingAssignment.id, {
+              await withRetry(() => base44.entities.ClientAdvisorAssignment.update(existingAssignment.id, {
                 advisor_id: advisor.id,
                 advisor_email: advisor.email,
-              });
+              }));
               advisorsUpdated++;
             } else if (!existingAssignment) {
               // Create new assignment
-              await base44.entities.ClientAdvisorAssignment.create({
+              await withRetry(() => base44.entities.ClientAdvisorAssignment.create({
                 client_id: userRecord.id,
                 client_email: email,
                 client_name: name || userRecord.full_name || '',
                 advisor_id: advisor.id,
                 advisor_email: advisor.email,
-              });
+              }));
               advisorsUpdated++;
             }
           }
@@ -152,8 +168,12 @@ export default async function(req) {
         }
       } catch (e) {
         failed++;
+        console.error('Failed to update contact', email, e.message);
         results.push({ email, phone, name, status: 'failed', error: e.message });
       }
+
+      // Small stagger between contacts to avoid bursting the platform's write rate limit.
+      await sleep(120);
     }
 
     return Response.json({
