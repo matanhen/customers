@@ -18,7 +18,7 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
 
     const month = getCurrentMonth();
-    const week = getCurrentFinWeek();
+    const week = getCurrentFinWeek(new Date(), user.cycle_start_day || 10);
 
     // This month's ExpenseTracking record (calendar month key, matches ExpenseTracking.jsx)
     const records = await base44.entities.ExpenseTracking.filter({ user_id: user.id, month });

@@ -64,7 +64,8 @@ export default async function(req) {
       : normalizeItemName(rawItemName, customCategories);
 
     const month = getCurrentMonth();
-    const week = getCurrentFinWeek();
+    // Use the user's own cycle start day so the expense lands in the week the app shows
+    const week = getCurrentFinWeek(new Date(), user.cycle_start_day || 10);
     const variable = body.expense_type ? body.expense_type === 'variable' : isVariableItem(itemName);
     const categoryKey = findCategoryKey(itemName);
     const categoryLabel = EXPENSE_CATEGORIES.find(c => c.key === categoryKey)?.label || 'שונות';

@@ -95,12 +95,10 @@ Deno.serve(async (req) => {
       const clientCycleStart = client.cycle_start_day || 10;
       const clientCurrentWeek = getCurrentWeekNumber(parseInt(day), clientCycleStart);
 
-      const categoryExpenses = tracking._categoryExpenses || {};
+      // fixed_expenses holds each item with its week breakdown ({ week1..week4 })
       let weeklyExpensesTotal = 0;
-      Object.values(categoryExpenses).forEach((items) => {
-        Object.values(items || {}).forEach((entry) => {
-          weeklyExpensesTotal += getItemWeekAmount(entry, clientCurrentWeek);
-        });
+      Object.values(tracking.fixed_expenses || {}).forEach((entry) => {
+        weeklyExpensesTotal += getItemWeekAmount(entry, clientCurrentWeek);
       });
 
       const payload = {

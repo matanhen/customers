@@ -163,10 +163,18 @@ export function normalizeItemName(
   return trimmed;
 }
 
-// Financial week based on 10-cycle (matches WeeklyVariableTracker default):
-// 10-16 = week1, 17-23 = week2, 24-end = week3, 1-9 = week4
-export function getCurrentFinWeek(date = new Date()) {
+// Financial week, honoring the user's chosen cycle start day
+// (matches WeeklyVariableTracker / ExpenseTracking).
+// cycleStart=10 (default): 10-16 = week1, 17-23 = week2, 24-end = week3, 1-9 = week4
+// cycleStart=1:             1-7 = week1, 8-15 = week2, 16-23 = week3, 24-end = week4
+export function getCurrentFinWeek(date = new Date(), cycleStart = 10) {
   const day = date.getDate();
+  if (cycleStart === 1) {
+    if (day >= 1 && day <= 7) return 1;
+    if (day >= 8 && day <= 15) return 2;
+    if (day >= 16 && day <= 23) return 3;
+    return 4;
+  }
   if (day >= 10 && day <= 16) return 1;
   if (day >= 17 && day <= 23) return 2;
   if (day >= 24) return 3;

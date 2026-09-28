@@ -135,6 +135,7 @@ export default function ExpenseTracking({ userId }) {
   const dataLoadedRef = useRef(false);
   const lastLoadedTrackingIdRef = useRef(null);
   const hasSavedForMonthRef = useRef(false);
+  const lastSaveAtRef = useRef(0);
 
   // Reset the "has saved" flag when the month changes
   useEffect(() => {
@@ -200,6 +201,10 @@ export default function ExpenseTracking({ userId }) {
     const unsubscribe = base44.entities.ExpenseTracking.subscribe((event) => {
       if (!event.data || event.data.user_id !== userId || event.data.month !== currentMonth) return;
       if (event.type === 'delete') return;
+      // Skip echoes/races of this user's own saves (including saves still in flight).
+      // Without this, a late echo of an earlier keystroke reloads the record and wipes
+      // the number the user is typing right now.
+      if (event.data.id === currentTrackingIdRef.current && Date.now() - lastSaveAtRef.current < 4000) return;
       // Skip echoes of this user's own saves (server data matches local state)
       const serverFixed = JSON.stringify(event.data.fixed_expenses || {});
       const localFixed = JSON.stringify(trackingDataRef.current.fixed_expenses || {});
@@ -251,8 +256,8 @@ export default function ExpenseTracking({ userId }) {
   const saveNow = useCallback(async (data) => {
     if (!dataLoadedRef.current) return;
     const month = format(currentDate, 'yyyy-MM');
-    // Strip UI-only fields before sending to server (unknown fields can cause save to fail)
-    const { _categoryExpenses, ...serverData } = data;
+    // fixed_expenses is the single stored source of truth (each item keeps its week breakdown)
+    const serverData = data;
     let savedRecord;
     if (isViewingOther && isAdvisorOrAdmin) {
       const response = await base44.functions.invoke('saveClientData', {
@@ -282,6 +287,8 @@ export default function ExpenseTracking({ userId }) {
       if (exists) return old.map(t => t.id === savedRecord.id ? { ...t, ...savedRecord } : t);
       return [...old, savedRecord];
     });
+    // Remember when we last wrote, so echoes of our own saves don't trigger a reload
+    lastSaveAtRef.current = Date.now();
   }, [userId, currentDate, queryClient, isViewingOther, isAdvisorOrAdmin, currentUser]);
 
   const saveNowRef = useRef(saveNow);
@@ -293,6 +300,11 @@ export default function ExpenseTracking({ userId }) {
   // which lost data if the user navigated away mid-typing without blurring.
   const incomeSaveTimer = useRef(null);
   const pendingIncomeSaveRef = useRef(null);
+
+  // Weekly-table edits use the same debounce + flush treatment, so a burst of
+  // keystrokes produces a single save instead of a race of overwriting saves.
+  const tableSaveTimer = useRef(null);
+  const pendingTableSaveRef = useRef(null);
   const updateActualIncome = (newVal) => {
     const newData = { ...trackingDataRef.current, actual_income: newVal };
     setTrackingData(newData);
@@ -305,57 +317,66 @@ export default function ExpenseTracking({ userId }) {
     }, 600);
   };
 
-  // Flush any pending income save when page is hidden / closed / unmounted
-  const flushIncomeSave = useCallback(() => {
+  // Flush any pending save when page is hidden / closed / unmounted
+  const flushPendingSaves = useCallback(() => {
     if (incomeSaveTimer.current) clearTimeout(incomeSaveTimer.current);
-    if (pendingIncomeSaveRef.current) {
-      const data = pendingIncomeSaveRef.current;
-      pendingIncomeSaveRef.current = null;
-      saveNowRef.current(data);
-    }
+    if (tableSaveTimer.current) clearTimeout(tableSaveTimer.current);
+    const income = pendingIncomeSaveRef.current;
+    const table = pendingTableSaveRef.current;
+    pendingIncomeSaveRef.current = null;
+    pendingTableSaveRef.current = null;
+    // Save the income snapshot first, then the (newer) table snapshot
+    if (income) saveNowRef.current(income);
+    if (table) saveNowRef.current(table);
   }, []);
 
   useEffect(() => {
-    const handleVisibility = () => { if (document.hidden) flushIncomeSave(); };
-    const handlePageHide = () => flushIncomeSave();
+    const handleVisibility = () => { if (document.hidden) flushPendingSaves(); };
+    const handlePageHide = () => flushPendingSaves();
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('pagehide', handlePageHide);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('pagehide', handlePageHide);
-      flushIncomeSave();
+      flushPendingSaves();
     };
-  }, [flushIncomeSave]);
+  }, [flushPendingSaves]);
 
-  // Handle table changes (flat expenses from ExpenseTrackingTable)
-  // The table gives { [catKey]: { [item]: amount } }
-  // We need to flatten it to { [item]: amount } for fixed_expenses
+  // Handle table changes from ExpenseTrackingTable.
+  // The table gives { [catKey]: { [item]: entry } } where each entry keeps its
+  // week breakdown ({ week1..week4 }). We store that shape directly in
+  // fixed_expenses — the single persisted source of truth — so the amount stays
+  // saved in the week it was entered in (instead of being flattened away).
   const handleExpenseTableChange = (categoryExpenses) => {
-    // Flatten all categories into a single fixed_expenses dict (monthly totals, summed across all weeks)
     const flat = {};
     Object.values(categoryExpenses).forEach(catItems => {
       Object.entries(catItems).forEach(([item, entry]) => {
-        flat[item] = (flat[item] || 0) + getItemMonthTotal(entry);
+        flat[item] = entry;
       });
     });
-    const newData = { ...trackingData, fixed_expenses: flat, _categoryExpenses: categoryExpenses };
+    const newData = { ...trackingDataRef.current, fixed_expenses: flat };
     setTrackingData(newData);
-    saveNow(newData);
+    pendingTableSaveRef.current = newData;
+    clearTimeout(tableSaveTimer.current);
+    tableSaveTimer.current = setTimeout(() => {
+      const data = pendingTableSaveRef.current;
+      pendingTableSaveRef.current = null;
+      if (data) saveNowRef.current(data);
+    }, 600);
   };
 
-  // Build category expenses from flat fixed_expenses for the table component
+  // Build the per-category view for the table from fixed_expenses,
+  // preserving each item's week breakdown (legacy flat numbers are kept as-is).
   const getCategoryExpenses = () => {
-    // Try _categoryExpenses first (from table edits), otherwise reconstruct
-    if (trackingData._categoryExpenses) return trackingData._categoryExpenses;
     const catExpenses = {};
     EXPENSE_CATEGORIES.forEach(cat => { catExpenses[cat.key] = {}; });
-    Object.entries(trackingData.fixed_expenses || {}).forEach(([item, amount]) => {
+    Object.entries(trackingData.fixed_expenses || {}).forEach(([item, entry]) => {
       let catKey = 'misc';
       for (const cat of EXPENSE_CATEGORIES) {
         if (cat.items.includes(item)) { catKey = cat.key; break; }
       }
       if (!catExpenses[catKey]) catExpenses[catKey] = {};
-      catExpenses[catKey][item] = amount;
+      catExpenses[catKey][item] = entry;
     });
     return catExpenses;
   };

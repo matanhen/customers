@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import AIChatAssistant from '../components/chat/AIChatAssistant';
-import { EXPENSE_CATEGORIES } from '../components/financial/expenseCategories';
+import { EXPENSE_CATEGORIES, getItemMonthTotal } from '../components/financial/expenseCategories';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell, LineChart, Line
@@ -147,8 +147,9 @@ export default function Home() {
     : (availableMonths[availableMonths.length - 1] || selectedMonth);
 
   const incomeVsExpensesData = sortedTrackings.map(t => {
-    const fixedTotal = Object.values(t.fixed_expenses || {}).reduce((s, v) => s + (v || 0), 0);
-    const variableTotal = Object.values(t.variable_expenses || {}).reduce((s, v) => s + (v || 0), 0);
+    // Each entry is either a flat number or a week breakdown ({ week1..week4 })
+    const fixedTotal = Object.values(t.fixed_expenses || {}).reduce((s, v) => s + getItemMonthTotal(v), 0);
+    const variableTotal = Object.values(t.variable_expenses || {}).reduce((s, v) => s + getItemMonthTotal(v), 0);
     const customTotal = (t.custom_expenses || []).reduce((s, e) => s + (e.amount || 0), 0);
     return {
       month: formatMonthLabel(t.month).split(' ')[0] || '',
@@ -167,17 +168,17 @@ export default function Home() {
     const byCategory = {};
     EXPENSE_CATEGORIES.forEach(cat => { byCategory[cat.key] = 0; });
 
-    // fixed_expenses and variable_expenses are flat: { itemName: amount }
+    // fixed_expenses and variable_expenses map itemName → amount | { week1..week4 }
     const allFlat = {
       ...selectedTracking.fixed_expenses,
       ...selectedTracking.variable_expenses,
     };
-    Object.entries(allFlat).forEach(([itemName, amount]) => {
+    Object.entries(allFlat).forEach(([itemName, entry]) => {
       let catKey = 'misc';
       for (const cat of EXPENSE_CATEGORIES) {
         if (cat.items.includes(itemName)) { catKey = cat.key; break; }
       }
-      byCategory[catKey] = (byCategory[catKey] || 0) + (Number(amount) || 0);
+      byCategory[catKey] = (byCategory[catKey] || 0) + getItemMonthTotal(entry);
     });
 
     (selectedTracking.custom_expenses || []).forEach(e => {
