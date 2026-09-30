@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import { generateUniquePersonalCode } from '../../shared/userIdentification.ts';
+import { ensureClientPersonalCode } from '../../shared/userIdentification.ts';
 import { normalizePhone } from '../../shared/phoneUtils.ts';
 
 // Public webhook that registers a new client: name + email (+ phone).
@@ -82,6 +82,10 @@ export default async function (req: Request): Promise<Response> {
       created = true;
     }
 
+    // --- Personal code, created right now at registration — a client that never
+    //     logs in keeps it on this registration record until they do ---
+    const ensured = await ensureClientPersonalCode(base44, { email, full_name: name, phone });
+
     // --- Invitation (best effort) ---
     // The service-role client has no users module, so inviting has to run on the
     // request's own client, which requires an authorized token on the call (for
@@ -118,8 +122,8 @@ export default async function (req: Request): Promise<Response> {
       if (!userRecord.full_name && name) patch.full_name = name;
       if (!userRecord.custom_name && name) patch.custom_name = name;
       if (!userRecord.phone && phone) patch.phone = phone;
-      if (!userRecord.personal_code) {
-        patch.personal_code = await generateUniquePersonalCode(base44);
+      if (!userRecord.personal_code && ensured.personal_code) {
+        patch.personal_code = ensured.personal_code;
         personalCodeAssigned = true;
       }
       if (Object.keys(patch).length) {

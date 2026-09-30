@@ -1,8 +1,17 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { generatePersonalCode } from '../../shared/userIdentification.ts';
 
-// Generates personal codes for all users who don't have one yet.
-// Admin-only. Uses parallel batch updates for efficiency.
-export default async function(req) {
+// Makes sure every client has a personal code:
+//  - app users without a code
+//  - clients that registered but have not logged in yet (code kept on their
+//    registration record)
+//  - clients that only exist as an advisor assignment (they get their
+//    registration record + code)
+// Admin-only.
+const codeOf = (value) => (value || '').toString().trim().toUpperCase();
+const emailOf = (value) => (value || '').toString().trim().toLowerCase();
+
+export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -11,52 +20,101 @@ export default async function(req) {
       return Response.json({ error: 'אין הרשאה - נדרש מנהל מערכת' }, { status: 403 });
     }
 
-    const users = await base44.asServiceRole.entities.User.list();
+    const [users, allowedUsers, assignments] = await Promise.all([
+      base44.asServiceRole.entities.User.list(),
+      base44.asServiceRole.entities.AllowedUser.list(),
+      base44.asServiceRole.entities.ClientAdvisorAssignment.list(),
+    ]);
 
-    // Generate codes for users without one, ensuring uniqueness
-    const existingCodes = new Set(users.map(u => (u.personal_code || '').toUpperCase()));
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const updates = [];
+    const existingCodes = new Set();
+    const registerCode = (value) => {
+      const code = codeOf(value);
+      if (code) existingCodes.add(code);
+      return code;
+    };
+    users.forEach(u => registerCode(u.personal_code));
+    allowedUsers.forEach(a => registerCode(a.personal_code));
 
-    for (const u of users) {
-      if (u.personal_code) continue;
-
+    const nextCode = () => {
       let code;
       let attempts = 0;
       do {
-        code = '';
-        for (let i = 0; i < 4; i++) {
-          code += letters[Math.floor(Math.random() * letters.length)];
-        }
+        code = generatePersonalCode();
         attempts++;
-        if (attempts > 100) break;
+        if (attempts > 200) break;
       } while (existingCodes.has(code));
-
       existingCodes.add(code);
-      updates.push({ id: u.id, personal_code: code });
+      return code;
+    };
+
+    const userByEmail = new Map(users.map(u => [emailOf(u.email), u]));
+    const allowedByEmail = new Map(allowedUsers.map(a => [emailOf(a.email), a]));
+
+    // 1. App users without a code — reuse the code their registration record holds
+    const userUpdates = [];
+    for (const u of users) {
+      if (codeOf(u.personal_code)) continue;
+      const fromRegistration = codeOf(allowedByEmail.get(emailOf(u.email))?.personal_code);
+      userUpdates.push({ id: u.id, personal_code: fromRegistration || nextCode() });
     }
 
-    // Update in parallel batches of 10
-    const batchSize = 10;
-    let success = 0;
+    // 2. Registered clients without a code — reuse the code their app user holds
+    const allowedUpdates = [];
+    for (const a of allowedUsers) {
+      if (codeOf(a.personal_code)) continue;
+      const fromUser = codeOf(userByEmail.get(emailOf(a.email))?.personal_code);
+      allowedUpdates.push({ id: a.id, personal_code: fromUser || nextCode() });
+    }
+
+    // 3. Clients known only from an advisor assignment — create their registration record
+    let created = 0;
     let failed = 0;
-    for (let i = 0; i < updates.length; i += batchSize) {
-      const batch = updates.slice(i, i + batchSize);
-      const results = await Promise.allSettled(
-        batch.map(u => base44.asServiceRole.entities.User.update(u.id, { personal_code: u.personal_code }))
-      );
-      for (const r of results) {
-        if (r.status === 'fulfilled') success++;
-        else failed++;
+    const seenEmails = new Set(allowedUsers.map(a => emailOf(a.email)));
+    for (const a of assignments) {
+      const email = emailOf(a.client_email);
+      if (!email || seenEmails.has(email)) continue;
+      seenEmails.add(email);
+      try {
+        await base44.asServiceRole.entities.AllowedUser.create({
+          email,
+          full_name: a.client_name || '',
+          user_type: 'client',
+          phone: '',
+          personal_code: nextCode(),
+        });
+        created++;
+      } catch (e) {
+        failed++;
       }
     }
 
+    // Apply updates in parallel batches
+    const applyUpdates = async (entity, updates) => {
+      let ok = 0;
+      let bad = 0;
+      for (let i = 0; i < updates.length; i += 10) {
+        const batch = updates.slice(i, i + 10);
+        const results = await Promise.allSettled(
+          batch.map(u => entity.update(u.id, { personal_code: u.personal_code }))
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') ok++;
+          else bad++;
+        }
+      }
+      return { ok, bad };
+    };
+
+    const userResult = await applyUpdates(base44.asServiceRole.entities.User, userUpdates);
+    const allowedResult = await applyUpdates(base44.asServiceRole.entities.AllowedUser, allowedUpdates);
+
     return Response.json({
       success: true,
-      generated: success,
-      failed,
-      skipped: users.length - updates.length,
-      total: users.length,
+      generated: userResult.ok + allowedResult.ok,
+      failed: userResult.bad + allowedResult.bad + failed,
+      skipped: (users.length - userUpdates.length) + (allowedUsers.length - allowedUpdates.length),
+      clients_created: created,
+      total: users.length + allowedUsers.length,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

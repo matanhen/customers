@@ -52,10 +52,13 @@ export default function AdvisorDashboard() {
 
   // Generate a fresh, per-user WhatsApp link (unique activation code per call)
   const handleOpenWhatsappLink = async (clientRow) => {
-    if (!clientRow.id) return;
-    setGeneratingLinkFor(clientRow.id);
+    if (!clientRow.id && !clientRow.email) return;
+    setGeneratingLinkFor(clientRow.id || clientRow.email);
     try {
-      const res = await base44.functions.invoke('getUserWhatsappLink', { user_id: clientRow.id });
+      const res = await base44.functions.invoke('getUserWhatsappLink', {
+        user_id: clientRow.id || '',
+        email: clientRow.email || '',
+      });
       if (res?.data?.link) {
         window.open(res.data.link, '_blank', 'noopener,noreferrer');
       }
@@ -73,11 +76,14 @@ export default function AdvisorDashboard() {
     queryKey: ['advisorAssignments', user?.id, isAdmin],
     queryFn: async () => {
       try {
-        const allAssignments = await base44.entities.ClientAdvisorAssignment.list('-created_date', 500);
+        const allAssignments = await base44.entities.ClientAdvisorAssignment.list('-created_date', 1000);
         if (isAdmin) {
           return allAssignments;
         }
-        return allAssignments.filter(a => a.advisor_id === user?.id);
+        const myEmail = (user?.email || '').toLowerCase().trim();
+        return allAssignments.filter(a =>
+          a.advisor_id === user?.id || (a.advisor_email || '').toLowerCase().trim() === myEmail
+        );
       } catch (error) {
         console.error('Error loading assignments:', error);
         return [];
@@ -94,7 +100,7 @@ export default function AdvisorDashboard() {
     queryKey: ['allUsersForAdvisor'],
     queryFn: async () => {
       try {
-        return await base44.entities.User.list('-created_date', 500);
+        return await base44.entities.User.list('-created_date', 1000);
       } catch (error) {
         console.error('Error loading users:', error);
         return [];
@@ -111,7 +117,7 @@ export default function AdvisorDashboard() {
     queryKey: ['allowedUsersForAdvisor'],
     queryFn: async () => {
       try {
-        return await base44.entities.AllowedUser.list('-created_date', 500);
+        return await base44.entities.AllowedUser.list('-created_date', 1000);
       } catch (error) {
         console.error('Error loading allowed users:', error);
         return [];
@@ -147,14 +153,17 @@ export default function AdvisorDashboard() {
   }
 
   // Merge Users and AllowedUsers - create combined list
-  const userEmails = new Set(allUsers.map(u => u.email));
+  const emailKey = (value) => (value || '').toLowerCase().trim();
+  const userEmails = new Set(allUsers.map(u => emailKey(u.email)));
   const allowedUsersNotInSystem = allowedUsers
-    .filter(au => !userEmails.has(au.email))
+    .filter(au => !userEmails.has(emailKey(au.email)))
     .map(au => ({
       id: au.id,
       email: au.email,
       full_name: au.full_name,
       user_type: au.user_type,
+      phone: au.phone || '',
+      personal_code: au.personal_code || '',
       created_date: au.created_date
     }));
 
@@ -179,7 +188,7 @@ export default function AdvisorDashboard() {
           full_name: c.full_name,
           custom_name: c.custom_name,
           phone: c.phone,
-          personal_code: c.personal_code,
+          personal_code: (c.personal_code || '').toUpperCase(),
           user_type: 'client',
         }))
     : [];
@@ -190,8 +199,9 @@ export default function AdvisorDashboard() {
   const dedupeByEmail = (arr) => {
     const seen = new Set();
     return arr.filter(c => {
-      if (seen.has(c.email)) return false;
-      seen.add(c.email);
+      const key = emailKey(c.email);
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
   };
@@ -205,46 +215,37 @@ export default function AdvisorDashboard() {
   const nickAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === NICK_EMAIL);
   const itayAdvisor = combinedUsers.find(u => u.email?.toLowerCase() === ITAY_EMAIL);
 
-  // Clients assigned to idan
-  const idanAssignments = assignments.filter(a => a.advisor_id === idanAdvisor?.id || a.advisor_email?.toLowerCase() === IDAN_EMAIL);
-  const idanClients = dedupeByEmail(idanAssignments.map(a => {
-    let c = combinedUsers.find(u => u.id === a.client_id);
-    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
-    return c;
-  }).filter(Boolean));
+  // Map an assignment to its client row — registered client, client that has not
+  // logged in yet, or the assignment itself. Email matching ignores letter case.
+  const clientForAssignment = (a) => {
+    const key = emailKey(a.client_email);
+    return (
+      (a.client_id ? combinedUsers.find(u => u.id === a.client_id) : null) ||
+      combinedUsers.find(u => emailKey(u.email) === key) ||
+      (a.client_email
+        ? { id: '', email: a.client_email, full_name: a.client_name || '', custom_name: '', phone: '', personal_code: '', user_type: 'client' }
+        : null)
+    );
+  };
 
-  // Clients assigned to niv
-  const nivAssignments = assignments.filter(a => a.advisor_id === nivAdvisor?.id || a.advisor_email?.toLowerCase() === NIV_EMAIL);
-  const nivClients = dedupeByEmail(nivAssignments.map(a => {
-    let c = combinedUsers.find(u => u.id === a.client_id);
-    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
-    return c;
-  }).filter(Boolean));
+  // Clients assigned to each advisor
+  const clientsOf = (email, advisor) =>
+    dedupeByEmail(
+      assignments
+        .filter(a => a.advisor_id === advisor?.id || a.advisor_email?.toLowerCase() === email)
+        .map(clientForAssignment)
+        .filter(Boolean)
+    );
 
-  // Clients assigned to nick
-  const nickAssignments = assignments.filter(a => a.advisor_id === nickAdvisor?.id || a.advisor_email?.toLowerCase() === NICK_EMAIL);
-  const nickClients = dedupeByEmail(nickAssignments.map(a => {
-    let c = combinedUsers.find(u => u.id === a.client_id);
-    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
-    return c;
-  }).filter(Boolean));
-
-  // Clients assigned to itay
-  const itayAssignments = assignments.filter(a => a.advisor_id === itayAdvisor?.id || a.advisor_email?.toLowerCase() === ITAY_EMAIL);
-  const itayClients = dedupeByEmail(itayAssignments.map(a => {
-    let c = combinedUsers.find(u => u.id === a.client_id);
-    if (!c) c = combinedUsers.find(u => u.email === a.client_email);
-    return c;
-  }).filter(Boolean));
+  const idanClients = clientsOf(IDAN_EMAIL, idanAdvisor);
+  const nivClients = clientsOf(NIV_EMAIL, nivAdvisor);
+  const nickClients = clientsOf(NICK_EMAIL, nickAdvisor);
+  const itayClients = clientsOf(ITAY_EMAIL, itayAdvisor);
 
   // For non-admin advisors: show only their assigned clients in 'all'
   const clients = isAdmin
     ? allClients
-    : dedupeByEmail(assignments.map(a => {
-        let c = combinedUsers.find(u => u.id === a.client_id);
-        if (!c) c = combinedUsers.find(u => u.email === a.client_email);
-        return c;
-      }).filter(Boolean));
+    : dedupeByEmail(assignments.map(clientForAssignment).filter(Boolean));
 
   const filterList = (list, query) =>
     list.filter(c =>
@@ -307,7 +308,12 @@ export default function AdvisorDashboard() {
       });
       // Invite user
       await base44.users.inviteUser(newClientEmail.trim().toLowerCase(), 'user');
+      // Personal code, created immediately — even before the client ever logs in
+      try {
+        await base44.functions.invoke('ensurePersonalCode', { email: newClientEmail.trim().toLowerCase() });
+      } catch (e) { /* non-critical */ }
       queryClient.invalidateQueries({ queryKey: ['allowedUsersForAdvisor'] });
+      queryClient.invalidateQueries({ queryKey: ['advisorClientDetails'] });
       queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
       setShowAddClient(false);
       setNewClientEmail('');
@@ -361,26 +367,26 @@ export default function AdvisorDashboard() {
                 <h3 className="font-bold text-slate-800 text-lg lg:text-xl truncate">{client.custom_name || client.full_name || 'ללא שם'}</h3>
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-5 text-xs lg:text-sm text-slate-500 mt-1 lg:mt-2">
                   <span className="flex items-center gap-1.5 truncate"><Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" /><span className="truncate">{client.email}</span></span>
-                  {client.personal_code && (
+                  {(client.personal_code || client.email) && (
                     <span className="flex items-center gap-1.5">
-                      <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono font-bold text-xs">קוד: {client.personal_code}</span>
-                      {client.id ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenWhatsappLink(client)}
-                          disabled={generatingLinkFor === client.id}
-                          className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50"
-                        >
-                          {generatingLinkFor === client.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <MessageCircle className="w-3 h-3" />
-                          )}
-                          קישור אישי
-                        </button>
+                      {client.personal_code ? (
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono font-bold text-xs">קוד: {client.personal_code}</span>
                       ) : (
-                        <span className="text-orange-500 text-xs">אין משתמש</span>
+                        <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md font-bold text-xs">אין קוד</span>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenWhatsappLink(client)}
+                        disabled={generatingLinkFor === (client.id || client.email)}
+                        className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50"
+                      >
+                        {generatingLinkFor === (client.id || client.email) ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <MessageCircle className="w-3 h-3" />
+                        )}
+                        קישור אישי
+                      </button>
                     </span>
                   )}
                   <span className="flex items-center gap-1.5">

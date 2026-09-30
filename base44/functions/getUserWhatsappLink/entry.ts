@@ -1,56 +1,76 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { ensureClientPersonalCode } from '../../shared/userIdentification.ts';
 
-// Builds a personal WhatsApp link for a single user that, when opened,
+// Builds a personal WhatsApp link for a single client that, when opened,
 // starts a conversation with the expense_tracker agent.
 //
 // Each call to base44.agents.getWhatsAppConnectURL generates a fresh
 // activation code (B44-XXXXXXXX) — so every user gets their OWN activation
 // code. We follow the connect URL redirect to wa.me/<phone>?text=<msg>,
 // decode the prepared message (which contains the activation code), append
-// the user's personal 4-letter code on its own line, and rebuild a final
+// the client's personal 4-letter code on its own line, and rebuild a final
 // wa.me link.
 //
-// Payload: { user_id }  (admin only)
+// Works for every client — including clients that registered but have never
+// logged in (their record is AllowedUser).
+//
+// Payload: { user_id } or { email }  (admin / advisor / the client itself)
 // Returns: { link, phone, activation_code, personal_code }
-export default async function(req) {
+const emailOf = (value) => (value || '').toString().trim().toLowerCase();
+
+export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Admin or advisor: building a connect link for clients
     const caller = await base44.auth.me();
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const isAdmin = caller.role === 'admin' || caller.user_type === 'admin';
     const isAdvisor = caller.user_type === 'advisor';
-    if (!isAdmin && !isAdvisor) {
+    if (!isAdmin && !isAdvisor && !caller.email) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    let body = {};
-    try { body = await req.json(); } catch (e) { /* empty body ok */ }
-    const userId = body.user_id;
-    if (!userId) return Response.json({ error: 'user_id is required' }, { status: 400 });
+    let body: Record<string, any> = {};
+    try { body = await req.json(); } catch { /* empty body ok */ }
+    const userId = (body.user_id || '').toString().trim();
+    const emailInput = emailOf(body.email);
+    if (!userId && !emailInput) {
+      return Response.json({ error: 'user_id or email is required' }, { status: 400 });
+    }
 
-    // Fetch the user's personal code (service role — any user)
-    const users = await base44.asServiceRole.entities.User.filter({ id: userId });
-    const targetUser = users[0];
-    if (!targetUser) return Response.json({ error: 'User not found' }, { status: 404 });
+    // Resolve the client — from the app users, or from the registration record
+    // of a client that has not logged in yet.
+    let targetUser = userId
+      ? (await base44.asServiceRole.entities.User.filter({ id: userId }))[0] || null
+      : null;
+    let targetEmail = emailOf(targetUser?.email) || emailInput;
+    if (!targetEmail && userId) {
+      const allowedById = await base44.asServiceRole.entities.AllowedUser.filter({ id: userId });
+      targetEmail = emailOf(allowedById[0]?.email);
+    }
+    if (!targetEmail) return Response.json({ error: 'Client not found' }, { status: 404 });
+    if (!targetUser) {
+      targetUser = (await base44.asServiceRole.entities.User.filter({ email: targetEmail }))[0] || null;
+    }
 
-    // Advisors can only generate links for their own assigned clients
-    if (!isAdmin && isAdvisor) {
-      const assignments = await base44.asServiceRole.entities.ClientAdvisorAssignment.list('-created_date', 500);
-      const isAssigned = assignments.some(a =>
-        a.advisor_id === caller.id ||
-        (a.advisor_email && a.advisor_email.toLowerCase() === (caller.email || '').toLowerCase())
-      ) && assignments.some(a =>
-        a.client_id === userId ||
-        (a.client_email && a.client_email.toLowerCase() === (targetUser.email || '').toLowerCase())
-      );
-      if (!isAssigned) {
+    // Admin: any client. Advisor: only own assigned clients. Client: self.
+    const callerEmail = emailOf(caller.email);
+    if (!isAdmin && callerEmail !== targetEmail) {
+      let isMyClient = false;
+      if (isAdvisor) {
+        const assignments = await base44.asServiceRole.entities.ClientAdvisorAssignment.filter({ client_email: targetEmail });
+        isMyClient = assignments.some(a =>
+          a.advisor_id === caller.id || emailOf(a.advisor_email) === callerEmail
+        );
+      }
+      if (!isMyClient) {
         return Response.json({ error: 'Forbidden - not your client' }, { status: 403 });
       }
     }
 
-    const personalCode = (targetUser.personal_code || '').toUpperCase();
+    // Guarantee the personal code before building the link
+    const ensured = await ensureClientPersonalCode(base44, { email: targetEmail });
+    const personalCode = (ensured.personal_code || '').toUpperCase();
 
     // Get a fresh connect URL — each call yields a new activation code
     let connectUrl;

@@ -119,14 +119,14 @@ export default function AdminDashboard() {
 
   const { data: allUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['allUsers'],
-    queryFn: () => base44.entities.User.list('-created_date', 500),
+    queryFn: () => base44.entities.User.list('-created_date', 1000),
     enabled: !!user,
   });
 
   // Get allowed users that haven't logged in yet
   const { data: allowedUsers = [], isLoading: loadingAllowed } = useQuery({
     queryKey: ['allowedUsers'],
-    queryFn: () => base44.entities.AllowedUser.list('-created_date', 500),
+    queryFn: () => base44.entities.AllowedUser.list('-created_date', 1000),
     enabled: !!user,
   });
 
@@ -172,13 +172,16 @@ export default function AdminDashboard() {
 
       for (const allowedUser of missingUsers) {
           try {
-            let code;
-            do {
-              code = '';
-              for (let i = 0; i < 4; i++) {
-                code += letters[Math.floor(Math.random() * letters.length)];
-              }
-            } while (existingCodes.has(code));
+            // Prefer the personal code created at registration
+            let code = (allowedUser.personal_code || '').toUpperCase();
+            if (!code || existingCodes.has(code)) {
+              do {
+                code = '';
+                for (let i = 0; i < 4; i++) {
+                  code += letters[Math.floor(Math.random() * letters.length)];
+                }
+              } while (existingCodes.has(code));
+            }
             existingCodes.add(code);
 
             await base44.entities.User.create({
@@ -212,7 +215,7 @@ export default function AdminDashboard() {
   // Get all assignments
   const { data: assignments = [] } = useQuery({
     queryKey: ['allAssignments'],
-    queryFn: () => base44.entities.ClientAdvisorAssignment.list('-created_date', 500),
+    queryFn: () => base44.entities.ClientAdvisorAssignment.list('-created_date', 1000),
     enabled: !!user,
   });
 
@@ -303,6 +306,11 @@ export default function AdminDashboard() {
         });
       }
 
+      // Personal code, created immediately — also for clients that never log in
+      try {
+        await base44.functions.invoke('ensurePersonalCode', { email: data.email });
+      } catch (e) { console.error('Failed to create personal code:', e); }
+
       // Create assignment only for clients
       if (userType === 'client') {
         const selectedAdvisorUser = advisors.find(a => a.id === data.advisor_id);
@@ -334,9 +342,10 @@ export default function AdminDashboard() {
   });
 
   // Merge Users and AllowedUsers - show all allowed users
-  const userEmails = new Set(allUsers.map(u => u.email));
+  const emailKey = (value) => (value || '').toLowerCase().trim();
+  const userEmails = new Set(allUsers.map(u => emailKey(u.email)));
   const allowedUsersNotInSystem = allowedUsers
-    .filter(au => !userEmails.has(au.email))
+    .filter(au => !userEmails.has(emailKey(au.email)))
     .map(au => ({
       id: au.id,
       email: au.email,
@@ -344,6 +353,7 @@ export default function AdminDashboard() {
       user_type: au.user_type,
       allowedUserId: au.id,
       phone: au.phone || '',
+      personal_code: au.personal_code || '',
       created_date: au.created_date
     }));
 
@@ -355,7 +365,9 @@ export default function AdminDashboard() {
 
   // Get advisor for a client from assignments (by ID or email)
   const getClientAssignment = (client) => {
-    return assignments.find(a => a.client_id === client.id || a.client_email === client.email);
+    return assignments.find(a =>
+      (!!client.id && a.client_id === client.id) || emailKey(a.client_email) === emailKey(client.email)
+    );
   };
 
   // Count unassigned clients
@@ -460,10 +472,14 @@ export default function AdminDashboard() {
   // Generate a fresh, per-user WhatsApp link (unique activation code per call)
   // and open it in a new tab.
   const handleOpenWhatsappLink = async (userRow) => {
-    if (!userRow.id) return;
-    setGeneratingLinkFor(userRow.id);
+    const linkKey = userRow.id || userRow.email;
+    if (!linkKey) return;
+    setGeneratingLinkFor(linkKey);
     try {
-      const res = await base44.functions.invoke('getUserWhatsappLink', { user_id: userRow.id });
+      const res = await base44.functions.invoke('getUserWhatsappLink', {
+        user_id: userRow.id || '',
+        email: userRow.email || '',
+      });
       if (res?.data?.link) {
         window.open(res.data.link, '_blank', 'noopener,noreferrer');
       }
@@ -891,26 +907,26 @@ export default function AdminDashboard() {
                       ) : '-'}
                     </TableCell>
                     <TableCell>
-                      {u.personal_code ? (
+                      {u.personal_code || u.email ? (
                         <div className="flex items-center gap-2">
-                          <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md font-mono font-bold text-sm">{u.personal_code}</span>
-                          {u.id ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenWhatsappLink(u)}
-                              disabled={generatingLinkFor === u.id}
-                              className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
-                            >
-                              {generatingLinkFor === u.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <MessageCircle className="w-3 h-3" />
-                              )}
-                              קישור אישי
-                            </button>
+                          {u.personal_code ? (
+                            <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md font-mono font-bold text-sm">{u.personal_code}</span>
                           ) : (
-                            <span className="text-slate-400 text-xs">אין משתמש</span>
+                            <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-md font-bold text-xs">אין קוד</span>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenWhatsappLink(u)}
+                            disabled={generatingLinkFor === (u.id || u.email)}
+                            className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                          >
+                            {generatingLinkFor === (u.id || u.email) ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <MessageCircle className="w-3 h-3" />
+                            )}
+                            קישור אישי
+                          </button>
                         </div>
                       ) : (
                         <span className="text-slate-300 text-xs">אין קוד</span>

@@ -67,6 +67,21 @@ export default function Layout({ children }) {
     loadUser();
   }, []);
 
+  // Make sure the client has a personal code as soon as they are in the app —
+  // the code created at registration is copied onto their user record here, so
+  // WhatsApp identification works from their very first message.
+  useEffect(() => {
+    if (!user?.email || user.personal_code) return;
+    base44.functions.invoke('ensurePersonalCode', { email: user.email })
+      .then(async (res) => {
+        if (!res?.data?.personal_code) return;
+        const updated = await base44.auth.me();
+        setUser(updated);
+        sessionStorage.setItem('currentUser', JSON.stringify({ user: updated, timestamp: Date.now() }));
+      })
+      .catch(() => { /* non-critical */ });
+  }, [user?.email, user?.personal_code]);
+
   // Listen for live navbar logo updates from the admin panel
   useEffect(() => {
     const handler = (e) => {
