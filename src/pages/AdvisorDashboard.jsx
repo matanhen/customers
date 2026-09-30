@@ -182,7 +182,7 @@ export default function AdvisorDashboard() {
   const advisorDetailUsers = isAdvisor
     ? advisorClientDetails
         .filter(c => c.id)
-        .map(c => ({
+        .map(c => enrichWithLoginDates({
           id: c.id,
           email: c.email,
           full_name: c.full_name,
