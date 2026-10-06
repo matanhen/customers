@@ -4,12 +4,54 @@
 // passed from the agent. If no personal_code is provided, fall back to auth.me()
 // (for non-WhatsApp contexts like the app UI).
 
+export const normalizeCode = (value) => (value || '').toString().trim().toUpperCase();
+export const normalizeEmail = (value) => (value || '').toString().trim().toLowerCase();
+
+// Entity reads can return either a plain array or a page object.
+const asArray = (result) => (Array.isArray(result) ? result : result?.items || []);
+
+// A personal code lives on the app user record once the client has logged in,
+// and on the client's registration (AllowedUser) record while they have not
+// logged in yet. Both are searched, so a client's code always identifies them.
+export async function findUserByPersonalCode(base44, rawCode) {
+  const code = normalizeCode(rawCode);
+  if (!code) return null;
+
+  const users = asArray(await base44.asServiceRole.entities.User.list());
+  const user = users.find(u => normalizeCode(u.personal_code) === code);
+  if (user) return user;
+
+  const allowedUsers = asArray(await base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }));
+  const registration = allowedUsers.find(a => normalizeCode(a.personal_code) === code);
+  if (!registration) return null;
+
+  // The code can also be the one on the registration record of a client that
+  // already has an account — prefer the account, so recording expenses and
+  // meetings keeps working.
+  const email = normalizeEmail(registration.email);
+  if (email) {
+    const linked = asArray(await base44.asServiceRole.entities.User.filter({ email }))[0];
+    if (linked) {
+      return { ...linked, personal_code: code, phone: linked.phone || registration.phone || '' };
+    }
+  }
+
+  return {
+    id: '',
+    full_name: registration.full_name || '',
+    custom_name: registration.full_name || '',
+    email: registration.email || '',
+    phone: registration.phone || '',
+    user_type: registration.user_type || 'client',
+    personal_code: code,
+    account_pending: true,
+  };
+}
+
 export async function identifyUser(base44, body) {
-  const personalCode = (body?.personal_code || body?.personalCode || '').toString().trim().toUpperCase();
+  const personalCode = normalizeCode(body?.personal_code || body?.personalCode);
   if (personalCode) {
-    const users = await base44.asServiceRole.entities.User.list();
-    const user = users.find(u => (u.personal_code || '').toUpperCase() === personalCode);
-    return user || null;
+    return await findUserByPersonalCode(base44, personalCode);
   }
   // Fallback to auth.me() for non-WhatsApp contexts
   try {
@@ -33,15 +75,15 @@ export function generatePersonalCode() {
 async function collectExistingCodes(base44) {
   const [users, allowedUsers] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
-    base44.asServiceRole.entities.AllowedUser.list(),
+    base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }),
   ]);
   const codes = new Set();
   const add = (value) => {
-    const code = (value || '').toString().trim().toUpperCase();
+    const code = normalizeCode(value);
     if (code) codes.add(code);
   };
-  users.forEach(u => add(u.personal_code));
-  allowedUsers.forEach(a => add(a.personal_code));
+  asArray(users).forEach(u => add(u.personal_code));
+  asArray(allowedUsers).forEach(a => add(a.personal_code));
   return codes;
 }
 
@@ -62,17 +104,17 @@ export async function generateUniquePersonalCode(base44) {
 // in: their code lives on the client (AllowedUser) record until they sign up,
 // and is mirrored onto the app user record as soon as that record exists.
 export async function ensureClientPersonalCode(base44, { email, full_name, phone }) {
-  const normalizedEmail = (email || '').toString().trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return { personal_code: '', allowed_user: null, user: null };
 
   const [allowedMatches, userMatches] = await Promise.all([
     base44.asServiceRole.entities.AllowedUser.filter({ email: normalizedEmail }),
     base44.asServiceRole.entities.User.filter({ email: normalizedEmail }),
   ]);
-  let allowedUser = allowedMatches[0] || null;
-  const user = userMatches[0] || null;
+  let allowedUser = asArray(allowedMatches)[0] || null;
+  const user = asArray(userMatches)[0] || null;
 
-  let code = (allowedUser?.personal_code || user?.personal_code || '').toString().trim().toUpperCase();
+  let code = normalizeCode(allowedUser?.personal_code || user?.personal_code);
 
   if (!allowedUser) {
     // A client known only through an advisor assignment still needs a place to
@@ -86,9 +128,9 @@ export async function ensureClientPersonalCode(base44, { email, full_name, phone
         phone: phone || '',
         personal_code: code || await generateUniquePersonalCode(base44),
       });
-      code = (allowedUser.personal_code || '').toString().trim().toUpperCase();
+      code = normalizeCode(allowedUser.personal_code);
     }
-  } else if (!(allowedUser.personal_code || '').toString().trim()) {
+  } else if (!normalizeCode(allowedUser.personal_code)) {
     if (!code) code = await generateUniquePersonalCode(base44);
     const patch: Record<string, string> = { personal_code: code };
     if (!allowedUser.full_name && full_name) patch.full_name = full_name;
@@ -96,9 +138,12 @@ export async function ensureClientPersonalCode(base44, { email, full_name, phone
     allowedUser = await base44.asServiceRole.entities.AllowedUser.update(allowedUser.id, patch);
   }
 
-  if (user && !(user.personal_code || '').toString().trim()) {
-    if (!code) code = await generateUniquePersonalCode(base44);
-    await base44.asServiceRole.entities.User.update(user.id, { personal_code: code });
+  // The registration code is the one the client receives (it is the code inside
+  // their personal WhatsApp link), so the app user record always follows it.
+  if (user && code && normalizeCode(user.personal_code) !== code) {
+    try {
+      await base44.asServiceRole.entities.User.update(user.id, { personal_code: code });
+    } catch (e) { /* non-critical */ }
   }
 
   return { personal_code: code, allowed_user: allowedUser, user };
