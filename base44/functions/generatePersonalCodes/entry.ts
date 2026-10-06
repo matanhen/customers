@@ -66,6 +66,18 @@ export default async function (req) {
       allowedUpdates.push({ id: a.id, personal_code: fromUser || nextCode() });
     }
 
+    // 1b. App users whose code differs from the one on their registration record.
+    // The registration code is the one the client was given (it is the code inside
+    // their personal WhatsApp link), so the account follows it.
+    let synced = 0;
+    for (const u of users) {
+      const own = codeOf(u.personal_code);
+      const registration = codeOf(allowedByEmail.get(emailOf(u.email))?.personal_code);
+      if (!own || !registration || own === registration) continue;
+      userUpdates.push({ id: u.id, personal_code: registration });
+      synced++;
+    }
+
     // 3. Clients known only from an advisor assignment — create their registration record
     let created = 0;
     let failed = 0;
@@ -111,6 +123,7 @@ export default async function (req) {
     return Response.json({
       success: true,
       generated: userResult.ok + allowedResult.ok,
+      synced,
       failed: userResult.bad + allowedResult.bad + failed,
       skipped: (users.length - userUpdates.length) + (allowedUsers.length - allowedUpdates.length),
       clients_created: created,

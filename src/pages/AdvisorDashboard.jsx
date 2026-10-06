@@ -7,6 +7,7 @@ import {
   Mail, AlertCircle, UserPlus, MessageCircle, Loader2
 } from 'lucide-react';
 import ExpenseCoach from '../components/advisor/ExpenseCoach';
+import CopyPersonalLinkButton from '../components/admin/CopyPersonalLinkButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -387,6 +388,7 @@ export default function AdvisorDashboard() {
                         )}
                         קישור אישי
                       </button>
+                      <CopyPersonalLinkButton client={client} />
                     </span>
                   )}
                   <span className="flex items-center gap-1.5">

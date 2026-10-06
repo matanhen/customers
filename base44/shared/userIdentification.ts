@@ -21,8 +21,12 @@ export async function findUserByPersonalCode(base44, rawCode) {
   const user = users.find(u => normalizeCode(u.personal_code) === code);
   if (user) return user;
 
-  const allowedUsers = asArray(await base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }));
-  const registration = allowedUsers.find(a => normalizeCode(a.personal_code) === code);
+  const allowedMatches = await base44.asServiceRole.entities.AllowedUser.filter({ personal_code: code });
+  let registration = asArray(allowedMatches)[0];
+  if (!registration) {
+    const allowedUsers = asArray(await base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }));
+    registration = allowedUsers.find(a => normalizeCode(a.personal_code) === code);
+  }
   if (!registration) return null;
 
   // The code can also be the one on the registration record of a client that

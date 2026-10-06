@@ -40,6 +40,7 @@ import NavbarLogoUploader from '@/components/admin/NavbarLogoUploader';
 import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
 import PhoneBulkUpdate from '@/components/admin/PhoneBulkUpdate';
 import ConversationHistory from '@/components/admin/ConversationHistory';
+import CopyPersonalLinkButton from '@/components/admin/CopyPersonalLinkButton';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -927,6 +928,7 @@ export default function AdminDashboard() {
                             )}
                             קישור אישי
                           </button>
+                          <CopyPersonalLinkButton client={u} />
                         </div>
                       ) : (
                         <span className="text-slate-300 text-xs">אין קוד</span>

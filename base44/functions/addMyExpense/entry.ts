@@ -30,6 +30,21 @@ export default async function(req) {
     const user = await identifyUser(base44, body);
     if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
 
+    // A client that registered but has not logged in yet has a personal code but
+    // no account to store data against — ask them to enter the app once, instead
+    // of recording the expense against a non-existing account.
+    if (!user.id) {
+      return Response.json({
+        success: false,
+        needs_app_account: true,
+        confirmation_message:
+          'הקוד האישי זוהה בהצלחה ✅\n\n' +
+          'כדי לתעד הוצאות בוואטסאפ, יש להיכנס פעם אחת לאפליקציה עם האימייל שאיתו נרשמת:\n' +
+          'https://customers.matanhen.com\n\n' +
+          'ואז לשלוח לי את ההוצאה שוב 😊',
+      });
+    }
+
     const amount = parseFloat(body.amount);
     if (!amount || isNaN(amount) || amount <= 0) {
       return Response.json({ error: 'נדרש סכום חיובי' }, { status: 400 });
