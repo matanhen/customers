@@ -247,20 +247,16 @@ export default function AdminDashboard() {
     if (!confirm(`האם למחוק את ${u.custom_name || u.full_name || u.email}?`)) return;
 
     try {
-      // Delete assignments first
-      const userAssignments = await base44.entities.ClientAdvisorAssignment.filter({ client_email: u.email });
-      for (const assignment of userAssignments) {
-        await base44.entities.ClientAdvisorAssignment.delete(assignment.id);
-      }
-
-      // Delete from User entity
-      if (u.id && !u.allowedUserId) {
-        await base44.entities.User.delete(u.id);
-      }
-
-      // Delete from AllowedUser
-      if (u.allowedUserId) {
-        await base44.entities.AllowedUser.delete(u.allowedUserId);
+      // Deletion runs on the server — the platform does not allow the app itself
+      // to remove another user's account record, only server-side logic can
+      const res = await base44.functions.invoke('deleteUser', {
+        email: u.email || '',
+        user_id: u.id || '',
+      });
+      const data = res?.data || {};
+      if (data.success === false) {
+        alert(`שגיאה במחיקת המשתמש: ${data.errors?.[0] || 'שגיאה לא ידועה'}`);
+        return;
       }
 
       // Refresh data
@@ -524,25 +520,20 @@ export default function AdminDashboard() {
   const handleBulkDelete = async () => {
     if (selectedClients.size === 0) return;
     setBulkDeleting(true);
+    const failedEmails = [];
     for (const clientId of selectedClients) {
       const client = filteredUsers.find(u => u.id === clientId);
       if (!client) continue;
       try {
-        // Delete assignments first
-        const userAssignments = await base44.entities.ClientAdvisorAssignment.filter({ client_email: client.email });
-        for (const assignment of userAssignments) {
-          await base44.entities.ClientAdvisorAssignment.delete(assignment.id);
-        }
-        // Delete from User entity
-        if (client.id && !client.allowedUserId) {
-          await base44.entities.User.delete(client.id);
-        }
-        // Delete from AllowedUser
-        if (client.allowedUserId) {
-          await base44.entities.AllowedUser.delete(client.allowedUserId);
-        }
+        // Same server-side deletion as the single-user action
+        const res = await base44.functions.invoke('deleteUser', {
+          email: client.email || '',
+          user_id: client.id || '',
+        });
+        if (res?.data?.success === false) failedEmails.push(client.email || client.full_name || '');
       } catch (e) {
         console.error('Error deleting client:', e);
+        failedEmails.push(client.email || client.full_name || '');
       }
     }
     queryClient.invalidateQueries({ queryKey: ['allUsers'] });
@@ -552,6 +543,9 @@ export default function AdminDashboard() {
     setSelectedClients(new Set());
     setShowBulkDeleteDialog(false);
     setBulkDeleting(false);
+    if (failedEmails.length > 0) {
+      alert(`לא ניתן היה למחוק ${failedEmails.length} לקוחות: ${failedEmails.join(', ')}`);
+    }
   };
 
   const getAdvisorName = (client) => {
