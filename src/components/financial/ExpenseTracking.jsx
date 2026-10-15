@@ -24,6 +24,14 @@ import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import WeeklyVariableTracker, { getFinMonthAnchor } from './WeeklyVariableTracker';
 import ExpenseTrackerBot from '@/components/chat/ExpenseTrackerBot';
 
+// Deterministic JSON compare so realtime echoes of the user's own saves aren't
+// mistaken for external changes just because object key order differs.
+const stableStringify = (obj) => {
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
+  return '{' + Object.keys(obj).sort().map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}';
+};
+
 export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
@@ -205,10 +213,10 @@ export default function ExpenseTracking({ userId }) {
       // Without this, a late echo of an earlier keystroke reloads the record and wipes
       // the number the user is typing right now.
       if (event.data.id === currentTrackingIdRef.current && Date.now() - lastSaveAtRef.current < 4000) return;
-      // Skip echoes of this user's own saves (server data matches local state)
-      const serverFixed = JSON.stringify(event.data.fixed_expenses || {});
-      const localFixed = JSON.stringify(trackingDataRef.current.fixed_expenses || {});
-      if (serverFixed === localFixed) return;
+      // Skip echoes of this user's own saves (server data matches local state).
+      // Stable compare ignores key-order differences so a save echo is never
+      // mistaken for an external change that would reload and wipe edits.
+      if (stableStringify(event.data.fixed_expenses) === stableStringify(trackingDataRef.current.fixed_expenses)) return;
       // External change — force the data-loading effect to pick up the updated record
       lastLoadedTrackingIdRef.current = null;
       dataLoadedRef.current = false;
@@ -253,81 +261,79 @@ export default function ExpenseTracking({ userId }) {
     }
   };
 
-  const saveNow = useCallback(async (data) => {
+  // Unified, race-free save. A single save is in flight at any time; edits that
+  // arrive while a save is running mark the state "dirty" and are persisted (from
+  // the latest trackingDataRef) once the running save finishes. This fixes the
+  // dual-create bug where two independent debounced saves (income + table) both
+  // created a record for the same month, orphaning one and silently losing the
+  // user's data after they left the page.
+  const savingRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const saveTimerRef = useRef(null);
+  const performSaveRef = useRef(null);
+
+  const performSave = useCallback(async () => {
     if (!dataLoadedRef.current) return;
-    const month = format(currentDate, 'yyyy-MM');
-    // fixed_expenses is the single stored source of truth (each item keeps its week breakdown)
-    const serverData = data;
-    let savedRecord;
-    if (isViewingOther && isAdvisorOrAdmin) {
-      const response = await base44.functions.invoke('saveClientData', {
-        entityName: 'ExpenseTracking',
-        clientUserId: userId,
-        data: { ...serverData, user_id: userId, month },
-        recordId: currentTrackingIdRef.current || null,
+    if (savingRef.current) { dirtyRef.current = true; return; }
+    savingRef.current = true;
+    dirtyRef.current = false;
+    try {
+      const data = trackingDataRef.current;
+      const month = format(currentDate, 'yyyy-MM');
+      let savedRecord;
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('saveClientData', {
+          entityName: 'ExpenseTracking',
+          clientUserId: userId,
+          data: { ...data, user_id: userId, month },
+          recordId: currentTrackingIdRef.current || null,
+        });
+        if (response.data?.id) currentTrackingIdRef.current = response.data.id;
+        savedRecord = response.data;
+      } else if (currentTrackingIdRef.current) {
+        savedRecord = await base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, data);
+      } else {
+        savedRecord = await base44.entities.ExpenseTracking.create({ ...data, user_id: userId, month });
+        currentTrackingIdRef.current = savedRecord.id;
+      }
+      if (savedRecord?.id) {
+        lastLoadedTrackingIdRef.current = savedRecord.id;
+        hasSavedForMonthRef.current = true;
+      }
+      const trackingQueryKey = ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin];
+      queryClient.setQueryData(trackingQueryKey, (old = []) => {
+        if (!savedRecord?.id) return old;
+        const exists = old.find(t => t.id === savedRecord.id);
+        if (exists) return old.map(t => t.id === savedRecord.id ? { ...t, ...savedRecord } : t);
+        return [...old, savedRecord];
       });
-      if (response.data?.id) currentTrackingIdRef.current = response.data.id;
-      savedRecord = response.data;
-    } else if (currentTrackingIdRef.current) {
-      savedRecord = await base44.entities.ExpenseTracking.update(currentTrackingIdRef.current, serverData);
-    } else {
-      savedRecord = await base44.entities.ExpenseTracking.create({ ...serverData, user_id: userId, month });
-      currentTrackingIdRef.current = savedRecord.id;
+      lastSaveAtRef.current = Date.now();
+    } catch (e) {
+      // Retry on the next edit / flush with the latest data
+      dirtyRef.current = true;
+    } finally {
+      savingRef.current = false;
     }
-    // Mark this record as loaded so the data-loading useEffect doesn't overwrite local edits
-    if (savedRecord?.id) {
-      lastLoadedTrackingIdRef.current = savedRecord.id;
-      hasSavedForMonthRef.current = true;
+    if (dirtyRef.current) {
+      dirtyRef.current = false;
+      performSaveRef.current();
     }
-    // Update cache WITHOUT triggering a refetch (prevents useEffect from overwriting user edits)
-    const trackingQueryKey = ['expenseTracking', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin];
-    queryClient.setQueryData(trackingQueryKey, (old = []) => {
-      if (!savedRecord?.id) return old;
-      const exists = old.find(t => t.id === savedRecord.id);
-      if (exists) return old.map(t => t.id === savedRecord.id ? { ...t, ...savedRecord } : t);
-      return [...old, savedRecord];
-    });
-    // Remember when we last wrote, so echoes of our own saves don't trigger a reload
-    lastSaveAtRef.current = Date.now();
   }, [userId, currentDate, queryClient, isViewingOther, isAdvisorOrAdmin, currentUser]);
 
-  const saveNowRef = useRef(saveNow);
-  saveNowRef.current = saveNow;
+  performSaveRef.current = performSave;
 
-  const handleBlurSave = () => saveNowRef.current(trackingDataRef.current);
-
-  // Income field auto-save (debounced + flushed on unmount) — previously only saved on blur,
-  // which lost data if the user navigated away mid-typing without blurring.
-  const incomeSaveTimer = useRef(null);
-  const pendingIncomeSaveRef = useRef(null);
-
-  // Weekly-table edits use the same debounce + flush treatment, so a burst of
-  // keystrokes produces a single save instead of a race of overwriting saves.
-  const tableSaveTimer = useRef(null);
-  const pendingTableSaveRef = useRef(null);
-  const updateActualIncome = (newVal) => {
-    const newData = { ...trackingDataRef.current, actual_income: newVal };
-    setTrackingData(newData);
-    pendingIncomeSaveRef.current = newData;
-    clearTimeout(incomeSaveTimer.current);
-    incomeSaveTimer.current = setTimeout(() => {
-      const data = pendingIncomeSaveRef.current;
-      pendingIncomeSaveRef.current = null;
-      if (data) saveNowRef.current(data);
+  const scheduleSave = useCallback(() => {
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (savingRef.current) { dirtyRef.current = true; return; }
+      performSaveRef.current();
     }, 600);
-  };
+  }, []);
 
-  // Flush any pending save when page is hidden / closed / unmounted
   const flushPendingSaves = useCallback(() => {
-    if (incomeSaveTimer.current) clearTimeout(incomeSaveTimer.current);
-    if (tableSaveTimer.current) clearTimeout(tableSaveTimer.current);
-    const income = pendingIncomeSaveRef.current;
-    const table = pendingTableSaveRef.current;
-    pendingIncomeSaveRef.current = null;
-    pendingTableSaveRef.current = null;
-    // Save the income snapshot first, then the (newer) table snapshot
-    if (income) saveNowRef.current(income);
-    if (table) saveNowRef.current(table);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (savingRef.current) { dirtyRef.current = true; return; }
+    performSaveRef.current();
   }, []);
 
   useEffect(() => {
@@ -342,6 +348,15 @@ export default function ExpenseTracking({ userId }) {
     };
   }, [flushPendingSaves]);
 
+  const handleBlurSave = flushPendingSaves;
+
+  const updateActualIncome = (newVal) => {
+    const newData = { ...trackingDataRef.current, actual_income: newVal };
+    trackingDataRef.current = newData;
+    setTrackingData(newData);
+    scheduleSave();
+  };
+
   // Handle table changes from ExpenseTrackingTable.
   // The table gives { [catKey]: { [item]: entry } } where each entry keeps its
   // week breakdown ({ week1..week4 }). We store that shape directly in
@@ -355,14 +370,9 @@ export default function ExpenseTracking({ userId }) {
       });
     });
     const newData = { ...trackingDataRef.current, fixed_expenses: flat };
+    trackingDataRef.current = newData;
     setTrackingData(newData);
-    pendingTableSaveRef.current = newData;
-    clearTimeout(tableSaveTimer.current);
-    tableSaveTimer.current = setTimeout(() => {
-      const data = pendingTableSaveRef.current;
-      pendingTableSaveRef.current = null;
-      if (data) saveNowRef.current(data);
-    }, 600);
+    scheduleSave();
   };
 
   // Build the per-category view for the table from fixed_expenses,
@@ -398,19 +408,21 @@ export default function ExpenseTracking({ userId }) {
       monthly_amount: monthlyAmount,
     };
 
-    const newPayments = [...(trackingData.credit_payments || []), newPayment];
-    const newData = { ...trackingData, credit_payments: newPayments };
+    const newPayments = [...(trackingDataRef.current.credit_payments || []), newPayment];
+    const newData = { ...trackingDataRef.current, credit_payments: newPayments };
+    trackingDataRef.current = newData;
     setTrackingData(newData);
-    saveNow(newData);
+    performSave();
     setCreditForm({ category: '', total_amount: '', total_installments: '', paid_installments: '' });
     setShowCreditDialog(false);
   };
 
   const removeCreditPayment = (id) => {
-    const newPayments = (trackingData.credit_payments || []).filter(p => p.id !== id);
-    const newData = { ...trackingData, credit_payments: newPayments };
+    const newPayments = (trackingDataRef.current.credit_payments || []).filter(p => p.id !== id);
+    const newData = { ...trackingDataRef.current, credit_payments: newPayments };
+    trackingDataRef.current = newData;
     setTrackingData(newData);
-    saveNow(newData);
+    performSave();
   };
 
   // Manual expense entry
@@ -478,9 +490,10 @@ export default function ExpenseTracking({ userId }) {
   })();
 
   const updateWeeklySnapshot = (newWeeklySnapshots) => {
-    const newData = { ...trackingData, weekly_snapshots: newWeeklySnapshots };
+    const newData = { ...trackingDataRef.current, weekly_snapshots: newWeeklySnapshots };
+    trackingDataRef.current = newData;
     setTrackingData(newData);
-    saveNow(newData);
+    performSave();
   };
 
   const getRecommendations = () => {
