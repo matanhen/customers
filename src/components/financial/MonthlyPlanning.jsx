@@ -332,6 +332,8 @@ export default function MonthlyPlanning({ userId }) {
         />
       )}
 
+      {/* Checking Account Balance + Notes — side by side on desktop */}
+      <div className="grid md:grid-cols-2 gap-4">
       {/* Checking Account Balance */}
       <Card className="border-2 border-sky-300 bg-sky-50/50">
         <CardContent className="p-4">
@@ -387,6 +389,7 @@ export default function MonthlyPlanning({ userId }) {
           </div>
         </CardContent>
       </Card>
+      </div>
 
 
 

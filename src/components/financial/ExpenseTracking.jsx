@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
 import ExpenseTrackingTable from './ExpenseTrackingTable';
-import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, isVariableItem, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
+import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, isVariableItem, FIXED_EXPENSE_ITEMS, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import WeeklyVariableTracker, { getFinMonthAnchor } from './WeeklyVariableTracker';
 import ExpenseTrackerBot from '@/components/chat/ExpenseTrackerBot';
@@ -174,17 +174,34 @@ export default function ExpenseTracking({ userId }) {
       lastLoadedTrackingIdRef.current = `empty-${currentMonth}`;
       dataLoadedRef.current = false;
 
-      // Auto-carry-over active credit payments from previous month
+      // Auto-carry-over active credit payments from the immediate previous month
       const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
-      const prevTracking = allTracking.find(t => t.month === prevMonth);
-      const prevPayments = prevTracking?.credit_payments || [];
+      const prevMonthTracking = allTracking.find(t => t.month === prevMonth);
+      const prevPayments = prevMonthTracking?.credit_payments || [];
       const carriedPayments = prevPayments
         .map(p => ({ ...p, paid_installments: (p.paid_installments || 0) + 1 }))
         .filter(p => (p.total_installments || 1) - (p.paid_installments || 0) > 0);
 
+      // Carry over FIXED expenses from the most recent prior month that has a
+      // tracking record. Fixed items (rent, mortgage, etc.) keep their monthly
+      // total forward into the new month; variable items reset to zero.
+      const priorRecords = allTracking
+        .filter(t => t.month < currentMonth)
+        .sort((a, b) => b.month.localeCompare(a.month));
+      const latestPrior = priorRecords[0];
+      const carriedFixed = {};
+      if (latestPrior?.fixed_expenses) {
+        Object.entries(latestPrior.fixed_expenses).forEach(([item, entry]) => {
+          if (FIXED_EXPENSE_ITEMS.has(item)) {
+            const total = getItemMonthTotal(entry);
+            if (total > 0) carriedFixed[item] = total;
+          }
+        });
+      }
+
       setTrackingData({
         actual_income: 0,
-        fixed_expenses: {},
+        fixed_expenses: carriedFixed,
         variable_expenses: {},
         custom_expenses: [],
         credit_payments: carriedPayments,

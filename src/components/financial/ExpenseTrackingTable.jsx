@@ -1,21 +1,31 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { EXPENSE_CATEGORIES, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
+import {
+  EXPENSE_CATEGORIES,
+  isFixedItem,
+  getItemWeekAmount,
+  setItemWeekAmount,
+  getItemMonthTotal,
+} from './expenseCategories';
 
 /**
- * Like ExpensesTable but for a single month, broken down into 4 financial weeks.
+ * Per-month expense tracking broken into 4 financial weeks.
  * expenses = { [catKey]: { [itemName]: number | { week1, week2, week3, week4 } } }
- * selectedWeek: 1-4, which week's amounts are shown/edited
+ *   - FIXED items are stored as a flat monthly number (the monthly commitment).
+ *   - VARIABLE items are stored as a { week1..week4 } object.
+ * selectedWeek: 1-4 — which week's amounts are shown/edited for variable items.
  * onChange(updatedExpenses)
+ *
+ * Fixed items show a "קבוע" badge and a single monthly-amount input; their
+ * amount is NOT counted toward variable (יתרת ההוצאות) spending.
  *
  * Layout: 3 expense categories per row on desktop (1 per row on mobile), each a
  * collapsible card. All categories are collapsed by default.
  */
 export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, onChange, disabled = false }) {
-  // All categories collapsed by default — user opens a category to add expenses.
   const [expandedCategories, setExpandedCategories] = useState(
     () => Object.fromEntries(EXPENSE_CATEGORIES.map(cat => [cat.key, false]))
   );
@@ -25,6 +35,7 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
     setExpandedCategories(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Variable item: edit the selected week's amount (keeps the week breakdown).
   const updateCell = (catKey, itemName, value) => {
     const currentEntry = (expenses[catKey] || {})[itemName];
     const updated = {
@@ -32,6 +43,18 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
       [catKey]: {
         ...(expenses[catKey] || {}),
         [itemName]: setItemWeekAmount(currentEntry, selectedWeek, parseFloat(value) || 0),
+      },
+    };
+    onChange(updated);
+  };
+
+  // Fixed item: edit the monthly amount (stored as a flat number).
+  const updateFixedAmount = (catKey, itemName, value) => {
+    const updated = {
+      ...expenses,
+      [catKey]: {
+        ...(expenses[catKey] || {}),
+        [itemName]: parseFloat(value) || 0,
       },
     };
     onChange(updated);
@@ -57,7 +80,6 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
     setNewItemName(prev => ({ ...prev, [catKey]: '' }));
   };
 
-  // Category/grand totals always reflect the FULL month (sum of all 4 weeks)
   const getCategoryTotal = (catKey) => {
     const catData = expenses[catKey] || {};
     return Math.round(Object.values(catData).reduce((s, entry) => s + getItemMonthTotal(entry), 0));
@@ -71,7 +93,15 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <CardTitle className="text-slate-800 text-base sm:text-lg">טבלת מעקב הוצאות</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">עריכה עבור שבוע {selectedWeek} - הסכומים מוצגים כסה"כ חודשי</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              עריכה עבור שבוע {selectedWeek} · סה"כ מוצג כסכום חודשי
+              <span className="inline-flex items-center gap-1 mr-2 align-middle">
+                <span className="inline-flex items-center gap-0.5 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">
+                  <Lock className="w-2.5 h-2.5" />קבוע
+                </span>
+                = הוצאה קבועה, לא נכללת ביתרת ההוצאות · ממשיכה אוטומטית לחודש הבא
+              </span>
+            </p>
           </div>
           <div className="bg-gradient-to-l from-rose-500 to-rose-400 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-sm">
             סה"כ לחודש: ₪{grandTotal.toLocaleString()}
@@ -104,7 +134,7 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
                 {isExpanded && (
                   <div className="p-2.5 sm:p-3 space-y-2">
                     <div className="w-full overflow-x-auto">
-                      <table className="w-full text-sm" style={{ minWidth: 240 }}>
+                      <table className="w-full text-sm" style={{ minWidth: 260 }}>
                         <thead>
                           <tr className="text-slate-400 text-[11px] uppercase tracking-wide">
                             <th className="text-right pb-2 font-medium pr-1">סעיף</th>
@@ -115,7 +145,35 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
                         </thead>
                         <tbody>
                           {cat.items.map(item => {
+                            const fixed = isFixedItem(item);
                             const monthTotal = getItemMonthTotal(catData[item]);
+                            if (fixed) {
+                              return (
+                                <tr key={item} className="border-t border-slate-100/80 bg-blue-50/40">
+                                  <td className="py-1.5 pr-1 text-slate-600 text-xs">
+                                    <div className="flex items-center gap-1">
+                                      <span>{item}</span>
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-medium flex-shrink-0">
+                                        <Lock className="w-2.5 h-2.5" />קבוע
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-1 px-0.5 text-center text-[10px] text-blue-400 select-none">—</td>
+                                  <td className="py-1 px-0.5">
+                                    <Input
+                                      type="number"
+                                      value={monthTotal || ''}
+                                      onChange={e => updateFixedAmount(cat.key, item, e.target.value)}
+                                      className="h-7 text-xs text-center border-blue-200 px-1 rounded-md"
+                                      placeholder="0"
+                                      disabled={disabled}
+                                      dir="ltr"
+                                    />
+                                  </td>
+                                  {!disabled && <td className="w-8"></td>}
+                                </tr>
+                              );
+                            }
                             return (
                               <tr key={item} className="border-t border-slate-100/80">
                                 <td className="py-1.5 pr-1 text-slate-600 text-xs">{item}</td>
@@ -138,23 +196,31 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
                             );
                           })}
                           {customItems.map(item => {
+                            const fixed = isFixedItem(item);
                             const monthTotal = getItemMonthTotal(catData[item]);
                             return (
-                              <tr key={item} className="border-t border-slate-100/80 bg-blue-50/40">
-                                <td className="py-1.5 pr-1 text-blue-700 text-xs font-medium">{item}</td>
+                              <tr key={item} className="border-t border-slate-100/80 bg-blue-50/30">
+                                <td className="py-1.5 pr-1 text-blue-700 text-xs font-medium">
+                                  <div className="flex items-center gap-1">
+                                    <span>{item}</span>
+                                    {fixed && (
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-medium flex-shrink-0">
+                                        <Lock className="w-2.5 h-2.5" />קבוע
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-1 px-0.5 text-center text-[10px] text-blue-400 select-none">—</td>
                                 <td className="py-1 px-0.5">
                                   <Input
                                     type="number"
-                                    value={getItemWeekAmount(catData[item], selectedWeek) || ''}
-                                    onChange={e => updateCell(cat.key, item, e.target.value)}
+                                    value={monthTotal || ''}
+                                    onChange={e => updateFixedAmount(cat.key, item, e.target.value)}
                                     className="h-7 text-xs text-center border-blue-200 px-1 rounded-md"
                                     placeholder="0"
                                     disabled={disabled}
                                     dir="ltr"
                                   />
-                                </td>
-                                <td className="py-1 px-0.5 text-center text-xs font-semibold text-slate-600 select-none">
-                                  {monthTotal > 0 ? `₪${monthTotal.toLocaleString()}` : '—'}
                                 </td>
                                 {!disabled && (
                                   <td className="w-8">

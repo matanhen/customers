@@ -45,12 +45,16 @@ export const EXPENSE_CATEGORIES = [
 ];
 
 export const FIXED_EXPENSE_ITEMS = new Set([
-  'משכנתא', 'שכירות', 'ארנונה', 'חשמל', 'מים', 'גז', 'טלויזיה ואינטרנט', 'טלפון נייד',
-  'ועד בית', 'ביטוח משכנתא', 'ביטוחי רכב', 'טסט', 'ביטוחי חיים', 'ביטוחי בריאות',
-  'קופת חולים', 'חינוך', 'החזר הלוואות', 'הוראות קבע', 'עמלות וריביות בנקים', 'ביטוח לאומי',
+  'משכנתא', 'שכירות', 'ארנונה', 'טלויזיה ואינטרנט', 'טלפון נייד', 'ועד בית',
+  'ביטוח משכנתא', 'ביטוחי רכב', 'טסט', 'ביטוחי חיים', 'ביטוחי בריאות',
+  'קופת חולים', 'טיפולי שיניים', 'חדר כושר', 'החזר הלוואות',
 ]);
 
-export function isVariableItem(itemName) {
+export function isFixedItem(itemName: string) {
+  return FIXED_EXPENSE_ITEMS.has(itemName);
+}
+
+export function isVariableItem(itemName: string) {
   return !FIXED_EXPENSE_ITEMS.has(itemName);
 }
 
