@@ -1,3 +1,5 @@
+import { EXPENSE_CATEGORIES } from './expenseCategories';
+
 // Printable HTML documents used when a monthly plan / balance PDF is sent to the
 // advisor automation (rendered to PDF in the browser).
 const fmt = (n) => `₪${Math.round(Number(n) || 0).toLocaleString()}`;
@@ -216,5 +218,70 @@ export function buildBalanceHtml({
       { label: 'סה"כ התחייבויות', value: fmt(totalLiabilities), color: '#b91c1c' },
       { label: 'הון נקי (נכסים + פנסיוני – התחייבויות)', value: fmt(netWorth), color: netWorth >= 0 ? '#105330' : '#dc2626' },
     ])}
+  `);
+}
+
+export function buildReflectionHtml({
+  incomeRows = [], expenses = {}, pensionMaleMonthly = 0, pensionFemaleMonthly = 0,
+  creditCardTotal = 0, maleAge = null, femaleAge = null, checkingBalance = 0,
+  clientName = '',
+}) {
+  const MONTHS6 = ['month1','month2','month3','month4','month5','month6'];
+  const safeRows = Array.isArray(incomeRows) ? incomeRows : [];
+  const nonPension = safeRows.filter(r => r?.id !== 'pension_male' && r?.id !== 'pension_female');
+  const incomeNet = Math.round(nonPension.reduce((s, r) => s + MONTHS6.reduce((a, m) => a + (r[m] || 0), 0) / 6, 0));
+  const incomeTotal = incomeNet + (Number(pensionMaleMonthly) || 0) + (Number(pensionFemaleMonthly) || 0);
+
+  const safeExp = expenses && typeof expenses === 'object' && !Array.isArray(expenses) ? expenses : {};
+  const expenseTotal = Math.round(
+    Object.values(safeExp).reduce((s, catData) => {
+      if (!catData || typeof catData !== 'object') return s;
+      return s + Object.values(catData).reduce((cs, itemData) => {
+        if (!itemData || typeof itemData !== 'object') return cs;
+        return cs + ['month1','month2','month3'].reduce((a, m) => a + (itemData[m] || 0), 0) / 3;
+      }, 0);
+    }, 0)
+  );
+  const cashFlow = incomeNet - expenseTotal;
+
+  const incomeRowsHtml = safeRows.length ? rowsTable(safeRows.map(r => {
+    const avg = Math.round(MONTHS6.reduce((a, m) => a + (r[m] || 0), 0) / 6);
+    return { label: r.name || '—', sub: r.category === 'investment' ? 'הכנסה מהשקעות' : '', value: fmt(avg) };
+  })) : '<p style="color:#94a3b8;margin:0 0 14px 0;">אין הכנסות</p>';
+
+  const expenseGroupsHtml = EXPENSE_CATEGORIES.map(cat => {
+    const catData = safeExp[cat.key] || {};
+    const items = cat.items
+      .filter(item => {
+        const d = catData[item];
+        if (!d || typeof d !== 'object') return false;
+        return ['month1','month2','month3'].some(m => (d[m] || 0) > 0);
+      })
+      .map(item => {
+        const d = catData[item] || {};
+        const avg = Math.round(['month1','month2','month3'].reduce((a, m) => a + (d[m] || 0), 0) / 3);
+        return { label: item, value: fmt(avg) };
+      });
+    if (items.length === 0) return '';
+    return `${groupTitle(cat.label)}${rowsTable(items)}`;
+  }).filter(Boolean).join('');
+
+  return wrap(`
+    ${docHeader('שיקוף פיננסי', clientName, '')}
+    ${cards([
+      { label: 'ממוצע הכנסות נטו', value: fmt(incomeNet), color: '#059669', sub: incomeTotal !== incomeNet ? `כולל פנסיוני: ${fmt(incomeTotal)}` : '' },
+      { label: 'ממוצע הוצאות', value: fmt(expenseTotal), color: '#dc2626' },
+      { label: 'תזרים ממוצע', value: fmt(cashFlow), color: cashFlow >= 0 ? '#105330' : '#dc2626' },
+      { label: 'יתרת עו"ש', value: fmt(checkingBalance), color: '#0369a1' },
+    ])}
+    ${rowsTable([
+      { label: 'גיל - גבר', value: maleAge ? String(maleAge) : '—' },
+      { label: 'גיל - אישה', value: femaleAge ? String(femaleAge) : '—' },
+      { label: 'סך חיוב אשראי נוכחי', value: fmt(creditCardTotal) },
+    ])}
+    ${sectionTitle('הכנסות (ממוצע חודשי מ-6 חודשים)')}
+    ${incomeRowsHtml}
+    ${sectionTitle('הוצאות (ממוצע חודשי מ-3 חודשים)')}
+    ${expenseGroupsHtml || '<p style="color:#94a3b8;margin:0 0 14px 0;">אין הוצאות</p>'}
   `);
 }

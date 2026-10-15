@@ -16,6 +16,8 @@ import ExpensesTable from './ExpensesTable';
 import FinancialForecast from './FinancialForecast';
 import { migrateLegacyExpenses, getDefaultExpenses, EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS } from './expenseCategories';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import SendPdfButton from './SendPdfButton';
+import { buildReflectionHtml } from './docPdfHtml';
 
 const MONTHS = ['month1','month2','month3','month4','month5','month6'];
 
@@ -54,6 +56,11 @@ export default function FinancialReflection({ userId }) {
   const viewingClientEmail = (() => {
     try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
   })();
+  const viewingClientName = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').full_name || null; } catch { return null; }
+  })();
+  const documentEmail = viewingClientEmail || currentUser?.email || '';
+  const documentName = viewingClientName || currentUser?.custom_name || currentUser?.full_name || '';
 
   const { data: pensionData = [] } = useQuery({
     queryKey: ['pensionData', userId],
@@ -304,6 +311,25 @@ export default function FinancialReflection({ userId }) {
             {saveMutation.isPending ? 'שומר...' : saveSuccess ? 'נשמר!' : 'שמור נתונים'}
           </Button>
         </div>
+      )}
+
+      {/* Send PDF — advisors and admins only, clients never see this */}
+      {isAdvisorOrAdmin && (
+        <SendPdfButton
+          clientEmail={documentEmail}
+          filename={`שיקוף_פיננסי_${documentName || 'לקוח'}.pdf`}
+          buildHtml={() => buildReflectionHtml({
+            incomeRows,
+            expenses,
+            pensionMaleMonthly,
+            pensionFemaleMonthly,
+            creditCardTotal,
+            maleAge,
+            femaleAge,
+            checkingBalance: checkingBalance !== '' ? parseFloat(checkingBalance) || 0 : 0,
+            clientName: documentName,
+          })}
+        />
       )}
 
       {isViewingOther && !isAdvisorOrAdmin && (
