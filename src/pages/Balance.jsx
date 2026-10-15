@@ -3,6 +3,8 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark, Lock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import LoanRefinanceSimulator from '../components/balance/LoanRefinanceSimulator';
+import SendPdfButton from '@/components/financial/SendPdfButton';
+import { buildBalanceHtml } from '@/components/financial/docPdfHtml';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -257,6 +259,13 @@ export default function Balance() {
     try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
   })();
 
+  // The document always belongs to the client currently being viewed
+  const viewingClientName = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').full_name || null; } catch { return null; }
+  })();
+  const documentEmail = viewingClientEmail || user?.email || '';
+  const documentName = viewingClientName || user?.custom_name || user?.full_name || '';
+
   const { data: rawPensionData = [] } = useQuery({
     queryKey: ['pensionData', userId, user?.id, isViewingOther, isAdvisorOrAdmin],
     queryFn: async () => {
@@ -427,6 +436,21 @@ export default function Balance() {
   const assetsByCategory = groupByCategory(assets, ASSET_CATEGORIES);
   const liabilitiesByCategory = groupByCategory(liabilities, LIABILITY_CATEGORIES);
 
+  // Grouped data for the sent PDF
+  const assetGroups = ASSET_CATEGORIES.map(c => ({
+    label: c.label,
+    items: (assetsByCategory[c.key] || []).map(i => ({ name: i.name, value: i.value, monthly_income: i.monthly_income })),
+  }));
+  const liabilityGroups = LIABILITY_CATEGORIES.map(c => ({
+    label: c.label,
+    items: (liabilitiesByCategory[c.key] || []).map(i => ({
+      name: i.name, balance: i.balance, monthly_payment: i.monthly_payment, interest_rate: i.interest_rate,
+    })),
+  }));
+  const pensionRows = Object.entries(pensionByType)
+    .filter(([, value]) => value > 0)
+    .map(([label, value]) => ({ label, value }));
+
   const isNewMonth = !monthData && !isBalanceLoading && !carryFromPrev;
 
   return (
@@ -462,6 +486,23 @@ export default function Balance() {
             החודש
           </button>
         </div>
+
+        {/* Send PDF — advisors and admins only, clients never see this */}
+        {isAdvisorOrAdmin && (
+          <div className="flex justify-center mt-3">
+            <SendPdfButton
+              clientEmail={documentEmail}
+              filename={`מאזן_${documentName || 'לקוח'}_${selectedMonth}.pdf`}
+              buildHtml={() => buildBalanceHtml({
+                assetGroups, liabilityGroups, pensionRows,
+                totalAssets, pensionTotal, totalLiabilities, netWorth,
+                totalMonthlyPayment, totalAssetIncome, assetCashFlow,
+                monthLabel: formatMonthLabel(selectedMonth),
+                clientName: documentName,
+              })}
+            />
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}

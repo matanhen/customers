@@ -16,6 +16,8 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import FinancialGoals from './FinancialGoals';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import SendPdfButton from './SendPdfButton';
+import { buildMonthlyPlanHtml } from './docPdfHtml';
 import { useAutoSave } from '@/hooks/useAutoSave';
 
 export default function MonthlyPlanning({ userId }) {
@@ -51,6 +53,13 @@ export default function MonthlyPlanning({ userId }) {
   const viewingClientEmail = (() => {
     try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
   })();
+
+  // The document always belongs to the client currently being viewed
+  const viewingClientName = (() => {
+    try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').full_name || null; } catch { return null; }
+  })();
+  const documentEmail = viewingClientEmail || currentUser?.email || '';
+  const documentName = viewingClientName || currentUser?.custom_name || currentUser?.full_name || '';
 
   useEffect(() => {
     const loadUser = async () => {
@@ -290,6 +299,19 @@ export default function MonthlyPlanning({ userId }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Send PDF — advisors and admins only, clients never see this */}
+      {isAdvisorOrAdmin && (
+        <SendPdfButton
+          clientEmail={documentEmail}
+          filename={`תכנון_חודשי_${documentName || 'לקוח'}_${currentMonth}.pdf`}
+          buildHtml={() => buildMonthlyPlanHtml({
+            plan: planData,
+            monthLabel: format(currentDate, 'MMMM yyyy', { locale: he }),
+            clientName: documentName,
+          })}
+        />
+      )}
 
       {/* Checking Account Balance */}
       <Card className="border-2 border-sky-300 bg-sky-50/50">
