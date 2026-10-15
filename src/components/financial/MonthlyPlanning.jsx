@@ -91,6 +91,24 @@ export default function MonthlyPlanning({ userId }) {
     refetchOnWindowFocus: false,
   });
 
+  // Financial goals (יעדים פיננסים) — included in the monthly plan PDF
+  const { data: goals = [] } = useQuery({
+    queryKey: ['financialGoals', userId, currentUser?.id, String(isViewingOther), String(isAdvisorOrAdmin)],
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          clientEmail: viewingClientEmail,
+          entityName: 'FinancialGoal'
+        });
+        return response.data.data;
+      }
+      return base44.entities.FinancialGoal.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
+    staleTime: 30000,
+  });
+
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);
 
   useEffect(() => {
@@ -307,6 +325,7 @@ export default function MonthlyPlanning({ userId }) {
           filename={`תכנון_חודשי_${documentName || 'לקוח'}_${currentMonth}.pdf`}
           buildHtml={() => buildMonthlyPlanHtml({
             plan: planData,
+            goals,
             monthLabel: format(currentDate, 'MMMM yyyy', { locale: he }),
             clientName: documentName,
           })}

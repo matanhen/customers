@@ -200,6 +200,8 @@ export async function exportPlanToPDF({ planData, situation, currentStep, logoUr
     }
 
     pdf.save(`תכנית_פיננסית_${planData?.client_name || 'לקוח'}.pdf`);
+    const dataUri = pdf.output('datauristring');
+    return { base64: dataUri.split(',')[1] };
   } finally {
     document.body.removeChild(container);
   }

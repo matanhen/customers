@@ -54,7 +54,57 @@ function rowsTable(rows) {
   </table>`;
 }
 
-export function buildMonthlyPlanHtml({ plan = {}, monthLabel = '', clientName = '' }) {
+function goalMonthlySavings(goal) {
+  const target = Number(goal.target_amount) || 0;
+  const current = Number(goal.current_amount) || 0;
+  if (!goal.target_date) return 0;
+  const t = new Date(goal.target_date);
+  const now = new Date();
+  let months = (t.getFullYear() - now.getFullYear()) * 12 + (t.getMonth() - now.getMonth());
+  if (months <= 0) return target - current;
+  return Math.ceil((target - current) / months);
+}
+
+function goalRecurringLabel(freq) {
+  const map = {
+    monthly: 'כל חודש', quarterly: 'כל רבעון', semi_annual: 'כל חצי שנה',
+    annual: 'כל שנה', '2_years': 'כל שנתיים', '3_years': 'כל 3 שנים',
+    '4_years': 'כל 4 שנים', '5_years': 'כל 5 שנים',
+  };
+  return map[freq] || freq;
+}
+
+function goalsSection(goals, monthlyDreamsSavings = 0) {
+  if (!goals || goals.length === 0) return '';
+  const rows = goals.map(g => {
+    const target = Number(g.target_amount) || 0;
+    const current = Number(g.current_amount) || 0;
+    const dateLabel = g.target_date ? new Date(g.target_date).toLocaleDateString('he-IL') : '';
+    const subParts = [];
+    if (dateLabel) subParts.push(`תאריך יעד: ${dateLabel}`);
+    if (g.goal_type === 'recurring' && g.recurring_frequency) subParts.push(`תדירות: ${goalRecurringLabel(g.recurring_frequency)}`);
+    subParts.push(`חיסכון חודשי נדרש: ${fmt(goalMonthlySavings(g))}`);
+    return { label: g.name, sub: subParts.join(' • '), value: `${fmt(current)} / ${fmt(target)}` };
+  });
+  const totalMonthly = goals.reduce((s, g) => s + goalMonthlySavings(g), 0);
+  let summary = '';
+  if (monthlyDreamsSavings > 0) {
+    const covered = totalMonthly <= monthlyDreamsSavings;
+    summary = rowsTable([{
+      label: 'סה"כ חיסכון חודשי נדרש ליעדים',
+      sub: covered ? `מכוסה מחיסכון החלומות (${fmt(monthlyDreamsSavings)})` : `חסר ${fmt(monthlyDreamsSavings - totalMonthly)} לחודש`,
+      value: fmt(totalMonthly),
+      color: covered ? '#105330' : '#dc2626',
+    }]);
+  }
+  return `
+    ${sectionTitle('יעדים פיננסיים — חיסכון חלומות')}
+    ${rowsTable(rows)}
+    ${summary}
+  `;
+}
+
+export function buildMonthlyPlanHtml({ plan = {}, monthLabel = '', clientName = '', goals = [] }) {
   const num = (v) => Number(v) || 0;
   const income = num(plan.expected_income);
   const savings = num(plan.savings);
@@ -101,6 +151,7 @@ export function buildMonthlyPlanHtml({ plan = {}, monthLabel = '', clientName = 
       { label: 'הושלם', value: `${emergencyProgress}%` },
       { label: 'נשאר להשלים', value: fmt(Math.max(0, emergencyTarget - emergencyCurrent)) },
     ])}
+    ${goalsSection(goals, dreams)}
     ${plan.notes && String(plan.notes).trim() ? `
       ${sectionTitle('הערות לחודש')}
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:14px;">${escapeHtml(plan.notes)}</div>

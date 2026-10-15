@@ -16,6 +16,7 @@ import { exportPlanToPDF } from './planPDFExport';
 import { FINANCIAL_STEPS, getStepValue, getStepTarget, getStepGap, formatCurrency } from './financialPlanSteps';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import { useToast } from '@/components/ui/use-toast';
 
 const MONTHS = ['month1','month2','month3','month4','month5','month6'];
 
@@ -146,6 +147,7 @@ export default function FinancialPlan({ userId }) {
   const [planMode, setPlanMode] = useState('start');
   const planIdRef = useRef(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     base44.auth.me().then(setCurrentUser).catch(() => {});
@@ -156,6 +158,7 @@ export default function FinancialPlan({ userId }) {
   const viewingClientEmail = (() => {
     try { return JSON.parse(sessionStorage.getItem('viewingClient') || '{}').email || null; } catch { return null; }
   })();
+  const documentEmail = viewingClientEmail || currentUser?.email || '';
 
   // Fetch existing data
   const { data: reflection } = useQuery({
@@ -342,7 +345,18 @@ export default function FinancialPlan({ userId }) {
       } catch (e) {}
       const startStep = planData.current_step || 1;
       const endStep = planData.current_step_end || planData.current_step || 1;
-      await exportPlanToPDF({ planData, situation, currentStep, logoUrl, mode: planMode, startSituation, startStep, endStep });
+      const result = await exportPlanToPDF({ planData, situation, currentStep, logoUrl, mode: planMode, startSituation, startStep, endStep });
+      // Send the generated PDF to the advisor automation webhook (advisor/admin only)
+      if (isAdvisorOrAdmin && result?.base64) {
+        const modeLabel = planMode === 'end' ? 'סיום_תהליך' : 'תחילת_תהליך';
+        const filename = `תכנית_פיננסית_${planData.client_name || 'לקוח'}_${modeLabel}.pdf`;
+        try {
+          await base44.functions.invoke('sendPdfToWebhook', { email: documentEmail, filename, pdf_base64: result.base64 });
+          toast({ title: 'התכנית נשלחה לוובהוק', description: 'הקובץ נשלח בהצלחה' });
+        } catch (e) {
+          toast({ title: 'שליחת התכנית נכשלה', description: e?.response?.data?.error || e?.message || 'שגיאה בשליחה', variant: 'destructive' });
+        }
+      }
     } catch (e) {
       console.error('PDF export failed', e);
       alert('שגיאה ביצירת הקובץ. נסה שוב.');
