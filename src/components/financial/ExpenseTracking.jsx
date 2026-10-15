@@ -530,22 +530,35 @@ export default function ExpenseTracking({ userId }) {
       {/* WhatsApp Expense Bot */}
       <ExpenseTrackerBot />
 
-      {/* Monthly cycle start day toggle — user/admin can switch between cycle of the 10th (default) or the 1st */}
-      <div className="flex items-center justify-end gap-2">
-        <Label className="text-sm text-slate-600 whitespace-nowrap">תחילת מעקב חודשי:</Label>
-        <Select
-          value={String(cycleStart)}
-          onValueChange={(v) => handleCycleStartChange(v)}
-          disabled={targetUser === undefined}
-        >
-          <SelectTrigger className="w-36 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="10">ה-10 בחודש</SelectItem>
-            <SelectItem value="1">ה-1 בחודש</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Monthly cycle start day toggle + import actions — single row */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 order-2 sm:order-1">
+          <Button onClick={() => setShowManualDialog(true)} variant="outline" size="sm" className="h-8 text-xs border-green-500 text-green-700 hover:bg-green-50 px-2.5">
+            <PenLine className="w-3.5 h-3.5 ml-1" />עדכון ידני
+          </Button>
+          <Button onClick={() => setShowImageImportDialog(true)} variant="outline" size="sm" className="h-8 text-xs border-purple-400 text-purple-600 hover:bg-purple-50 px-2.5">
+            <Image className="w-3.5 h-3.5 ml-1" />ייבוא מתמונה
+          </Button>
+          <Button onClick={() => setShowPDFImportDialog(true)} variant="outline" size="sm" className="h-8 text-xs border-red-400 text-red-600 hover:bg-red-50 px-2.5">
+            <FileText className="w-3.5 h-3.5 ml-1" />ייבוא מ-PDF
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 order-1 sm:order-2">
+          <Label className="text-sm text-slate-600 whitespace-nowrap">תחילת מעקב חודשי:</Label>
+          <Select
+            value={String(cycleStart)}
+            onValueChange={(v) => handleCycleStartChange(v)}
+            disabled={targetUser === undefined}
+          >
+            <SelectTrigger className="w-36 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">ה-10 בחודש</SelectItem>
+              <SelectItem value="1">ה-1 בחודש</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Weekly Variable Expense Tracker */}
@@ -558,6 +571,8 @@ export default function ExpenseTracking({ userId }) {
         cycleStart={cycleStart}
       />
 
+      {/* Actual Income + Credit Payments — side by side on desktop */}
+      <div className="grid md:grid-cols-2 gap-4">
       {/* Actual Income */}
       <Card className="border-2 border-green-300 bg-green-50/50">
         <CardHeader className="pb-2">
@@ -640,17 +655,6 @@ export default function ExpenseTracking({ userId }) {
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-3 flex-wrap">
-        <Button onClick={() => setShowManualDialog(true)} variant="outline" className="border-green-500 text-green-700 hover:bg-green-50">
-          <PenLine className="w-4 h-4 ml-2" />עדכון הוצאה ידנית
-        </Button>
-        <Button onClick={() => setShowImageImportDialog(true)} variant="outline" className="border-purple-400 text-purple-600 hover:bg-purple-50">
-          <Image className="w-4 h-4 ml-2" />ייבוא מתמונה
-        </Button>
-        <Button onClick={() => setShowPDFImportDialog(true)} variant="outline" className="border-red-400 text-red-600 hover:bg-red-50">
-          <FileText className="w-4 h-4 ml-2" />ייבוא מ-PDF
-        </Button>
       </div>
 
       {/* Summary Cards */}

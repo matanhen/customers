@@ -60,7 +60,7 @@ export default class ErrorBoundary extends React.Component {
       }
 
       return (
-        <div dir="rtl" className="min-h-[60vh] bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] flex items-center justify-center p-4">
+        <div dir="rtl" className="min-h-[60vh] bg-[#fcf8ee] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
             <div className="h-2 bg-gradient-to-r from-[#105330] to-[#1a7a4a] rounded-full mb-8" />
             <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">

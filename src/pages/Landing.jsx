@@ -46,7 +46,7 @@ export default function Landing() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] flex items-center justify-center p-4">
+    <div dir="rtl" className="min-h-screen bg-[#fcf8ee] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           <div className="h-2 bg-gradient-to-r from-[#105330] to-[#1a7a4a]" />

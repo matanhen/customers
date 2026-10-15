@@ -277,7 +277,7 @@ export default function Layout({ children }) {
   // Show loading screen
   if (isLoading) {
     return (
-      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center">
+      <div dir="rtl" className="min-h-screen bg-[#fcf8ee] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#105330] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-[#105330] font-semibold">טוען...</p>
@@ -289,7 +289,7 @@ export default function Layout({ children }) {
   // Show unauthorized screen if user is not registered
   if (isUnauthorized) {
     return (
-      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
+      <div dir="rtl" className="min-h-screen bg-[#fcf8ee] flex items-center justify-center p-4">
         <div className="max-w-md w-full">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl overflow-hidden border-2 border-red-200 dark:border-red-900">
             <div className="h-2 bg-gradient-to-r from-red-500 to-orange-500" />
@@ -321,7 +321,7 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-[#f8f9f7] via-[#f5f6f4] to-[#f0f2ef] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950">
+    <div dir="rtl" className="min-h-screen bg-[#fcf8ee]">
       <style>{`
         :root {
           --primary: #105330;
