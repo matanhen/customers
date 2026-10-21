@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DollarSign, Receipt, TrendingUp, TrendingDown, Save, Check, FileText, Image } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { resolvePensionForMonth, currentMonth } from '@/lib/pension';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,10 +76,11 @@ export default function FinancialReflection({ userId }) {
     staleTime: 60000,
   });
 
-  const pensionMaleMonthly = pensionData
+  const pensionForMonth = Object.values(resolvePensionForMonth(pensionData, currentMonth()));
+  const pensionMaleMonthly = pensionForMonth
     .filter(p => p.gender === 'male')
     .reduce((s, p) => s + (p.monthly_deposit || 0), 0);
-  const pensionFemaleMonthly = pensionData
+  const pensionFemaleMonthly = pensionForMonth
     .filter(p => p.gender === 'female')
     .reduce((s, p) => s + (p.monthly_deposit || 0), 0);
 

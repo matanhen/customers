@@ -5,6 +5,7 @@ import { X, Send, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReactMarkdown from 'react-markdown';
+import { resolvePensionForMonth, currentMonth } from '@/lib/pension';
 
 const SYSTEM_PROMPT = `אתה יועץ פיננסי מקצועי ומנוסה ברמה עולמית. אתה מתמחה בניהול תקציב אישי, מחיקת חובות, השקעות ותכנון לחופש כלכלי.
 אתה מדבר בעברית, בסגנון חברותי, חם ומקצועי.
@@ -593,7 +594,7 @@ export default function FinancialAdvisor() {
         debts,
         investments,
         goals,
-        pensionData,
+        pensionData: Object.values(resolvePensionForMonth(pensionData, currentMonth())),
         goalSettings: goalSettings[0],
       });
 

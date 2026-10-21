@@ -5,6 +5,7 @@ import { Target, TrendingUp, Calendar, Award, AlertTriangle, CheckCircle, Home, 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { resolvePensionForMonth, PENSION_KEY, currentMonth } from '@/lib/pension';
 
 export default function ResultsSection({ userId }) {
   const [activePlan, setActivePlan] = useState('current');
@@ -51,8 +52,9 @@ export default function ResultsSection({ userId }) {
 
   const currentPlan = allPlans.find(p => p.plan_type === activePlan);
   const gender = goalSettings?.gender || 'male';
-  const pensionInfo = pensionData.find(p => p.gender === gender && p.fund_type === 'pension');
-  const kerenInfo = pensionData.find(p => p.gender === gender && p.fund_type === 'keren_hishtalmut');
+  const pensionForMonth = resolvePensionForMonth(pensionData, currentMonth());
+  const pensionInfo = pensionForMonth[PENSION_KEY(gender, 'pension')];
+  const kerenInfo = pensionForMonth[PENSION_KEY(gender, 'keren_hishtalmut')];
 
   // Calculate pension allowance
   const calculatePensionAllowance = (data) => {

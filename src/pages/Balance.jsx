@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import { resolvePensionForMonth } from '@/lib/pension';
 
 const ASSET_CATEGORIES = [
   { key: 'cash', label: 'מזומנים', icon: Wallet },
@@ -279,23 +280,18 @@ export default function Balance() {
     enabled: !!userId,
   });
 
-  // Deduplicate by gender+fund_type, keeping the most recently updated record
-  const pensionData = useMemo(() => {
-    const map = new Map();
-    for (const p of rawPensionData) {
-      const key = `${p.gender}-${p.fund_type}`;
-      const existing = map.get(key);
-      if (!existing || new Date(p.updated_date || p.created_date || 0) > new Date(existing.updated_date || existing.created_date || 0)) {
-        map.set(key, p);
-      }
-    }
-    return Array.from(map.values());
-  }, [rawPensionData]);
+  // Pension values for the month currently shown. A month without its own entry
+  // inherits the most recent earlier month (until the user changes it), so the
+  // balance always reflects the pension of the same month.
+  const pensionData = useMemo(
+    () => Object.values(resolvePensionForMonth(rawPensionData, selectedMonth)),
+    [rawPensionData, selectedMonth]
+  );
 
   const totalAssets = assets.reduce((s, a) => s + (Number(a.value) || 0), 0);
   const totalLiabilities = liabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
 
-  const pensionTotal = pensionData.reduce((s, p) => s + (p.current_amount || 0), 0);
+  const pensionTotal = pensionData.reduce((s, p) => s + (Number(p.current_amount) || 0), 0);
   const pensionByType = pensionData.reduce((acc, p) => {
     const label = p.fund_type === 'pension' ? 'פנסיה' : p.fund_type === 'keren_hishtalmut' ? 'קרן השתלמות' : 'קופת גמל';
     const genderLabel = p.gender === 'male' ? 'גבר' : 'אישה';

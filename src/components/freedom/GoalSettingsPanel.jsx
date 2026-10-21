@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import { resolvePensionForMonth, PENSION_KEY, currentMonth } from '@/lib/pension';
 
 export default function GoalSettingsPanel({ userId, registerFlushSave }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -52,9 +53,11 @@ export default function GoalSettingsPanel({ userId, registerFlushSave }) {
     enabled: !!userId && !!currentUser,
   });
 
-  // Get data based on selected gender
-  const selectedPension = pensionData.find(p => p.gender === settings.gender && p.fund_type === 'pension');
-  const selectedKeren = pensionData.find(p => p.gender === settings.gender && p.fund_type === 'keren_hishtalmut');
+  // Get data based on selected gender, for the current month (carried forward
+  // from the most recent month that has its own numbers).
+  const pensionForMonth = resolvePensionForMonth(pensionData, currentMonth());
+  const selectedPension = pensionForMonth[PENSION_KEY(settings.gender, 'pension')];
+  const selectedKeren = pensionForMonth[PENSION_KEY(settings.gender, 'keren_hishtalmut')];
   const currentAge = selectedPension?.current_age || 0;
   const retirementAge = selectedPension?.retirement_age || 67;
   const pensionAmount = selectedPension?.current_amount || 0;
@@ -83,7 +86,7 @@ export default function GoalSettingsPanel({ userId, registerFlushSave }) {
 
   // Keep refs in sync so the unmount cleanup save has the latest values
   useEffect(() => { goalSettingsIdRef.current = goalSettings?.id || null; }, [goalSettings]);
-  useEffect(() => { pensionDataRef.current = pensionData; }, [pensionData]);
+  useEffect(() => { pensionDataRef.current = Object.values(resolvePensionForMonth(pensionData, currentMonth())); }, [pensionData]);
   useEffect(() => { userIdRef.current = userId; }, [userId]);
   useEffect(() => { isViewingOtherRef.current = isViewingOther; }, [isViewingOther]);
   useEffect(() => { isAdvisorOrAdminRef.current = isAdvisorOrAdmin; }, [isAdvisorOrAdmin]);

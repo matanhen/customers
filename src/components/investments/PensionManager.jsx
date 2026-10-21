@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Users, Calendar, TrendingUp } from 'lucide-react';
+import { User, Users, Calendar, TrendingUp, ChevronRight, ChevronLeft, CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import { resolvePensionForMonth, PENSION_KEY } from '@/lib/pension';
 
 const calculateProjectedAmount = (data, yearsFromNow = null) => {
   const currentAge = data.current_age || 30;
@@ -299,10 +300,28 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
   );
 }
 
+function currentMonthStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function shiftMonth(ym, delta) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatMonthLabel(yearMonth) {
+  const [y, m] = yearMonth.split('-');
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  return `${months[parseInt(m) - 1]} ${y}`;
+}
+
 export default function PensionManager({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeGender, setActiveGender] = useState('male');
   const [activeFund, setActiveFund] = useState('pension');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthStr());
   const queryClient = useQueryClient();
 
   const isAdvisorOrAdmin = currentUser?.user_type === 'advisor' || currentUser?.user_type === 'admin';
@@ -332,21 +351,28 @@ export default function PensionManager({ userId }) {
     refetchOnWindowFocus: false,
   });
 
+  // The pension values that apply to the selected month: its own record if it
+  // exists, otherwise the most recent earlier month (until the user changes it).
+  const resolvedForMonth = useMemo(
+    () => resolvePensionForMonth(pensionData, selectedMonth),
+    [pensionData, selectedMonth]
+  );
+
   const saveMutation = useMutation({
     mutationFn: async ({ gender, fundType, data }) => {
-      const existing = pensionData.find(p => p.gender === gender && p.fund_type === fundType);
-      const fullData = { ...data, user_id: userId, gender, fund_type: fundType };
+      const exact = pensionData.find(p => p.gender === gender && p.fund_type === fundType && p.month === selectedMonth);
+      const fullData = { ...data, user_id: userId, gender, fund_type: fundType, month: selectedMonth };
       if (isViewingOther && isAdvisorOrAdmin) {
         const response = await base44.functions.invoke('saveClientData', {
           entityName: 'PensionData',
           clientUserId: userId,
           data: fullData,
-          recordId: existing?.id || null,
+          recordId: exact?.id || null,
         });
-        return { ...response.data, gender, fund_type: fundType };
+        return { ...response.data, gender, fund_type: fundType, month: selectedMonth };
       }
-      if (existing) {
-        return base44.entities.PensionData.update(existing.id, data);
+      if (exact) {
+        return base44.entities.PensionData.update(exact.id, fullData);
       }
       return base44.entities.PensionData.create(fullData);
     },
@@ -362,7 +388,13 @@ export default function PensionManager({ userId }) {
   });
 
   const getFundData = (gender, fundType) => {
-    return pensionData.find(p => p.gender === gender && p.fund_type === fundType) || defaultFundData;
+    return resolvedForMonth[PENSION_KEY(gender, fundType)] || defaultFundData;
+  };
+
+  // True when this fund's numbers are carried over from an earlier month
+  const isInherited = (gender, fundType) => {
+    const rec = resolvedForMonth[PENSION_KEY(gender, fundType)];
+    return !!rec && rec.month !== selectedMonth;
   };
 
   const handleSave = useCallback((args) => {
@@ -408,6 +440,37 @@ export default function PensionManager({ userId }) {
 
   return (
     <div className="space-y-6">
+      {/* Month Navigator — every month holds its own numbers; unchanged values carry forward */}
+      <div className="flex items-center justify-center gap-3">
+        <button
+          onClick={() => setSelectedMonth(shiftMonth(selectedMonth, -1))}
+          className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-[#105330]/30 transition-all"
+          aria-label="חודש קודם"
+        >
+          <ChevronRight className="w-5 h-5 text-[#105330]" />
+        </button>
+        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm min-w-[190px] justify-center">
+          <CalendarDays className="w-4 h-4 text-[#105330]/60" />
+          <span className="text-lg font-bold text-[#105330]">{formatMonthLabel(selectedMonth)}</span>
+          {isInherited(activeGender, activeFund) && (
+            <span className="text-xs text-amber-500">(העתקה אוטומטית)</span>
+          )}
+        </div>
+        <button
+          onClick={() => setSelectedMonth(shiftMonth(selectedMonth, 1))}
+          className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-[#105330]/30 transition-all"
+          aria-label="חודש הבא"
+        >
+          <ChevronLeft className="w-5 h-5 text-[#105330]" />
+        </button>
+        <button
+          onClick={() => setSelectedMonth(currentMonthStr())}
+          className="px-3 py-2 text-sm font-medium text-[#105330] bg-[#105330]/5 rounded-xl hover:bg-[#105330]/10 transition-all"
+        >
+          החודש
+        </button>
+      </div>
+
       <Tabs value={activeGender} onValueChange={setActiveGender} className="space-y-6">
         <TabsList className="grid grid-cols-2 w-full max-w-xs bg-[#105330]/10 p-1.5 rounded-2xl">
           <TabsTrigger value="male" className="rounded-xl data-[state=active]:bg-[#105330] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all font-semibold">

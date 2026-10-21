@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import AIChatAssistant from '../components/chat/AIChatAssistant';
 import { EXPENSE_CATEGORIES, getItemMonthTotal } from '../components/financial/expenseCategories';
+import { pensionTotalForMonth } from '@/lib/pension';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell, LineChart, Line
@@ -224,7 +225,7 @@ export default function Home() {
   const balanceAssets = currentBalance.assets?.items || [];
   const balanceLiabilities = currentBalance.liabilities?.items || [];
   const totalAssets = balanceAssets.reduce((s, a) => s + (Number(a.value) || 0), 0);
-  const totalPension = (pensionData || []).reduce((sum, p) => sum + (p.current_amount || 0), 0);
+  const totalPension = pensionTotalForMonth(pensionData, currentMonthStr);
   const totalDebts = balanceLiabilities.reduce((s, l) => s + (Number(l.balance) || 0), 0);
   const netWorth = totalAssets + totalPension - totalDebts;
   const netWorthExPension = totalAssets - totalDebts;
@@ -263,7 +264,7 @@ export default function Home() {
       fullMonth: m,
       נכסים: aTotal,
       התחייבויות: lTotal,
-      'שווי נקי': aTotal + (pensionData || []).reduce((s, p) => s + (p.current_amount || 0), 0) - lTotal,
+      'שווי נקי': aTotal + pensionTotalForMonth(pensionData, m) - lTotal,
     };
   });
 

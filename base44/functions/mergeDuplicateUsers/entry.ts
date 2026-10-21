@@ -94,20 +94,6 @@ export default async function(req) {
           } catch (e) { /* entity might not exist or might not have user_id */ }
         }
 
-        // Update Meeting references (client_id, advisor_id)
-        try {
-          await base44.asServiceRole.entities.Meeting.updateMany(
-            { client_id: dup.id },
-            { $set: { client_id: keepUser.id } }
-          );
-        } catch (e) { /* non-critical */ }
-        try {
-          await base44.asServiceRole.entities.Meeting.updateMany(
-            { advisor_id: dup.id },
-            { $set: { advisor_id: keepUser.id } }
-          );
-        } catch (e) { /* non-critical */ }
-
         // Update ClientAdvisorAssignment references
         try {
           await base44.asServiceRole.entities.ClientAdvisorAssignment.updateMany(
