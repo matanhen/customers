@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Trash2, Lock } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Lock, Unlock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   EXPENSE_CATEGORIES,
-  isFixedItem,
   getItemWeekAmount,
   setItemWeekAmount,
   getItemMonthTotal,
@@ -22,10 +21,15 @@ import {
  * Fixed items show a "קבוע" badge and a single monthly-amount input; their
  * amount is NOT counted toward variable (יתרת ההוצאות) spending.
  *
+ * isItemFixed(itemName) is the user's personal choice (a fixed item keeps
+ * carrying forward to the next months automatically). The lock badge on each
+ * row calls onToggleFixed(itemName, nextIsFixed) so any item — a system item or
+ * one added manually — can be marked fixed or switched back to variable.
+ *
  * Layout: 3 expense categories per row on desktop (1 per row on mobile), each a
  * collapsible card. All categories are collapsed by default.
  */
-export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, onChange, disabled = false }) {
+export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, onChange, isItemFixed, onToggleFixed, disabled = false }) {
   const [expandedCategories, setExpandedCategories] = useState(
     () => Object.fromEntries(EXPENSE_CATEGORIES.map(cat => [cat.key, false]))
   );
@@ -101,6 +105,9 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
                 </span>
                 = הוצאה קבועה, לא נכללת ביתרת ההוצאות · ממשיכה אוטומטית לחודש הבא
               </span>
+              <span className="block mt-1">
+                לחיצה על התג בכל שורה מסמנת את הסעיף כהוצאה קבועה (או מחזירה אותו למשתנה).
+              </span>
             </p>
           </div>
           <div className="bg-gradient-to-l from-rose-500 to-rose-400 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-sm">
@@ -115,6 +122,12 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
             const catTotal = getCategoryTotal(cat.key);
             const catData = expenses[cat.key] || {};
             const customItems = Object.keys(catData).filter(item => !cat.items.includes(item));
+            // System items first, then items added manually — both use the same
+            // fixed/variable behavior and can be toggled.
+            const rows = [
+              ...cat.items.map(name => ({ name, custom: false })),
+              ...customItems.map(name => ({ name, custom: true })),
+            ];
 
             return (
               <div key={cat.key} className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -144,89 +157,70 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
                           </tr>
                         </thead>
                         <tbody>
-                          {cat.items.map(item => {
-                            const fixed = isFixedItem(item);
-                            const monthTotal = getItemMonthTotal(catData[item]);
-                            if (fixed) {
-                              return (
-                                <tr key={item} className="border-t border-slate-100/80 bg-blue-50/40">
-                                  <td className="py-1.5 pr-1 text-slate-600 text-xs">
-                                    <div className="flex items-center gap-1">
-                                      <span>{item}</span>
-                                      <span className="inline-flex items-center gap-0.5 text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-medium flex-shrink-0">
-                                        <Lock className="w-2.5 h-2.5" />קבוע
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="py-1 px-0.5 text-center text-[10px] text-blue-400 select-none">—</td>
-                                  <td className="py-1 px-0.5">
-                                    <Input
-                                      type="number"
-                                      value={monthTotal || ''}
-                                      onChange={e => updateFixedAmount(cat.key, item, e.target.value)}
-                                      className="h-7 text-xs text-center border-blue-200 px-1 rounded-md"
-                                      placeholder="0"
-                                      disabled={disabled}
-                                      dir="ltr"
-                                    />
-                                  </td>
-                                  {!disabled && <td className="w-8"></td>}
-                                </tr>
-                              );
-                            }
+                          {rows.map(({ name, custom }) => {
+                            const fixed = isItemFixed ? !!isItemFixed(name) : false;
+                            const monthTotal = getItemMonthTotal(catData[name]);
                             return (
-                              <tr key={item} className="border-t border-slate-100/80">
-                                <td className="py-1.5 pr-1 text-slate-600 text-xs">{item}</td>
-                                <td className="py-1 px-0.5">
-                                  <Input
-                                    type="number"
-                                    value={getItemWeekAmount(catData[item], selectedWeek) || ''}
-                                    onChange={e => updateCell(cat.key, item, e.target.value)}
-                                    className="h-7 text-xs text-center border-slate-200 px-1 rounded-md"
-                                    placeholder="0"
-                                    disabled={disabled}
-                                    dir="ltr"
-                                  />
-                                </td>
-                                <td className="py-1 px-0.5 text-center text-xs font-semibold text-slate-600 select-none">
-                                  {monthTotal > 0 ? `₪${monthTotal.toLocaleString()}` : '—'}
-                                </td>
-                                {!disabled && <td className="w-8"></td>}
-                              </tr>
-                            );
-                          })}
-                          {customItems.map(item => {
-                            const fixed = isFixedItem(item);
-                            const monthTotal = getItemMonthTotal(catData[item]);
-                            return (
-                              <tr key={item} className="border-t border-slate-100/80 bg-blue-50/30">
-                                <td className="py-1.5 pr-1 text-blue-700 text-xs font-medium">
+                              <tr key={name} className={`border-t border-slate-100/80 ${fixed ? 'bg-blue-50/40' : ''}`}>
+                                <td className="py-1.5 pr-1 text-xs">
                                   <div className="flex items-center gap-1">
-                                    <span>{item}</span>
-                                    {fixed && (
-                                      <span className="inline-flex items-center gap-0.5 text-[9px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-medium flex-shrink-0">
-                                        <Lock className="w-2.5 h-2.5" />קבוע
-                                      </span>
-                                    )}
+                                    <span className={custom ? 'text-blue-700 font-medium' : 'text-slate-600'}>{name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleFixed && onToggleFixed(name, !fixed)}
+                                      disabled={disabled || !onToggleFixed}
+                                      title={fixed ? 'החזר להוצאה משתנה' : 'סמן כהוצאה קבועה'}
+                                      className={`inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded font-medium flex-shrink-0 border transition-colors ${
+                                        fixed
+                                          ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'
+                                          : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-blue-50 hover:text-blue-600'
+                                      }`}
+                                    >
+                                      {fixed ? <Lock className="w-2.5 h-2.5" /> : <Unlock className="w-2.5 h-2.5" />}
+                                      {fixed ? 'קבוע' : 'קבע'}
+                                    </button>
                                   </div>
                                 </td>
-                                <td className="py-1 px-0.5 text-center text-[10px] text-blue-400 select-none">—</td>
-                                <td className="py-1 px-0.5">
-                                  <Input
-                                    type="number"
-                                    value={monthTotal || ''}
-                                    onChange={e => updateFixedAmount(cat.key, item, e.target.value)}
-                                    className="h-7 text-xs text-center border-blue-200 px-1 rounded-md"
-                                    placeholder="0"
-                                    disabled={disabled}
-                                    dir="ltr"
-                                  />
-                                </td>
+                                {fixed ? (
+                                  <>
+                                    <td className="py-1 px-0.5 text-center text-[10px] text-blue-400 select-none">—</td>
+                                    <td className="py-1 px-0.5">
+                                      <Input
+                                        type="number"
+                                        value={monthTotal || ''}
+                                        onChange={e => updateFixedAmount(cat.key, name, e.target.value)}
+                                        className="h-7 text-xs text-center border-blue-200 px-1 rounded-md"
+                                        placeholder="0"
+                                        disabled={disabled}
+                                        dir="ltr"
+                                      />
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="py-1 px-0.5">
+                                      <Input
+                                        type="number"
+                                        value={getItemWeekAmount(catData[name], selectedWeek) || ''}
+                                        onChange={e => updateCell(cat.key, name, e.target.value)}
+                                        className="h-7 text-xs text-center border-slate-200 px-1 rounded-md"
+                                        placeholder="0"
+                                        disabled={disabled}
+                                        dir="ltr"
+                                      />
+                                    </td>
+                                    <td className="py-1 px-0.5 text-center text-xs font-semibold text-slate-600 select-none">
+                                      {monthTotal > 0 ? `₪${monthTotal.toLocaleString()}` : '—'}
+                                    </td>
+                                  </>
+                                )}
                                 {!disabled && (
                                   <td className="w-8">
-                                    <button onClick={() => deleteItem(cat.key, item)} className="text-slate-300 hover:text-red-400">
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
+                                    {custom && (
+                                      <button onClick={() => deleteItem(cat.key, name)} className="text-slate-300 hover:text-red-400">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
                                   </td>
                                 )}
                               </tr>

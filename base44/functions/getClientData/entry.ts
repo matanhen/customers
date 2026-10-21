@@ -13,6 +13,7 @@ const ALLOWED_ENTITIES = [
   'PensionData',
   'FinancialPlan',
   'FinancialPlanData',
+  'ExpenseFixedOverride',
 ];
 
 Deno.serve(async (req) => {

@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
 import ExpenseTrackingTable from './ExpenseTrackingTable';
-import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, isVariableItem, FIXED_EXPENSE_ITEMS, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
+import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, FIXED_EXPENSE_ITEMS, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import WeeklyVariableTracker, { getFinMonthAnchor } from './WeeklyVariableTracker';
 import ExpenseTrackerBot from '@/components/chat/ExpenseTrackerBot';
@@ -111,6 +111,26 @@ export default function ExpenseTracking({ userId }) {
     refetchOnWindowFocus: false,
   });
 
+  // The user's own choice of which expense items count as FIXED expenses.
+  // Saved per user (not per month), so it applies to every month automatically
+  // until the user changes it again.
+  const overridesQueryKey = ['expenseFixedOverrides', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin, viewingClientEmail];
+  const { data: fixedOverridesRaw = [], isLoading: overridesLoading } = useQuery({
+    queryKey: overridesQueryKey,
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          clientEmail: viewingClientEmail,
+          entityName: 'ExpenseFixedOverride'
+        });
+        return response.data.data;
+      }
+      return base44.entities.ExpenseFixedOverride.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
+  });
+
   // Fetch the cycle_start_day preference of the user whose data is being shown
   // (self, or the viewed client when an advisor/admin is viewing a client)
   const { data: targetUser } = useQuery({
@@ -140,6 +160,28 @@ export default function ExpenseTracking({ userId }) {
   const currentTracking = allTracking.find(t => t.month === currentMonth);
   const currentPlan = monthlyPlans.find(p => p.month === currentMonth);
 
+  // item_name -> is_fixed, plus the record ids of the saved choices
+  const [fixedOverrides, setFixedOverrides] = useState({});
+  const fixedOverrideIdsRef = useRef({});
+
+  useEffect(() => {
+    const map = {};
+    const ids = {};
+    (fixedOverridesRaw || []).forEach(r => {
+      if (!r?.item_name) return;
+      map[r.item_name] = !!r.is_fixed;
+      ids[r.item_name] = r.id;
+    });
+    setFixedOverrides(map);
+    fixedOverrideIdsRef.current = ids;
+  }, [fixedOverridesRaw]);
+
+  // The user's choice wins; otherwise fall back to the app's default list.
+  const isItemFixed = useCallback(
+    (itemName) => (fixedOverrides[itemName] !== undefined ? fixedOverrides[itemName] : FIXED_EXPENSE_ITEMS.has(itemName)),
+    [fixedOverrides]
+  );
+
   const dataLoadedRef = useRef(false);
   const lastLoadedTrackingIdRef = useRef(null);
   const hasSavedForMonthRef = useRef(false);
@@ -166,6 +208,9 @@ export default function ExpenseTracking({ userId }) {
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     } else if (!trackingLoading && allTracking !== undefined) {
+      // Wait for the user's fixed/variable choices, so a brand-new month is
+      // created with the correct items carried forward.
+      if (overridesLoading) return;
       // Don't reset to empty if we've already saved data for this month.
       // A refetch (or cache update) might return no record before the save
       // reaches the server, which would wipe the user's in-progress data.
@@ -192,7 +237,7 @@ export default function ExpenseTracking({ userId }) {
       const carriedFixed = {};
       if (latestPrior?.fixed_expenses) {
         Object.entries(latestPrior.fixed_expenses).forEach(([item, entry]) => {
-          if (FIXED_EXPENSE_ITEMS.has(item)) {
+          if (isItemFixed(item)) {
             const total = getItemMonthTotal(entry);
             if (total > 0) carriedFixed[item] = total;
           }
@@ -210,7 +255,7 @@ export default function ExpenseTracking({ userId }) {
       });
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     }
-  }, [currentTracking, currentMonth, trackingLoading, allTracking, currentDate]);
+  }, [currentTracking, currentMonth, trackingLoading, allTracking, currentDate, isItemFixed, overridesLoading]);
 
   const currentTrackingIdRef = useRef(null);
   useEffect(() => {
@@ -392,6 +437,50 @@ export default function ExpenseTracking({ userId }) {
     scheduleSave();
   };
 
+  const overrideWriteRef = useRef(Promise.resolve());
+
+  const persistFixedOverride = async (itemName, nextFixed) => {
+    const recordId = fixedOverrideIdsRef.current[itemName] || null;
+    const data = { user_id: userId, item_name: itemName, is_fixed: nextFixed };
+    let saved;
+    if (isViewingOther && isAdvisorOrAdmin) {
+      const res = await base44.functions.invoke('saveClientData', {
+        entityName: 'ExpenseFixedOverride',
+        clientUserId: userId,
+        data,
+        recordId,
+      });
+      saved = res.data;
+    } else if (recordId) {
+      saved = await base44.entities.ExpenseFixedOverride.update(recordId, data);
+    } else {
+      saved = await base44.entities.ExpenseFixedOverride.create(data);
+    }
+    if (saved?.id) fixedOverrideIdsRef.current[itemName] = saved.id;
+  };
+
+  // Mark an expense as fixed (or back to variable) for this user/client.
+  // The choice is personal and permanent until changed, and future months
+  // inherit the item automatically once it is fixed.
+  const handleToggleFixed = (itemName, nextFixed) => {
+    // Reshape the stored amount: a fixed item holds one monthly number,
+    // a variable item holds the 4-week breakdown.
+    const current = trackingDataRef.current;
+    const flat = { ...(current.fixed_expenses || {}) };
+    if (flat[itemName] !== undefined) {
+      const total = getItemMonthTotal(flat[itemName]);
+      flat[itemName] = nextFixed ? total : { week1: total, week2: 0, week3: 0, week4: 0 };
+      const newData = { ...current, fixed_expenses: flat };
+      trackingDataRef.current = newData;
+      setTrackingData(newData);
+      performSave();
+    }
+    setFixedOverrides(prev => ({ ...prev, [itemName]: nextFixed }));
+    overrideWriteRef.current = overrideWriteRef.current
+      .then(() => persistFixedOverride(itemName, nextFixed))
+      .catch(() => {});
+  };
+
   // Build the per-category view for the table from fixed_expenses,
   // preserving each item's week breakdown (legacy flat numbers are kept as-is).
   const getCategoryExpenses = () => {
@@ -480,7 +569,7 @@ export default function ExpenseTracking({ userId }) {
   const actualVariableSpent = (() => {
     let total = 0;
     Object.entries(trackingData.fixed_expenses || {}).forEach(([item, amount]) => {
-      if (isVariableItem(item)) total += getItemMonthTotal(amount);
+      if (!isItemFixed(item)) total += getItemMonthTotal(amount);
     });
     (trackingData.custom_expenses || []).forEach(exp => {
       if (exp.type === 'variable') total += (exp.amount || 0);
@@ -493,7 +582,7 @@ export default function ExpenseTracking({ userId }) {
   const weeklyVariableTotals = (() => {
     const totals = { week1: 0, week2: 0, week3: 0, week4: 0 };
     Object.entries(trackingData.fixed_expenses || {}).forEach(([item, entry]) => {
-      if (!isVariableItem(item)) return;
+      if (isItemFixed(item)) return;
       if (typeof entry === 'number') {
         totals.week1 += entry; // legacy flat number → week 1
       } else if (entry && typeof entry === 'object') {
@@ -748,6 +837,8 @@ export default function ExpenseTracking({ userId }) {
         expenses={categoryExpenses}
         selectedWeek={selectedWeek}
         onChange={handleExpenseTableChange}
+        isItemFixed={isItemFixed}
+        onToggleFixed={handleToggleFixed}
       />
 
       {/* Credit Payment Dialog */}
