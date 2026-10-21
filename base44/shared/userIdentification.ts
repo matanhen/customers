@@ -13,8 +13,20 @@ const asArray = (result) => (Array.isArray(result) ? result : result?.items || [
 // A personal code lives on the app user record once the client has logged in,
 // and on the client's registration (AllowedUser) record while they have not
 // logged in yet. Both are searched, so a client's code always identifies them.
-export async function findUserByPersonalCode(base44, rawCode) {
-  const code = normalizeCode(rawCode);
+// Pulls the personal code out of a longer string (e.g. the whole WhatsApp
+// opening message: "... \n\nקוד אישי : OAAO"). Only looks AFTER the "קוד אישי"
+// marker, so the platform activation code (B44-XXXXXXXX) and English words are
+// never mistaken for a personal code.
+export function extractPersonalCode(raw) {
+  const text = (raw || '').toString();
+  const idx = text.indexOf('קוד אישי');
+  if (idx < 0) return '';
+  const scope = text.slice(idx, idx + 40).toUpperCase();
+  const tokens = scope.split(/[^A-Z]+/).filter(Boolean);
+  return tokens.find((t) => t.length === 4) || '';
+}
+
+async function lookupUserByCode(base44, code) {
   if (!code) return null;
 
   const users = asArray(await base44.asServiceRole.entities.User.list());
@@ -50,6 +62,21 @@ export async function findUserByPersonalCode(base44, rawCode) {
     personal_code: code,
     account_pending: true,
   };
+}
+
+// Identifies a client by their personal code. Tolerates the agent passing a
+// longer value (a whole line or the full opening message) by falling back to
+// the code embedded after the "קוד אישי" marker.
+export async function findUserByPersonalCode(base44, rawCode) {
+  const code = normalizeCode(rawCode);
+  if (!code) return null;
+
+  const direct = await lookupUserByCode(base44, code);
+  if (direct) return direct;
+
+  const embedded = normalizeCode(extractPersonalCode(rawCode));
+  if (!embedded || embedded === code) return null;
+  return await lookupUserByCode(base44, embedded);
 }
 
 export async function identifyUser(base44, body) {
@@ -141,6 +168,11 @@ export async function ensureClientPersonalCode(base44, { email, full_name, phone
     if (!allowedUser.phone && phone) patch.phone = phone;
     allowedUser = await base44.asServiceRole.entities.AllowedUser.update(allowedUser.id, patch);
   }
+
+  // A client that exists only as an app user (no registration record) still needs
+  // a code, otherwise their personal link carries none and the bot can't identify
+  // them.
+  if (!code) code = await generateUniquePersonalCode(base44);
 
   // The registration code is the one the client receives (it is the code inside
   // their personal WhatsApp link), so the app user record always follows it.
