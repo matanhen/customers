@@ -17,23 +17,28 @@ export default async function(req) {
     const user = await identifyUser(base44, body);
     if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
 
+    // Use the app account id when available; otherwise the AllowedUser id, so a
+    // client that hasn't logged in yet still sees their recorded expenses.
+    const effectiveUserId = user.id || user.allowed_user_id;
+    if (!effectiveUserId) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
+
     const month = getCurrentMonth();
     const week = getCurrentFinWeek(new Date(), user.cycle_start_day || 10);
 
     // This month's ExpenseTracking record (calendar month key, matches ExpenseTracking.jsx)
-    const records = await base44.entities.ExpenseTracking.filter({ user_id: user.id, month });
+    const records = await base44.entities.ExpenseTracking.filter({ user_id: effectiveUserId, month });
     const tracking = records[0] || null;
 
     // Custom expense categories the user defined
     let customCategories = [];
     try {
-      customCategories = await base44.entities.CustomExpenseCategory.filter({ user_id: user.id });
+      customCategories = await base44.entities.CustomExpenseCategory.filter({ user_id: effectiveUserId });
     } catch (e) { /* non-critical */ }
 
     // Monthly plan for the planned variable budget
     let plannedVariable = 0;
     try {
-      const plans = await base44.entities.MonthlyPlan.filter({ user_id: user.id, month });
+      const plans = await base44.entities.MonthlyPlan.filter({ user_id: effectiveUserId, month });
       if (plans[0]) plannedVariable = plans[0].variable_expenses || 0;
     } catch (e) { /* non-critical */ }
 
@@ -44,7 +49,7 @@ export default async function(req) {
     }
 
     return Response.json({
-      user: { id: user.id, full_name: user.full_name, email: user.email },
+      user: { id: user.id || '', full_name: user.full_name, email: user.email },
       month,
       week,
       tracking: tracking ? {

@@ -82,6 +82,14 @@ export default function Layout({ children }) {
       .catch(() => { /* non-critical */ });
   }, [user?.email, user?.personal_code]);
 
+  // Re-link expense-tracking records that were stored against the client's
+  // AllowedUser id (via the WhatsApp bot, before they logged in) to their app
+  // User id. Runs once per login; idempotent.
+  useEffect(() => {
+    if (!user?.email) return;
+    base44.functions.invoke('linkPendingClientData', { email: user.email }).catch(() => {});
+  }, [user?.email]);
+
   // Listen for live navbar logo updates from the admin panel
   useEffect(() => {
     const handler = (e) => {

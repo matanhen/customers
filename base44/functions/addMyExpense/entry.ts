@@ -23,6 +23,11 @@ const HEBREW_MONTHS = [
 // Each entry can be a flat number (month total) OR a week object { week1..week4 }.
 // We store a week object so the expense appears in the correct financial week,
 // and the app's getItemMonthTotal() handles both shapes for totals.
+//
+// A client that registered but has not logged in yet has an AllowedUser record
+// but no app User account. We still record the expense against the AllowedUser
+// id so it isn't lost — it is re-linked to the client's app account the first
+// time they log in (linkPendingClientData).
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -30,20 +35,13 @@ export default async function(req) {
     const user = await identifyUser(base44, body);
     if (!user) return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
 
-    // A client that registered but has not logged in yet has a personal code but
-    // no account to store data against — ask them to enter the app once, instead
-    // of recording the expense against a non-existing account.
-    if (!user.id) {
-      return Response.json({
-        success: false,
-        needs_app_account: true,
-        confirmation_message:
-          'הקוד האישי זוהה בהצלחה ✅\n\n' +
-          'כדי לתעד הוצאות בוואטסאפ, יש להיכנס פעם אחת לאפליקציה עם האימייל שאיתו נרשמת:\n' +
-          'https://customers.matanhen.com\n\n' +
-          'ואז לשלוח לי את ההוצאה שוב 😊',
-      });
+    // Use the app account id when the client has one; otherwise fall back to the
+    // AllowedUser record id so the expense is still stored and re-linked later.
+    const effectiveUserId = user.id || user.allowed_user_id;
+    if (!effectiveUserId) {
+      return Response.json({ error: 'משתמש לא זוהה. אנא שלח קוד אישי.' }, { status: 401 });
     }
+    const accountPending = !user.id;
 
     const amount = parseFloat(body.amount);
     if (!amount || isNaN(amount) || amount <= 0) {
@@ -57,7 +55,7 @@ export default async function(req) {
     // 1. Check advisor-defined ExpenseMapping (keyword → target_item) for this user
     let mappedItem = null;
     try {
-      const mappings = await base44.entities.ExpenseMapping.filter({ created_by: user.id });
+      const mappings = await base44.entities.ExpenseMapping.filter({ created_by: effectiveUserId });
       const lower = rawItemName.toLowerCase();
       for (const m of mappings) {
         if (m.keyword && lower.includes(m.keyword.toLowerCase())) {
@@ -70,7 +68,7 @@ export default async function(req) {
     // 2. Load custom categories for the user (for normalizeItemName)
     let customCategories = [];
     try {
-      customCategories = await base44.entities.CustomExpenseCategory.filter({ user_id: user.id });
+      customCategories = await base44.entities.CustomExpenseCategory.filter({ user_id: effectiveUserId });
     } catch (e) { /* non-critical */ }
 
     // 3. Normalize: mapped item → normalizeItemName → original
@@ -86,12 +84,12 @@ export default async function(req) {
     const categoryLabel = EXPENSE_CATEGORIES.find(c => c.key === categoryKey)?.label || 'שונות';
 
     // Find or create the ExpenseTracking record for this month (calendar month key)
-    const records = await base44.entities.ExpenseTracking.filter({ user_id: user.id, month });
+    const records = await base44.entities.ExpenseTracking.filter({ user_id: effectiveUserId, month });
     let tracking = records[0];
 
     if (!tracking) {
       tracking = await base44.entities.ExpenseTracking.create({
-        user_id: user.id,
+        user_id: effectiveUserId,
         month,
         actual_income: 0,
         fixed_expenses: {},
@@ -120,7 +118,7 @@ export default async function(req) {
     // Look up the monthly plan to get the variable expenses budget for this month
     let variableBudget = 0;
     try {
-      const plans = await base44.entities.MonthlyPlan.filter({ user_id: user.id, month });
+      const plans = await base44.entities.MonthlyPlan.filter({ user_id: effectiveUserId, month });
       if (plans.length > 0) {
         variableBudget = plans[0].variable_expenses || 0;
       }
@@ -137,12 +135,16 @@ export default async function(req) {
     const remainingStr = remainingRounded < 0
       ? `-${Math.abs(remainingRounded).toLocaleString('he-IL')}`
       : remainingRounded.toLocaleString('he-IL');
+    const pendingNote = accountPending
+      ? '\n\n💡 כדי לראות את ההוצאה במעקב החודשי באפליקציה, יש להיכנס פעם אחת למערכת:\nhttps://customers.matanhen.com'
+      : '';
     const confirmationMessage =
       `ההוצאה תועדה בהצלחה בשבוע ${week} בחודש ${hebrewMonth} ${year} ✅\n\n` +
       `סעיף: ${sectionLabel}\n` +
       `סכום: ${amount} ₪\n` +
       `סך הכל נותר לבזבז החודש: ${remainingStr} ₪\n` +
-      ` האם יש עוד משהו שאוכל לעזור איתו? 😊`;
+      ` האם יש עוד משהו שאוכל לעזור איתו? 😊` +
+      pendingNote;
 
     return Response.json({
       success: true,
@@ -157,6 +159,7 @@ export default async function(req) {
       variableBudget,
       remaining: Math.round(remaining),
       confirmation_message: confirmationMessage,
+      account_pending: accountPending,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

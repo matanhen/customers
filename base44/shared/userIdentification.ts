@@ -54,6 +54,7 @@ async function lookupUserByCode(base44, code) {
 
   return {
     id: '',
+    allowed_user_id: registration.id,
     full_name: registration.full_name || '',
     custom_name: registration.full_name || '',
     email: registration.email || '',
