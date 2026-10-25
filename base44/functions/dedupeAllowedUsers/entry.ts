@@ -2,18 +2,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 const asArray = (result) => (Array.isArray(result) ? result : result?.items || []);
 
-// Read every AllowedUser record, following pagination cursors.
+// Read every AllowedUser record (no-arg list returns them all, as in mergeDuplicateUsers).
 async function listAllAllowed(base44) {
-  const byId = new Map();
-  let cursor = null;
-  for (let i = 0; i < 100; i++) {
-    const page = await base44.asServiceRole.entities.AllowedUser.list(cursor ? { limit: 200, cursor } : { limit: 200 });
-    for (const item of asArray(page)) byId.set(item.id, item);
-    const next = !Array.isArray(page) ? page?.next_cursor : null;
-    if (next) { cursor = next; continue; }
-    break;
-  }
-  return [...byId.values()];
+  return asArray(await base44.asServiceRole.entities.AllowedUser.list());
 }
 
 // Merges duplicate AllowedUser records that share the same email into one.
