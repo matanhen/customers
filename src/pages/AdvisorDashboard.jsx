@@ -293,26 +293,14 @@ export default function AdvisorDashboard() {
     setAddingClient(true);
     setAddError('');
     try {
-      // Create AllowedUser
-      const allowedUser = await base44.entities.AllowedUser.create({
-        email: newClientEmail.trim().toLowerCase(),
+      // Idempotent add: never duplicates an email, never overwrites existing data,
+      // and assigns the new client to this advisor automatically.
+      const res = await base44.functions.invoke('addClient', {
+        email: newClientEmail.trim(),
         full_name: newClientName.trim(),
-        user_type: 'client'
+        user_type: 'client',
       });
-      // Create assignment
-      await base44.entities.ClientAdvisorAssignment.create({
-        client_id: '',
-        client_email: newClientEmail.trim().toLowerCase(),
-        client_name: newClientName.trim(),
-        advisor_id: user.id,
-        advisor_email: user.email
-      });
-      // Invite user
-      await base44.users.inviteUser(newClientEmail.trim().toLowerCase(), 'user');
-      // Personal code, created immediately — even before the client ever logs in
-      try {
-        await base44.functions.invoke('ensurePersonalCode', { email: newClientEmail.trim().toLowerCase() });
-      } catch (e) { /* non-critical */ }
+      if (res?.data?.error) throw new Error(res.data.error);
       queryClient.invalidateQueries({ queryKey: ['allowedUsersForAdvisor'] });
       queryClient.invalidateQueries({ queryKey: ['advisorClientDetails'] });
       queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
@@ -320,7 +308,7 @@ export default function AdvisorDashboard() {
       setNewClientEmail('');
       setNewClientName('');
     } catch (e) {
-      setAddError('שגיאה בהוספת הלקוח. ייתכן שהאימייל כבר קיים במערכת.');
+      setAddError(e?.message || 'שגיאה בהוספת הלקוח.');
     }
     setAddingClient(false);
   };

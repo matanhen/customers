@@ -134,10 +134,30 @@ export default function AdminDashboard() {
   // Sync User entities with AllowedUsers and remove duplicates — runs only once per session
   const syncDoneRef = useRef(false);
   useEffect(() => {
-    if (!user || loadingUsers || loadingAllowed || syncDoneRef.current) return;
+    if (!user || (user.user_type !== 'admin' && user.role !== 'admin')) return;
+    if (loadingUsers || loadingAllowed || syncDoneRef.current) return;
     syncDoneRef.current = true;
 
     const syncUsers = async () => {
+      // Merge duplicate AllowedUser records (same email) into one
+      const allowedSeen = new Set();
+      let hasAllowedDuplicates = false;
+      for (const au of allowedUsers) {
+        const key = (au.email || '').toLowerCase().trim();
+        if (!key) continue;
+        if (allowedSeen.has(key)) { hasAllowedDuplicates = true; break; }
+        allowedSeen.add(key);
+      }
+      if (hasAllowedDuplicates) {
+        try {
+          await base44.functions.invoke('dedupeAllowedUsers', {});
+          queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
+          return;
+        } catch (e) {
+          console.log('Failed to dedupe allowed users', e);
+        }
+      }
+
       // Check for duplicate users by email
       const emailMap = new Map();
       let hasDuplicates = false;
@@ -165,7 +185,13 @@ export default function AdminDashboard() {
       // Create User entities for AllowedUsers that don't have one yet
       if (allowedUsers.length > 0) {
         const userEmails = new Set(allUsers.map(u => (u.email || '').toLowerCase().trim()));
-        const missingUsers = allowedUsers.filter(au => !userEmails.has((au.email || '').toLowerCase().trim()));
+        const seenMissing = new Set();
+        const missingUsers = allowedUsers.filter(au => {
+          const key = (au.email || '').toLowerCase().trim();
+          if (!key || userEmails.has(key) || seenMissing.has(key)) return false;
+          seenMissing.add(key);
+          return true;
+        });
 
         // Generate unique personal codes for new users
       const existingCodes = new Set(allUsers.map(u => (u.personal_code || '').toUpperCase()));
@@ -270,79 +296,57 @@ export default function AdminDashboard() {
     }
   };
 
-  const [addClientSuccess, setAddClientSuccess] = useState(false);
+  const [addClientMsg, setAddClientMsg] = useState('');
 
   const createClientMutation = useMutation({
     mutationFn: async (data) => {
-      const userType = data.user_type || 'client';
-
-      // Create AllowedUser
-      await base44.entities.AllowedUser.create({
+      const res = await base44.functions.invoke('addClient', {
         email: data.email,
         full_name: data.full_name,
-        user_type: userType,
-        phone: data.phone || '',
+        phone: data.phone,
+        user_type: data.user_type || 'client',
+        advisor_id: data.advisor_id || '',
+        advisor_email: advisors.find(a => a.id === data.advisor_id)?.email || '',
       });
-
-      // Invite the user so they appear in the system immediately
-      await base44.users.inviteUser(data.email, userType === 'admin' ? 'admin' : 'user');
-
-      // Wait briefly for the user to be created, then find them
-      await new Promise(r => setTimeout(r, 1500));
-      const systemUsers = await base44.entities.User.filter({ email: data.email });
-      const newUserId = systemUsers[0]?.id || '';
-
-      // Update user_type (and built-in role for admins) + name + phone
-      if (newUserId) {
-        await base44.entities.User.update(newUserId, {
-          user_type: userType,
-          full_name: data.full_name,
-          custom_name: data.full_name,
-          role: userType === 'admin' ? 'admin' : 'user',
-          phone: data.phone || '',
-        });
-      }
-
-      // Personal code, created immediately — also for clients that never log in
-      try {
-        await base44.functions.invoke('ensurePersonalCode', { email: data.email });
-      } catch (e) { console.error('Failed to create personal code:', e); }
-
-      // Create assignment only for clients
-      if (userType === 'client') {
-        const selectedAdvisorUser = advisors.find(a => a.id === data.advisor_id);
-        await base44.entities.ClientAdvisorAssignment.create({
-          client_id: newUserId,
-          client_email: data.email,
-          client_name: data.full_name,
-          advisor_id: data.advisor_id || user.id,
-          advisor_email: selectedAdvisorUser?.email || user.email
-        });
-      }
+      if (res?.data?.error) throw new Error(res.data.error);
+      return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
       queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
       queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
-      setAddClientSuccess(true);
+      setAddClientMsg(
+        result?.already_exists
+          ? 'המשתמש כבר קיים במערכת — הנתונים הקיימים נשמרו ולא נדרסו.'
+          : 'המשתמש נוסף בהצלחה'
+      );
       setNewClientName('');
       setNewClientEmail('');
       setNewClientPhone('');
       setSelectedAdvisor('');
       setNewUserType('client');
       setTimeout(() => {
-        setAddClientSuccess(false);
+        setAddClientMsg('');
         setShowAddClientDialog(false);
-      }, 2000);
+      }, 2500);
+    },
+    onError: (e) => {
+      setAddClientMsg(e?.message || 'שגיאה בהוספת המשתמש');
     },
   });
 
   // Merge Users and AllowedUsers - show all allowed users
   const emailKey = (value) => (value || '').toLowerCase().trim();
   const userEmails = new Set(allUsers.map(u => emailKey(u.email)));
+  const seenAllowedEmails = new Set();
   const allowedUsersNotInSystem = allowedUsers
-    .filter(au => !userEmails.has(emailKey(au.email)))
+    .filter(au => {
+      const key = emailKey(au.email);
+      if (!key || userEmails.has(key) || seenAllowedEmails.has(key)) return false;
+      seenAllowedEmails.add(key);
+      return true;
+    })
     .map(au => ({
       id: au.id,
       email: au.email,
@@ -1251,9 +1255,9 @@ export default function AdminDashboard() {
                 </Select>
               </div>
             )}
-            {addClientSuccess && (
+            {addClientMsg && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-medium text-center">
-                ✓ המשתמש נוסף בהצלחה
+                {addClientMsg}
               </div>
             )}
           </div>
