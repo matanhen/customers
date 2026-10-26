@@ -292,14 +292,29 @@ export default function FinancialPlan({ userId }) {
     triggerSave(newData);
   };
 
-  const latestMonthlyPlan = (monthlyPlans || []).sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0];
-  const startBalanceMonth = planData?.start_balance_month || currentMonthStr();
-  const sortedBalances = [...(allMonthlyBalances || [])].filter(m => m.month).sort((a, b) => a.month.localeCompare(b.month));
-  const latestBalance = sortedBalances[sortedBalances.length - 1];
-  const currentMonthBalance = (allMonthlyBalances || []).find(m => m.month === currentMonthStr()) || latestBalance;
-  const startMonthBalance = (allMonthlyBalances || []).find(m => m.month === startBalanceMonth)
-    || sortedBalances.filter(m => m.month <= startBalanceMonth).pop()
-    || latestBalance;
+  // Pick the most up-to-date record for a given month ceiling: only records up
+  // to maxMonth count (never a future month), and among duplicates of the same
+  // month the most recently updated record wins (the real current data).
+  const currentMonth = currentMonthStr();
+  const pickLatestByMonth = (recs, maxMonth) => {
+    const all = (recs || []).filter(m => m?.month);
+    if (!all.length) return undefined;
+    const eligible = all.filter(m => m.month <= maxMonth);
+    if (!eligible.length) {
+      // No record up to maxMonth — fall back to the most recently updated overall
+      return [...all].sort((a, b) => new Date(b.updated_date || 0) - new Date(a.updated_date || 0))[0];
+    }
+    const maxM = eligible.reduce((mx, m) => m.month > mx ? m.month : mx, '');
+    const sameMonth = eligible.filter(m => m.month === maxM);
+    return [...sameMonth].sort((a, b) => new Date(b.updated_date || 0) - new Date(a.updated_date || 0))[0];
+  };
+
+  // Current monthly planning = the plan for the current month (or the latest one up to it)
+  const latestMonthlyPlan = pickLatestByMonth(monthlyPlans, currentMonth);
+  const startBalanceMonth = planData?.start_balance_month || currentMonth;
+  // Latest balance of the client from the current month (never a future month, latest update wins)
+  const currentMonthBalance = pickLatestByMonth(allMonthlyBalances, currentMonth);
+  const startMonthBalance = pickLatestByMonth(allMonthlyBalances, startBalanceMonth);
   const availableMonths = [...new Set([...(allMonthlyBalances || []).map(m => m.month), startBalanceMonth].filter(Boolean))].sort().reverse();
   const startSituation = calcSituation(reflection, startMonthBalance, latestMonthlyPlan, investments || []);
   const endSituation = calcSituationFromPlan(latestMonthlyPlan, currentMonthBalance, investments || []);
