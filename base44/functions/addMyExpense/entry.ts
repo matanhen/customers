@@ -126,15 +126,34 @@ export default async function(req) {
 
     const remaining = variableBudget - variableSpent;
 
+    // Weekly remaining (variable expenses only), matching the app's
+    // WeeklyVariableTracker: weekly budget = monthly variable budget / 4,
+    // week spend = sum of the variable items' amounts in the current week.
+    // A legacy flat number entry counts as week 1.
+    let weekSpent = 0;
+    for (const [item, val] of Object.entries(updated.fixed_expenses || {})) {
+      if (!isVariableItem(item)) continue;
+      if (typeof val === 'number') {
+        if (week === 1) weekSpent += val;
+      } else if (val && typeof val === 'object') {
+        weekSpent += val[`week${week}`] || 0;
+      }
+    }
+    const weekRemaining = variableBudget / 4 - weekSpent;
+
     // Build a formatted confirmation message with week and month in Hebrew.
     // "סעיף" shows the item name (e.g. "בילויים ומסעדות", "דלק"), not the category.
     const [year, monthNum] = month.split('-');
     const hebrewMonth = HEBREW_MONTHS[parseInt(monthNum) - 1] || '';
     const sectionLabel = itemName;
-    const remainingRounded = Math.round(remaining);
-    const remainingStr = remainingRounded < 0
-      ? `-${Math.abs(remainingRounded).toLocaleString('he-IL')}`
-      : remainingRounded.toLocaleString('he-IL');
+    const fmtRemaining = (value) => {
+      const rounded = Math.round(value);
+      return rounded < 0
+        ? `-${Math.abs(rounded).toLocaleString('he-IL')}`
+        : rounded.toLocaleString('he-IL');
+    };
+    const remainingStr = fmtRemaining(remaining);
+    const weekRemainingStr = fmtRemaining(weekRemaining);
     const pendingNote = accountPending
       ? '\n\n💡 כדי לראות את ההוצאה במעקב החודשי באפליקציה, יש להיכנס פעם אחת למערכת:\nhttps://customers.matanhen.com'
       : '';
@@ -142,6 +161,7 @@ export default async function(req) {
       `ההוצאה תועדה בהצלחה בשבוע ${week} בחודש ${hebrewMonth} ${year} ✅\n\n` +
       `סעיף: ${sectionLabel}\n` +
       `סכום: ${amount} ₪\n` +
+      `נותר לבזבז השבוע (שבוע ${week}): ${weekRemainingStr} ₪\n` +
       `סך הכל נותר לבזבז החודש: ${remainingStr} ₪\n` +
       ` האם יש עוד משהו שאוכל לעזור איתו? 😊` +
       pendingNote;
@@ -158,6 +178,9 @@ export default async function(req) {
       variableSpent: Math.round(variableSpent),
       variableBudget,
       remaining: Math.round(remaining),
+      weekSpent: Math.round(weekSpent),
+      weekBudget: variableBudget / 4,
+      weekRemaining: Math.round(weekRemaining),
       confirmation_message: confirmationMessage,
       account_pending: accountPending,
     });
