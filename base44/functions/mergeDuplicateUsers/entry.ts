@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { relinkUserData, relinkAssignments } from '../../shared/relinkUserData.ts';
 
 // Merges duplicate users (same email) into a single user.
 // Transfers ALL data from duplicate users to the kept user before deleting duplicates.
@@ -26,14 +27,6 @@ export default async function(req) {
 
     let mergedCount = 0;
     const mergedDetails = [];
-
-    // Entities that have a user_id field referencing the user
-    const userIdEntities = [
-      'MonthlyPlan', 'ExpenseTracking', 'MonthlyBalance', 'FinancialPlan',
-      'FinancialPlanData', 'FinancialPlanItem', 'FinancialReflection',
-      'PensionData', 'Investment', 'Debt', 'GoalSettings', 'FinancialGoal',
-      'PortfolioSettings', 'WorkbookAnswers', 'CustomExpenseCategory', 'ConversationLog',
-    ];
 
     for (const [email, users] of emailGroups) {
       if (users.length <= 1) continue;
@@ -82,33 +75,25 @@ export default async function(req) {
         }
       }
 
-      // Transfer data from each duplicate to the kept user, then delete the duplicate
+      // Transfer data from each duplicate to the kept user, then delete the duplicate.
+      // Every record is moved with a verified individual update — updateMany
+      // silently fails in this runtime, which previously orphaned client data.
+      // If any record fails to move, the duplicate account is KEPT.
       for (const dup of duplicates) {
-        // Update user_id references in all user-based entities
-        for (const entityName of userIdEntities) {
-          try {
-            await base44.asServiceRole.entities[entityName].updateMany(
-              { user_id: dup.id },
-              { $set: { user_id: keepUser.id } }
-            );
-          } catch (e) { /* entity might not exist or might not have user_id */ }
+        const relink = await relinkUserData(base44, dup.id, keepUser.id);
+        const assignmentFailed = await relinkAssignments(base44, dup.id, keepUser.id);
+
+        if (relink.failed > 0 || assignmentFailed > 0) {
+          mergedDetails.push({
+            email, kept_user_id: keepUser.id, merged_count: 0, skipped: true,
+            reason: 'נכשלה העברת נתונים — המשתמש הכפול נשמר כדי שלא לאבד נתונים',
+            moved: relink.moved, merged: relink.merged,
+            errors: relink.errors.slice(0, 5),
+          });
+          continue;
         }
 
-        // Update ClientAdvisorAssignment references
-        try {
-          await base44.asServiceRole.entities.ClientAdvisorAssignment.updateMany(
-            { client_id: dup.id },
-            { $set: { client_id: keepUser.id } }
-          );
-        } catch (e) { /* non-critical */ }
-        try {
-          await base44.asServiceRole.entities.ClientAdvisorAssignment.updateMany(
-            { advisor_id: dup.id },
-            { $set: { advisor_id: keepUser.id } }
-          );
-        } catch (e) { /* non-critical */ }
-
-        // Delete the duplicate user (data has been transferred)
+        // Delete the duplicate user (data has been transferred and verified)
         try {
           await base44.asServiceRole.entities.User.delete(dup.id);
           mergedCount++;

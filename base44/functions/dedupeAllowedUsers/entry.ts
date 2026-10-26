@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { relinkUserData, relinkAssignments } from '../../shared/relinkUserData.ts';
 
 const asArray = (result) => (Array.isArray(result) ? result : result?.items || []);
 
@@ -62,27 +63,32 @@ export default async function(req) {
         try { await base44.asServiceRole.entities.AllowedUser.update(keep.id, patch); } catch (e) { /* ignore */ }
       }
 
-      // Move references off the duplicates before deleting them
+      // Move ALL data records off the duplicates before deleting them —
+      // verified record by record (updateMany silently fails in this runtime).
+      // If any record fails to move, the duplicate is KEPT so data is never
+      // orphaned by the deletion.
       for (const dup of duplicates) {
-        try {
-          await base44.asServiceRole.entities.ExpenseTracking.updateMany(
-            { user_id: dup.id },
-            { $set: { user_id: keep.id } }
-          );
-        } catch (e) { /* ignore */ }
-        try {
-          await base44.asServiceRole.entities.ClientAdvisorAssignment.updateMany(
-            { client_id: dup.id },
-            { $set: { client_id: keep.id } }
-          );
-        } catch (e) { /* ignore */ }
+        const relink = await relinkUserData(base44, dup.id, keep.id);
+        const assignmentFailed = await relinkAssignments(base44, dup.id, keep.id);
+
+        if (relink.failed > 0 || assignmentFailed > 0) {
+          details.push({
+            email, kept_id: keep.id, removed: 0, skipped: true,
+            reason: 'נכשלה העברת נתונים — הכפילות נשמרה כדי שלא לאבד נתונים',
+            moved: relink.moved, merged: relink.merged,
+            errors: relink.errors.slice(0, 5),
+          });
+          continue;
+        }
+
         try {
           await base44.asServiceRole.entities.AllowedUser.delete(dup.id);
           merged++;
-        } catch (e) { /* ignore */ }
+          details.push({ email, kept_id: keep.id, removed: 1, moved: relink.moved, merged: relink.merged });
+        } catch (e) {
+          details.push({ email, kept_id: keep.id, removed: 0, skipped: true, reason: 'המחיקה נכשלה: ' + e.message });
+        }
       }
-
-      details.push({ email, kept_id: keep.id, removed: duplicates.length });
     }
 
     return Response.json({ success: true, scanned: allAllowed.length, merged, details });

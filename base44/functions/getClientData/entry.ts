@@ -70,6 +70,20 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Last fallback: the client's data may live under their registration
+        // record (AllowedUser) id — clients that never opened an app account,
+        // or data re-linked there after an account was removed.
+        if (data.length === 0 && clientEmail) {
+            const allowedUsers = await base44.asServiceRole.entities.AllowedUser.filter({ email: clientEmail });
+            for (const allowed of allowedUsers) {
+                const records = await base44.asServiceRole.entities[entityName].filter({ user_id: allowed.id });
+                if (records.length > 0) {
+                    data = records;
+                    break;
+                }
+            }
+        }
+
         return Response.json({ success: true, data });
     } catch (error) {
         console.error('Error fetching client data:', error);

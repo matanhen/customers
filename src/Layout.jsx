@@ -230,7 +230,9 @@ export default function Layout({ children }) {
     }
     setDeletingAccount(true);
     try {
-      await base44.entities.User.delete(user.id);
+      // Server-side deletion preserves the client's data (re-linked to their
+      // registration record) before the account record is removed.
+      await base44.functions.invoke('deleteUser', { email: user.email, user_id: user.id });
       sessionStorage.clear();
       base44.auth.logout();
     } catch (e) {
