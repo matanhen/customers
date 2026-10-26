@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
 import ExpenseTrackingTable from './ExpenseTrackingTable';
-import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, FIXED_EXPENSE_ITEMS, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
+import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, FIXED_EXPENSE_ITEMS, getCategoryByKey, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import WeeklyVariableTracker, { getFinMonthAnchor } from './WeeklyVariableTracker';
 import ExpenseTrackerBot from '@/components/chat/ExpenseTrackerBot';
@@ -129,6 +129,34 @@ export default function ExpenseTracking({ userId }) {
       return base44.entities.ExpenseFixedOverride.filter({ user_id: userId });
     },
     enabled: !!userId && !!currentUser,
+  });
+
+  // Per-user custom expense items, with the category the user added them in.
+  // Persisted so a custom item keeps showing under its category instead of
+  // falling into "שונות".
+  const customItemsQueryKey = ['customExpenseCategories', userId, currentUser?.id, isViewingOther, isAdvisorOrAdmin, viewingClientEmail];
+  const { data: customItemsRaw = [] } = useQuery({
+    queryKey: customItemsQueryKey,
+    queryFn: async () => {
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const response = await base44.functions.invoke('getClientData', {
+          clientUserId: userId,
+          clientEmail: viewingClientEmail,
+          entityName: 'CustomExpenseCategory'
+        });
+        return response.data.data;
+      }
+      return base44.entities.CustomExpenseCategory.filter({ user_id: userId });
+    },
+    enabled: !!userId && !!currentUser,
+  });
+
+  const customItemIdsRef = useRef({});
+  const customItemCategories = {};
+  (customItemsRaw || []).forEach(r => {
+    if (!r?.name) return;
+    if (r.category_key) customItemCategories[r.name] = r.category_key;
+    customItemIdsRef.current[r.name] = r.id;
   });
 
   // Fetch the cycle_start_day preference of the user whose data is being shown
@@ -481,15 +509,59 @@ export default function ExpenseTracking({ userId }) {
       .catch(() => {});
   };
 
+  // Persist the category a custom item was added in (the user's choice), so
+  // the item keeps appearing under that category instead of falling into "שונות".
+  const handleAddCustomItem = (catKey, name) => {
+    if (!catKey || !name) return;
+    const recordId = customItemIdsRef.current[name] || null;
+    const data = {
+      user_id: userId,
+      name,
+      expense_type: isItemFixed(name) ? 'fixed' : 'variable',
+      category_key: catKey,
+    };
+    const save = async () => {
+      let saved;
+      if (isViewingOther && isAdvisorOrAdmin) {
+        const res = await base44.functions.invoke('saveClientData', {
+          entityName: 'CustomExpenseCategory',
+          clientUserId: userId,
+          data,
+          recordId,
+        });
+        saved = res.data;
+      } else if (recordId) {
+        saved = await base44.entities.CustomExpenseCategory.update(recordId, data);
+      } else {
+        saved = await base44.entities.CustomExpenseCategory.create(data);
+      }
+      if (saved?.id) {
+        customItemIdsRef.current[name] = saved.id;
+        queryClient.setQueryData(customItemsQueryKey, (old = []) => {
+          const exists = old.find(r => r.id === saved.id);
+          if (exists) return old.map(r => r.id === saved.id ? { ...r, ...saved } : r);
+          return [...old, saved];
+        });
+      }
+    };
+    save().catch(() => {});
+  };
+
   // Build the per-category view for the table from fixed_expenses,
   // preserving each item's week breakdown (legacy flat numbers are kept as-is).
   const getCategoryExpenses = () => {
     const catExpenses = {};
     EXPENSE_CATEGORIES.forEach(cat => { catExpenses[cat.key] = {}; });
     Object.entries(trackingData.fixed_expenses || {}).forEach(([item, entry]) => {
-      let catKey = 'misc';
+      let catKey = null;
       for (const cat of EXPENSE_CATEGORIES) {
         if (cat.items.includes(item)) { catKey = cat.key; break; }
+      }
+      // A custom item keeps the category the user added it in (persisted per
+      // user); only unmapped items fall into "שונות".
+      if (!catKey) {
+        const mapped = customItemCategories[item];
+        catKey = mapped && getCategoryByKey(mapped) ? mapped : 'misc';
       }
       if (!catExpenses[catKey]) catExpenses[catKey] = {};
       catExpenses[catKey][item] = entry;
@@ -839,6 +911,7 @@ export default function ExpenseTracking({ userId }) {
         onChange={handleExpenseTableChange}
         isItemFixed={isItemFixed}
         onToggleFixed={handleToggleFixed}
+        onAddCustomItem={handleAddCustomItem}
       />
 
       {/* Credit Payment Dialog */}

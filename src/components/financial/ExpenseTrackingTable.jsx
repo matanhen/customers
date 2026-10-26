@@ -29,7 +29,7 @@ import {
  * Layout: 3 expense categories per row on desktop (1 per row on mobile), each a
  * collapsible card. All categories are collapsed by default.
  */
-export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, onChange, isItemFixed, onToggleFixed, disabled = false }) {
+export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, onChange, isItemFixed, onToggleFixed, onAddCustomItem, disabled = false }) {
   const [expandedCategories, setExpandedCategories] = useState(
     () => Object.fromEntries(EXPENSE_CATEGORIES.map(cat => [cat.key, false]))
   );
@@ -81,6 +81,9 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
       },
     };
     onChange(updated);
+    // Persist the category the user added this custom item in, so it keeps
+    // showing under that category instead of falling into "שונות".
+    if (onAddCustomItem) onAddCustomItem(catKey, name);
     setNewItemName(prev => ({ ...prev, [catKey]: '' }));
   };
 
@@ -122,11 +125,16 @@ export default function ExpenseTrackingTable({ expenses = {}, selectedWeek = 1, 
             const catTotal = getCategoryTotal(cat.key);
             const catData = expenses[cat.key] || {};
             const customItems = Object.keys(catData).filter(item => !cat.items.includes(item));
-            // System items first, then items added manually — both use the same
-            // fixed/variable behavior and can be toggled.
-            const rows = [
+            const isRowFixed = (name) => (isItemFixed ? !!isItemFixed(name) : false);
+            const allRows = [
               ...cat.items.map(name => ({ name, custom: false })),
               ...customItems.map(name => ({ name, custom: true })),
+            ];
+            // Variable expenses on top of the category's list, fixed expenses
+            // always at the bottom; the system/custom order within each group is kept.
+            const rows = [
+              ...allRows.filter(r => !isRowFixed(r.name)),
+              ...allRows.filter(r => isRowFixed(r.name)),
             ];
 
             return (
