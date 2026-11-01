@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { normalizePhone } from '../../shared/phoneUtils.ts';
 import { findUserByPersonalCode } from '../../shared/userIdentification.ts';
 
@@ -22,7 +22,11 @@ export default async function(req) {
       return Response.json({ error: 'נדרש קוד אישי' }, { status: 400 });
     }
 
-    const user = await findUserByPersonalCode(base44, personalCode);
+    // The WhatsApp number is the fallback identifier: a client whose code
+    // changed after they got their personal link is still recognized, and the
+    // code they sent is saved back onto their record.
+    const whatsappPhone = (body.whatsapp_phone || '').toString().trim();
+    const user = await findUserByPersonalCode(base44, personalCode, whatsappPhone);
 
     if (!user) {
       return Response.json({ error: 'קוד לא תקין' }, { status: 404 });
@@ -31,7 +35,6 @@ export default async function(req) {
     // Update the user's phone from the WhatsApp conversation if provided.
     // Store in local Israeli format (0XX...) — sendWhatsappNotification converts
     // to 972... at match time, so no need to store international format.
-    const whatsappPhone = (body.whatsapp_phone || '').toString().trim();
     if (whatsappPhone && user.id) {
       const localPhone = normalizePhone(whatsappPhone);
 

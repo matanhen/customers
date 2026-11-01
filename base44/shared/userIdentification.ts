@@ -3,6 +3,15 @@
 // not the WhatsApp sender. To fix this, we identify users by a personal code
 // passed from the agent. If no personal_code is provided, fall back to auth.me()
 // (for non-WhatsApp contexts like the app UI).
+//
+// Resilience: a client's code can fall out of sync with the code inside the
+// personal link they already received (a record was re-created, codes were
+// unified between the app user and the registration record, etc.). The bot
+// therefore ALSO identifies by the sender's WhatsApp phone number, and writes
+// the code the client actually sent back onto their record — so the same code
+// keeps working from then on.
+
+import { normalizePhone } from './phoneUtils.ts';
 
 export const normalizeCode = (value) => (value || '').toString().trim().toUpperCase();
 export const normalizeEmail = (value) => (value || '').toString().trim().toLowerCase();
@@ -10,9 +19,37 @@ export const normalizeEmail = (value) => (value || '').toString().trim().toLower
 // Entity reads can return either a plain array or a page object.
 const asArray = (result) => (Array.isArray(result) ? result : result?.items || []);
 
-// A personal code lives on the app user record once the client has logged in,
-// and on the client's registration (AllowedUser) record while they have not
-// logged in yet. Both are searched, so a client's code always identifies them.
+// Last 9 digits — equal for 05XXXXXXXX, 972XXXXXXXXX and +972-XX-XXX-XXXX.
+const phoneKey = (value) => normalizePhone(value).replace(/\D/g, '').slice(-9);
+
+// Every app user, paged — a plain list() only returns the first page, which
+// used to hide users beyond it from the lookup.
+async function listAllUsers(base44) {
+  const seen = new Map();
+  const limit = 200;
+  for (let skip = 0; skip <= 4000; skip += limit) {
+    let page;
+    try {
+      page = asArray(await base44.asServiceRole.entities.User.list('-created_date', limit, skip));
+    } catch {
+      page = asArray(await base44.asServiceRole.entities.User.list());
+    }
+    let added = 0;
+    for (const u of page) {
+      if (u && u.id && !seen.has(u.id)) { seen.set(u.id, u); added++; }
+    }
+    if (page.length < limit || added === 0) break;
+  }
+  return [...seen.values()];
+}
+
+async function listAllAllowedUsers(base44) {
+  const seen = new Map();
+  const page = asArray(await base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }));
+  for (const a of page) if (a && a.id) seen.set(a.id, a);
+  return [...seen.values()];
+}
+
 // Pulls the personal code out of a longer string (e.g. the whole WhatsApp
 // opening message: "... \n\nקוד אישי : OAAO"). Only looks AFTER the "קוד אישי"
 // marker, so the platform activation code (B44-XXXXXXXX) and English words are
@@ -26,17 +63,31 @@ export function extractPersonalCode(raw) {
   return tokens.find((t) => t.length === 4) || '';
 }
 
+function registrationOnly(registration) {
+  return {
+    id: '',
+    allowed_user_id: registration.id,
+    full_name: registration.full_name || '',
+    custom_name: registration.full_name || '',
+    email: registration.email || '',
+    phone: registration.phone || '',
+    user_type: registration.user_type || 'client',
+    personal_code: normalizeCode(registration.personal_code),
+    account_pending: true,
+  };
+}
+
 async function lookupUserByCode(base44, code) {
   if (!code) return null;
 
-  const users = asArray(await base44.asServiceRole.entities.User.list());
+  const users = await listAllUsers(base44);
   const user = users.find(u => normalizeCode(u.personal_code) === code);
   if (user) return user;
 
   const allowedMatches = await base44.asServiceRole.entities.AllowedUser.filter({ personal_code: code });
   let registration = asArray(allowedMatches)[0];
   if (!registration) {
-    const allowedUsers = asArray(await base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }));
+    const allowedUsers = await listAllAllowedUsers(base44);
     registration = allowedUsers.find(a => normalizeCode(a.personal_code) === code);
   }
   if (!registration) return null;
@@ -52,38 +103,108 @@ async function lookupUserByCode(base44, code) {
     }
   }
 
-  return {
-    id: '',
-    allowed_user_id: registration.id,
-    full_name: registration.full_name || '',
-    custom_name: registration.full_name || '',
-    email: registration.email || '',
-    phone: registration.phone || '',
-    user_type: registration.user_type || 'client',
-    personal_code: code,
-    account_pending: true,
-  };
+  return registrationOnly(registration);
+}
+
+// Finds the client by the WhatsApp number they write from. This is the safety
+// net for a client whose code changed after they were sent their personal link.
+async function lookupUserByPhone(base44, rawPhone) {
+  const key = phoneKey(rawPhone);
+  if (!key) return null;
+
+  const users = await listAllUsers(base44);
+  const userHits = users.filter(u => phoneKey(u.phone) === key);
+  const allowedHits = (await listAllAllowedUsers(base44)).filter(a => phoneKey(a.phone) === key);
+
+  // Different people on the same number (e.g. a couple sharing a phone) — do
+  // not guess.
+  const emails = new Set([...userHits, ...allowedHits].map(x => normalizeEmail(x.email)).filter(Boolean));
+  if (emails.size !== 1) return null;
+
+  const email = [...emails][0];
+
+  const linked = users.find(u => normalizeEmail(u.email) === email)
+    || asArray(await base44.asServiceRole.entities.User.filter({ email }))[0];
+
+  if (linked) {
+    const registration = allowedHits.find(a => normalizeEmail(a.email) === email);
+    return {
+      ...linked,
+      personal_code: normalizeCode(linked.personal_code || registration?.personal_code),
+      phone: linked.phone || registration?.phone || '',
+    };
+  }
+
+  const registration = allowedHits.find(a => normalizeEmail(a.email) === email);
+  return registration ? registrationOnly(registration) : null;
+}
+
+// Makes sure the code the client actually uses is stored on both records of the
+// client, so it keeps working (link, bot, app). Adopts the code the client sent
+// when it is a valid 4-letter code that no one else uses; otherwise keeps the
+// code already on their records.
+async function healPersonalCode(base44, user, sentCode) {
+  const email = normalizeEmail(user.email);
+  const own = normalizeCode(user.personal_code || sentCode);
+  const allowed = email
+    ? asArray(await base44.asServiceRole.entities.AllowedUser.filter({ email }))[0]
+    : null;
+  const registrationCode = normalizeCode(allowed?.personal_code);
+
+  let target = own || registrationCode;
+  if (!target) target = await generateUniquePersonalCode(base44);
+
+  // Adopt the code the client sent, if it is well formed and unused.
+  const candidate = normalizeCode(sentCode);
+  if (/^[A-Z]{4}$/.test(candidate) && candidate !== target) {
+    const [candidateUsers, candidateAllowed] = await Promise.all([
+      asArray(await base44.asServiceRole.entities.User.filter({ personal_code: candidate })),
+      asArray(await base44.asServiceRole.entities.AllowedUser.filter({ personal_code: candidate })),
+    ]);
+    const takenByOther = [...candidateUsers, ...candidateAllowed]
+      .some(x => normalizeEmail(x.email) !== email);
+    if (!takenByOther) target = candidate;
+  }
+
+  if (user.id && normalizeCode(user.personal_code) !== target) {
+    try { await base44.asServiceRole.entities.User.update(user.id, { personal_code: target }); } catch { /* non-critical */ }
+  }
+  if (allowed && normalizeCode(allowed.personal_code) !== target) {
+    try { await base44.asServiceRole.entities.AllowedUser.update(allowed.id, { personal_code: target }); } catch { /* non-critical */ }
+  }
+
+  return { ...user, personal_code: target };
 }
 
 // Identifies a client by their personal code. Tolerates the agent passing a
 // longer value (a whole line or the full opening message) by falling back to
-// the code embedded after the "קוד אישי" marker.
-export async function findUserByPersonalCode(base44, rawCode) {
+// the code embedded after the "קוד אישי" marker. When the code is unknown but
+// the sender's WhatsApp number is, the client is identified by phone and their
+// records are re-aligned to the code they sent.
+export async function findUserByPersonalCode(base44, rawCode, rawPhone) {
   const code = normalizeCode(rawCode);
-  if (!code) return null;
-
-  const direct = await lookupUserByCode(base44, code);
-  if (direct) return direct;
-
   const embedded = normalizeCode(extractPersonalCode(rawCode));
-  if (!embedded || embedded === code) return null;
-  return await lookupUserByCode(base44, embedded);
+
+  let user = code ? await lookupUserByCode(base44, code) : null;
+  if (!user && embedded && embedded !== code) {
+    user = await lookupUserByCode(base44, embedded);
+  }
+  if (user) return user;
+
+  // Code not found — fall back to the WhatsApp number.
+  const byPhone = await lookupUserByPhone(base44, rawPhone);
+  if (!byPhone) return null;
+
+  return await healPersonalCode(base44, byPhone, /^[A-Z]{4}$/.test(code) ? code : embedded);
 }
 
 export async function identifyUser(base44, body) {
   const personalCode = normalizeCode(body?.personal_code || body?.personalCode);
-  if (personalCode) {
-    return await findUserByPersonalCode(base44, personalCode);
+  const phone = (body?.whatsapp_phone || body?.phone || body?.whatsappPhone || '').toString().trim();
+  if (personalCode || phone) {
+    const found = await findUserByPersonalCode(base44, personalCode, phone);
+    if (found) return found;
+    if (personalCode) return null;
   }
   // Fallback to auth.me() for non-WhatsApp contexts
   try {
@@ -106,16 +227,16 @@ export function generatePersonalCode() {
 // stored on their registration record because they have not logged in yet.
 async function collectExistingCodes(base44) {
   const [users, allowedUsers] = await Promise.all([
-    base44.asServiceRole.entities.User.list(),
-    base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }),
+    listAllUsers(base44),
+    listAllAllowedUsers(base44),
   ]);
   const codes = new Set();
   const add = (value) => {
     const code = normalizeCode(value);
     if (code) codes.add(code);
   };
-  asArray(users).forEach(u => add(u.personal_code));
-  asArray(allowedUsers).forEach(a => add(a.personal_code));
+  users.forEach(u => add(u.personal_code));
+  allowedUsers.forEach(a => add(a.personal_code));
   return codes;
 }
 
