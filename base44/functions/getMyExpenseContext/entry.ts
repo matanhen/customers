@@ -1,15 +1,16 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import {
   EXPENSE_CATEGORIES,
   getCurrentFinWeek,
   getCurrentMonth,
-  isVariableItem,
-  getItemMonthTotal,
 } from '../../shared/expenseCategories.ts';
 import { identifyUser } from '../../shared/userIdentification.ts';
+import { resolvePlannedVariable, loadFixedOverrides, computeVariableSpend } from '../../shared/expenseBudget.ts';
 
 // Returns the current client's financial context so the WhatsApp expense agent
 // can identify the user and know their categories, budget, and current spending.
+// The numbers use the same computation as the app and addMyExpense, so the bot
+// never reports a different balance than the one the client sees.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -35,21 +36,23 @@ export default async function(req) {
       customCategories = await base44.entities.CustomExpenseCategory.filter({ user_id: effectiveUserId });
     } catch (e) { /* non-critical */ }
 
-    // Monthly plan for the planned variable budget
-    let plannedVariable = 0;
-    try {
-      const plans = await base44.entities.MonthlyPlan.filter({ user_id: effectiveUserId, month });
-      if (plans[0]) plannedVariable = plans[0].variable_expenses || 0;
-    } catch (e) { /* non-critical */ }
+    // Planned variable budget — this month, or the most recent earlier month
+    const plannedVariable = await resolvePlannedVariable(base44, effectiveUserId, month);
 
-    // Variable spend = sum of variable items in fixed_expenses (matches the app's logic)
-    let variableSpent = 0;
-    for (const [item, val] of Object.entries(tracking?.fixed_expenses || {})) {
-      if (isVariableItem(item)) variableSpent += getItemMonthTotal(val);
-    }
+    // Variable spend, identical to the app and to addMyExpense
+    const overrides = await loadFixedOverrides(base44, effectiveUserId);
+    const { monthSpent: variableSpent, weekly } = computeVariableSpend(tracking, overrides);
+
+    const weekSpent = weekly[`week${week}`] || 0;
+    const weekBudget = plannedVariable / 4;
 
     return Response.json({
-      user: { id: user.id || '', full_name: user.full_name, email: user.email },
+      user: {
+        id: user.id || '',
+        full_name: user.full_name,
+        email: user.email,
+        personal_code: user.personal_code || '',
+      },
       month,
       week,
       tracking: tracking ? {
@@ -59,6 +62,10 @@ export default async function(req) {
       } : null,
       plannedVariable,
       variableSpent: Math.round(variableSpent),
+      remaining: Math.round(plannedVariable - variableSpent),
+      weekBudget: Math.round(weekBudget),
+      weekSpent: Math.round(weekSpent),
+      weekRemaining: Math.round(weekBudget - weekSpent),
       categories: EXPENSE_CATEGORIES.map((c) => ({ key: c.key, label: c.label, items: c.items })),
       customCategories: customCategories.map((c) => ({ name: c.name, expense_type: c.expense_type })),
     });

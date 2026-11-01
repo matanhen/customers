@@ -16,16 +16,19 @@ export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
-    const personalCode = (body.personal_code || '').toString().trim().toUpperCase();
-
-    if (!personalCode) {
-      return Response.json({ error: 'נדרש קוד אישי' }, { status: 400 });
-    }
+    // The agent may send the code, the whole message, or nothing but the phone.
+    const personalCode = (body.personal_code || body.personalCode || body.code || body.text || '')
+      .toString().trim().toUpperCase();
 
     // The WhatsApp number is the fallback identifier: a client whose code
     // changed after they got their personal link is still recognized, and the
     // code they sent is saved back onto their record.
-    const whatsappPhone = (body.whatsapp_phone || '').toString().trim();
+    const whatsappPhone = (body.whatsapp_phone || body.phone || '').toString().trim();
+
+    if (!personalCode && !whatsappPhone) {
+      return Response.json({ error: 'נדרש קוד אישי או מספר טלפון' }, { status: 400 });
+    }
+
     const user = await findUserByPersonalCode(base44, personalCode, whatsappPhone);
 
     if (!user) {

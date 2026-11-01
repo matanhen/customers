@@ -55,12 +55,28 @@ async function listAllAllowedUsers(base44) {
 // marker, so the platform activation code (B44-XXXXXXXX) and English words are
 // never mistaken for a personal code.
 export function extractPersonalCode(raw) {
-  const text = (raw || '').toString();
+  const text = (raw || '').toString().toUpperCase();
+
+  // 1. Straight after the "קוד אישי" marker (the personal link's opening message).
   const idx = text.indexOf('קוד אישי');
-  if (idx < 0) return '';
-  const scope = text.slice(idx, idx + 40).toUpperCase();
-  const tokens = scope.split(/[^A-Z]+/).filter(Boolean);
-  return tokens.find((t) => t.length === 4) || '';
+  if (idx >= 0) {
+    const scope = text.slice(idx, idx + 40);
+    const tokens = scope.split(/[^A-Z]+/).filter(Boolean);
+    const afterMarker = tokens.find((t) => t.length === 4);
+    if (afterMarker) return afterMarker;
+  }
+
+  // 2. The message is just the code ("KQWE").
+  const tokens = text.split(/[^A-Z]+/).filter(Boolean);
+  if (tokens.length === 1 && tokens[0].length === 4) return tokens[0];
+
+  // 3. Any other way of writing it — "קוד: KQWE", "code KQWE", etc.
+  if (/קוד|CODE/.test(text)) {
+    const token = tokens.find((t) => t.length === 4);
+    if (token) return token;
+  }
+
+  return '';
 }
 
 function registrationOnly(registration) {
@@ -204,7 +220,9 @@ export async function identifyUser(base44, body) {
   if (personalCode || phone) {
     const found = await findUserByPersonalCode(base44, personalCode, phone);
     if (found) return found;
-    if (personalCode) return null;
+    // An explicit identifier was supplied and did not match any client — never
+    // fall back to auth.me() here, or the agent's own account would be used.
+    return null;
   }
   // Fallback to auth.me() for non-WhatsApp contexts
   try {

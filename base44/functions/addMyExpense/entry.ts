@@ -10,6 +10,7 @@ import {
   EXPENSE_CATEGORIES,
 } from '../../shared/expenseCategories.ts';
 import { identifyUser } from '../../shared/userIdentification.ts';
+import { resolvePlannedVariable, loadFixedOverrides, computeVariableSpend } from '../../shared/expenseBudget.ts';
 
 const HEBREW_MONTHS = [
   'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
@@ -109,36 +110,22 @@ export default async function(req) {
     await base44.entities.ExpenseTracking.update(tracking.id, { fixed_expenses: fixedExpenses });
     const updated = await base44.entities.ExpenseTracking.get(tracking.id);
 
-    // Compute current variable spend (matches the app's actualVariableSpent logic)
-    let variableSpent = 0;
-    for (const [item, val] of Object.entries(updated.fixed_expenses || {})) {
-      if (isVariableItem(item)) variableSpent += getItemMonthTotal(val);
-    }
+    // Variable spending now (matches the app: variable items + custom variable
+    // expenses, honouring the user's fixed/variable overrides).
+    const overrides = await loadFixedOverrides(base44, effectiveUserId);
+    const { monthSpent: variableSpent, weekly } = computeVariableSpend(updated, overrides);
 
-    // Look up the monthly plan to get the variable expenses budget for this month
-    let variableBudget = 0;
-    try {
-      const plans = await base44.entities.MonthlyPlan.filter({ user_id: effectiveUserId, month });
-      if (plans.length > 0) {
-        variableBudget = plans[0].variable_expenses || 0;
-      }
-    } catch (e) { /* non-critical */ }
+    // Monthly variable budget — this month's plan, or the most recent earlier one
+    // when the current month has no plan yet.
+    const variableBudget = await resolvePlannedVariable(base44, effectiveUserId, month);
+    const budgetKnown = variableBudget > 0;
 
     const remaining = variableBudget - variableSpent;
 
-    // Weekly remaining (variable expenses only), matching the app's
-    // WeeklyVariableTracker: weekly budget = monthly variable budget / 4,
-    // week spend = sum of the variable items' amounts in the current week.
-    // A legacy flat number entry counts as week 1.
-    let weekSpent = 0;
-    for (const [item, val] of Object.entries(updated.fixed_expenses || {})) {
-      if (!isVariableItem(item)) continue;
-      if (typeof val === 'number') {
-        if (week === 1) weekSpent += val;
-      } else if (val && typeof val === 'object') {
-        weekSpent += val[`week${week}`] || 0;
-      }
-    }
+    // Weekly remaining, matching the app's WeeklyVariableTracker:
+    // weekly budget = monthly variable budget / 4, week spend = variable spend
+    // recorded in the current financial week.
+    const weekSpent = weekly[`week${week}`] || 0;
     const weekRemaining = variableBudget / 4 - weekSpent;
 
     // Build a formatted confirmation message with week and month in Hebrew.
@@ -154,6 +141,13 @@ export default async function(req) {
     };
     const remainingStr = fmtRemaining(remaining);
     const weekRemainingStr = fmtRemaining(weekRemaining);
+    const spentStr = fmtRemaining(variableSpent);
+    // Without a budget there is no meaningful "remaining" — report spending only.
+    const budgetLines = budgetKnown
+      ? `נותר לבזבז השבוע (שבוע ${week}): ${weekRemainingStr} ₪\n` +
+        `סך הכל נותר לבזבז החודש: ${remainingStr} ₪\n`
+      : `סה"כ הוצאות משתנות החודש: ${spentStr} ₪\n` +
+        `(טרם הוזן תקציב הוצאות משתנות לחודש ${hebrewMonth} בהתנהלות הכלכלית)\n`;
     const pendingNote = accountPending
       ? '\n\n💡 כדי לראות את ההוצאה במעקב החודשי באפליקציה, יש להיכנס פעם אחת למערכת:\nhttps://customers.matanhen.com'
       : '';
@@ -161,8 +155,7 @@ export default async function(req) {
       `ההוצאה תועדה בהצלחה בשבוע ${week} בחודש ${hebrewMonth} ${year} ✅\n\n` +
       `סעיף: ${sectionLabel}\n` +
       `סכום: ${amount} ₪\n` +
-      `נותר לבזבז השבוע (שבוע ${week}): ${weekRemainingStr} ₪\n` +
-      `סך הכל נותר לבזבז החודש: ${remainingStr} ₪\n` +
+      budgetLines +
       ` האם יש עוד משהו שאוכל לעזור איתו? 😊` +
       pendingNote;
 
@@ -177,6 +170,7 @@ export default async function(req) {
       category_label: categoryLabel,
       variableSpent: Math.round(variableSpent),
       variableBudget,
+      budget_known: budgetKnown,
       remaining: Math.round(remaining),
       weekSpent: Math.round(weekSpent),
       weekBudget: variableBudget / 4,
