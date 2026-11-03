@@ -287,14 +287,12 @@ export async function ensureClientPersonalCode(base44, { email, full_name, phone
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return { personal_code: '', allowed_user: null, user: null };
 
-  console.log('ensure: filters start');
   const [allowedMatches, userMatches] = await Promise.all([
     base44.asServiceRole.entities.AllowedUser.filter({ email: normalizedEmail }),
     base44.asServiceRole.entities.User.filter({ email: normalizedEmail }),
   ]);
   let allowedUser = asArray(allowedMatches)[0] || null;
   const user = asArray(userMatches)[0] || null;
-  console.log('ensure: filters ok', allowedUser?.id, user?.id);
 
   let code = normalizeCode(allowedUser?.personal_code || user?.personal_code);
 

@@ -11,20 +11,7 @@ const asArray = (result) => (Array.isArray(result) ? result : result?.items || [
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    console.log('stage: start');
-    const probe = {};
-    const tryIt = async (name, fn) => { try { const r = await fn(); probe[name] = 'ok:' + (Array.isArray(r) ? r.length : (r?.items?.length ?? 'obj')); } catch (e) { probe[name] = 'ERR ' + (e?.response?.status || '') + ' ' + (e?.message || ''); } };
-    await tryIt('allowed.list2', () => base44.asServiceRole.entities.AllowedUser.list('-created_date', 500));
-    await tryIt('allowed.list1', () => base44.asServiceRole.entities.AllowedUser.list('-created_date'));
-    await tryIt('allowed.list0', () => base44.asServiceRole.entities.AllowedUser.list());
-    await tryIt('allowed.listOpts', () => base44.asServiceRole.entities.AllowedUser.list({ limit: 500 }));
-    await tryIt('user.list3', () => base44.asServiceRole.entities.User.list('-created_date', 200, 0));
-    await tryIt('user.list2', () => base44.asServiceRole.entities.User.list('-created_date', 200));
-    await tryIt('user.list1', () => base44.asServiceRole.entities.User.list('-created_date'));
-    await tryIt('user.list0', () => base44.asServiceRole.entities.User.list());
-    console.log('PROBE ' + JSON.stringify(probe));
     const caller = await base44.auth.me();
-    console.log('stage: caller', caller?.email, caller?.user_type, caller?.role);
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
@@ -77,15 +64,11 @@ export default async function(req) {
       });
     }
 
-    console.log('stage: allowedUser ok', allowed?.id, isNew);
-
     // Personal code from registration (kept on the registration record until login)
     await ensureClientPersonalCode(base44, { email, full_name: name, phone });
-    console.log('stage: personal code ok');
 
     // --- Invite only a client that has no app account yet (never re-invite) ---
     let userRecord = asArray(await base44.asServiceRole.entities.User.filter({ email }))[0] || null;
-    console.log('stage: user lookup ok', userRecord?.id || 'none');
     if (!userRecord) {
       try {
         await base44.asServiceRole.users.inviteUser(email, userType === 'admin' ? 'admin' : 'user');
@@ -133,7 +116,7 @@ export default async function(req) {
       assignment_created: assignmentCreated,
     });
   } catch (error) {
-    console.log('addClient failed:', error?.message, '| url:', error?.config?.url || error?.config?.baseURL, '| data:', JSON.stringify(error?.response?.data || {}));
+    console.log('addClient failed:', error?.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
