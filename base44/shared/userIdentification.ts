@@ -45,8 +45,17 @@ async function listAllUsers(base44) {
 
 async function listAllAllowedUsers(base44) {
   const seen = new Map();
-  const page = asArray(await base44.asServiceRole.entities.AllowedUser.list({ limit: 1000 }));
-  for (const a of page) if (a && a.id) seen.set(a.id, a);
+  // Positional list form: the options object form ({ limit }) is rejected by the
+  // data API, which failed the whole add-client flow with a 500.
+  for (const call of [
+    () => base44.asServiceRole.entities.AllowedUser.list('-created_date', 500),
+    () => base44.asServiceRole.entities.AllowedUser.list(),
+  ]) {
+    try {
+      for (const a of asArray(await call())) if (a && a.id) seen.set(a.id, a);
+      break;
+    } catch { /* try the next form */ }
+  }
   return [...seen.values()];
 }
 
@@ -278,12 +287,14 @@ export async function ensureClientPersonalCode(base44, { email, full_name, phone
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return { personal_code: '', allowed_user: null, user: null };
 
+  console.log('ensure: filters start');
   const [allowedMatches, userMatches] = await Promise.all([
     base44.asServiceRole.entities.AllowedUser.filter({ email: normalizedEmail }),
     base44.asServiceRole.entities.User.filter({ email: normalizedEmail }),
   ]);
   let allowedUser = asArray(allowedMatches)[0] || null;
   const user = asArray(userMatches)[0] || null;
+  console.log('ensure: filters ok', allowedUser?.id, user?.id);
 
   let code = normalizeCode(allowedUser?.personal_code || user?.personal_code);
 
