@@ -7,9 +7,8 @@ import { relinkUserData, relinkAssignments } from '../../shared/relinkUserData.t
 // used by the WhatsApp bot before they ever logged in) to their app account.
 // Runs on every login; idempotent, and a no-op when there is nothing to move.
 //
-// Rows that collide (same month / same single-row entity) are merged fill-only
-// and the duplicate is removed, so nothing is lost and no duplicate row hides
-// the real data in the app.
+// Colliding rows are retained untouched for manual review; no automatic merge
+// or financial-record deletion is performed.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -39,7 +38,7 @@ export default async function(req) {
     }
 
     return Response.json({
-      success: true,
+      success: totals.failed === 0,
       migrated: totals.moved + totals.merged,
       ...totals,
       user_id: user.id,

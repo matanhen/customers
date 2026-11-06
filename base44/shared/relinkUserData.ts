@@ -7,9 +7,9 @@
 //
 // The SDK's updateMany() silently fails in the functions runtime, so every
 // record is moved with an individual update() call and the result verified.
-// When the target already holds a record with the same key (same month /
-// plan / single row), the orphan's values are MERGED into it instead of
-// creating a duplicate row — and the original is left in place, never deleted.
+// When a target already holds the same month / plan / single row, retain BOTH
+// originals and report a conflict for manual review. Never automatically merge
+// or delete financial history.
 
 export const USER_ID_ENTITIES = [
   'ExpenseTracking', 'MonthlyPlan', 'MonthlyBalance', 'FinancialPlan',
@@ -20,11 +20,6 @@ export const USER_ID_ENTITIES = [
 ];
 
 const asArray = (result) => (Array.isArray(result) ? result : (result?.items || []));
-const PROTECTED = new Set(['id', 'user_id', 'created_date', 'updated_date', 'created_by_id']);
-const isEmpty = (v) =>
-  v === undefined || v === null || v === 0 || v === '' ||
-  (Array.isArray(v) && v.length === 0) ||
-  (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0);
 
 // Which records logically collide when both ids hold one (per month, per plan
 // type, or the single per-client row entities).
@@ -40,33 +35,6 @@ const sameKey = (entity, a, b) => {
   return false;
 };
 
-// Fill-only merge: takes values from the orphan record that the target is
-// missing — never overwrites data the target already has.
-function buildPatch(orphan, target) {
-  const patch = {};
-  for (const key of Object.keys(orphan)) {
-    if (PROTECTED.has(key)) continue;
-    const ov = orphan[key];
-    const tv = target[key];
-    if (isEmpty(tv) && !isEmpty(ov)) { patch[key] = ov; continue; }
-    if (Array.isArray(tv) && Array.isArray(ov) && ov.length) {
-      const keyOf = (x) => (x && (x.id || x.name)) ? (x.id || x.name) : JSON.stringify(x);
-      const existing = new Set(tv.map(keyOf));
-      const extra = ov.filter((x) => !existing.has(keyOf(x)));
-      if (extra.length) patch[key] = [...tv, ...extra];
-      continue;
-    }
-    if (tv && typeof tv === 'object' && !Array.isArray(tv) && ov && typeof ov === 'object' && !Array.isArray(ov)) {
-      let changed = false;
-      const merged = { ...tv };
-      for (const k of Object.keys(ov)) {
-        if (isEmpty(merged[k]) && !isEmpty(ov[k])) { merged[k] = ov[k]; changed = true; }
-      }
-      if (changed) patch[key] = merged;
-    }
-  }
-  return patch;
-}
 
 // Moves every data record from `fromId` to `toId`, verified record by record.
 export async function relinkUserData(base44, fromId, toId) {
@@ -76,6 +44,7 @@ export async function relinkUserData(base44, fromId, toId) {
     try {
       records = asArray(await base44.asServiceRole.entities[entity].filter({ user_id: fromId }));
     } catch (e) {
+      results.failed++;
       results.errors.push(entity + ': ' + e.message);
       continue;
     }
@@ -84,25 +53,23 @@ export async function relinkUserData(base44, fromId, toId) {
     let targets = [];
     try {
       targets = asArray(await base44.asServiceRole.entities[entity].filter({ user_id: toId }));
-    } catch (e) { /* treat as no target records */ }
+    } catch (e) {
+      results.failed++;
+      results.errors.push(entity + ': target lookup failed: ' + e.message);
+      continue;
+    }
 
     for (const record of records) {
       const conflict = targets.find((t) => sameKey(entity, t, record));
       try {
         if (conflict) {
-          const patch = buildPatch(record, conflict);
-          if (Object.keys(patch).length) {
-            await base44.asServiceRole.entities[entity].update(conflict.id, patch);
-            results.merged++;
-          }
-          // The target row now holds everything the orphan had — remove the
-          // duplicate so it cannot shadow the merged record in the app.
-          try {
-            await base44.asServiceRole.entities[entity].delete(record.id);
-          } catch (e) { /* keep going — content is already merged */ }
+          results.failed++;
+          results.errors.push(entity + ':' + record.id + ' conflicts with ' + conflict.id + '; both originals retained for manual review');
         } else {
-          const updated = await base44.asServiceRole.entities[entity].update(record.id, { user_id: toId });
-          if (updated && (updated.user_id === toId || updated.id === record.id)) {
+          await base44.asServiceRole.entities[entity].update(record.id, { user_id: toId });
+          const verified = await base44.asServiceRole.entities[entity].get(record.id);
+          if (verified?.user_id === toId) {
+            targets.push(verified);
             results.moved++;
           } else {
             results.failed++;

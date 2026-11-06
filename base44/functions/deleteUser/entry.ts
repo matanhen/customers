@@ -83,6 +83,10 @@ export default async function(req) {
       }
     }
 
+    if ((!anchorId && userIds.length > 0) || errors.length > 0) {
+      return Response.json({ success: false, error: 'מחיקת החשבון נעצרה כדי לשמור על הנתונים', errors, preserved_data: preserved }, { status: 409 });
+    }
+
     // Advisor assignments — by client email, and by the deleted ids (client or advisor)
     const assignmentIds = new Set();
     if (email) {

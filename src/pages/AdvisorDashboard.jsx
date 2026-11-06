@@ -51,7 +51,7 @@ export default function AdvisorDashboard() {
     }
   };
 
-  // Generate a fresh, per-user WhatsApp link (unique activation code per call)
+  // Share the client sign-in flow, never an activation code tied to the advisor.
   const handleOpenWhatsappLink = async (clientRow) => {
     if (!clientRow.id && !clientRow.email) return;
     setGeneratingLinkFor(clientRow.id || clientRow.email);

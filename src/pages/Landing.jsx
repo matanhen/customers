@@ -38,7 +38,10 @@ export default function Landing() {
         return;
       }
 
-      base44.auth.redirectToLogin('/Home');
+      const returnTo = window.location.pathname === '/WhatsAppConnect'
+        ? window.location.href
+        : '/Home';
+      base44.auth.redirectToLogin(returnTo);
     } catch (e) {
       setError('אירעה שגיאה. אנא נסה שוב.');
       setLoading(false);

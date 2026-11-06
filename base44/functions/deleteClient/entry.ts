@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { relinkUserData, clientHasData } from '../../shared/relinkUserData.ts';
 
-Deno.serve(async (req) => {
+export default async function(req) {
   try {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Method not allowed. Use POST.' }, { status: 405 });
@@ -55,7 +55,13 @@ Deno.serve(async (req) => {
         const relink = await relinkUserData(base44, user.id, anchorId);
         preserved.moved += relink.moved;
         preserved.merged += relink.merged;
+        if (relink.failed > 0) {
+          return Response.json({ success: false, error: 'מחיקת החשבון נעצרה כדי לשמור על הנתונים', errors: relink.errors }, { status: 409 });
+        }
       }
+    }
+    if (!anchorId && users.length > 0) {
+      return Response.json({ success: false, error: 'לא ניתן למחוק חשבון ללא עוגן נתונים שמור' }, { status: 409 });
     }
 
     // Delete the User account record
@@ -92,4 +98,4 @@ Deno.serve(async (req) => {
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
-});
+}

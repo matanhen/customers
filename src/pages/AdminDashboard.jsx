@@ -470,8 +470,7 @@ export default function AdminDashboard() {
     window.location.href = createPageUrl('Home');
   };
 
-  // Generate a fresh, per-user WhatsApp link (unique activation code per call)
-  // and open it in a new tab.
+  // Share the client sign-in flow, never an activation code tied to the admin.
   const handleOpenWhatsappLink = async (userRow) => {
     const linkKey = userRow.id || userRow.email;
     if (!linkKey) return;

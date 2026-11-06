@@ -14,6 +14,7 @@ const Systems = lazy(() => import('./pages/Systems'));
 const Workbook = lazy(() => import('./pages/Workbook'));
 const Balance = lazy(() => import('./pages/Balance'));
 const Pension = lazy(() => import('./pages/Pension'));
+const WhatsAppConnect = lazy(() => import('@/pages/WhatsAppConnect'));
 // Removed Appointments related imports
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ErrorBoundary from '@/lib/ErrorBoundary';
@@ -67,6 +68,7 @@ const AuthenticatedApp = () => {
         <Route path="/Workbook" element={<ErrorBoundary><Workbook /></ErrorBoundary>} />
         <Route path="/Balance" element={<ErrorBoundary><Balance /></ErrorBoundary>} />
         <Route path="/Pension" element={<ErrorBoundary><Pension /></ErrorBoundary>} />
+        <Route path="/WhatsAppConnect" element={<ErrorBoundary><WhatsAppConnect /></ErrorBoundary>} />
         {/* Removed /Appointments route */}
       </Route>
       <Route path="*" element={<PageNotFound />} />
