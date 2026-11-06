@@ -38,14 +38,31 @@ export default async function(req) {
     // Update the user's phone from the WhatsApp conversation if provided.
     // Store in local Israeli format (0XX...) — sendWhatsappNotification converts
     // to 972... at match time, so no need to store international format.
-    if (whatsappPhone && user.id) {
-      const localPhone = normalizePhone(whatsappPhone);
+    const localPhone = whatsappPhone ? normalizePhone(whatsappPhone) : '';
 
-      if (localPhone && localPhone !== (user.phone || '')) {
-        try {
-          await base44.asServiceRole.entities.User.update(user.id, { phone: localPhone });
-        } catch (e) { /* non-critical */ }
-      }
+    if (localPhone && user.id && localPhone !== (user.phone || '')) {
+      try {
+        await base44.asServiceRole.entities.User.update(user.id, { phone: localPhone });
+        user.phone = localPhone;
+      } catch (e) { /* non-critical */ }
+    }
+
+    // Keep the client's registration record in sync as well. This is the record
+    // that exists even before the client ever logs in, and the phone stored here
+    // is what lets the bot recognize them on later messages (and what advisors
+    // use to reach them).
+    if (localPhone && user.email) {
+      try {
+        const allowed = (await base44.asServiceRole.entities.AllowedUser.filter({
+          email: user.email.toString().trim().toLowerCase(),
+        }))[0];
+        if (localPhone && localPhone !== (allowed?.phone || '')) {
+          await base44.asServiceRole.entities.AllowedUser.update(allowed.id, { phone: localPhone });
+          user.phone = localPhone;
+        } else if (localPhone && !user.phone) {
+          user.phone = localPhone;
+        }
+      } catch (e) { /* non-critical */ }
     }
 
     return Response.json({
