@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { pickBestRecord } from '@/lib/pickBestRecord';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Target } from 'lucide-react';
 import PullToRefresh from '../components/PullToRefresh';
@@ -123,7 +124,7 @@ export default function Home() {
     queryKey: ['balance_plan', effectiveUserId],
     queryFn: async () => {
       const results = await base44.entities.FinancialPlan.filter({ user_id: effectiveUserId, plan_type: 'balance_sheet' });
-      return results[0] || null;
+      return pickBestRecord(results);
     },
     enabled: !!effectiveUserId,
   });

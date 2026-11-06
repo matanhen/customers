@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { pickBestRecord } from '@/lib/pickBestRecord';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Target, FileDown, Loader2, ChevronDown, ChevronUp, Edit3, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -169,7 +170,7 @@ export default function FinancialPlan({ userId }) {
         return r.data.data[0];
       }
       const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
-      return results[0];
+      return pickBestRecord(results);
     },
     enabled: !!userId && !!currentUser,
     staleTime: 30000,
@@ -222,7 +223,7 @@ export default function FinancialPlan({ userId }) {
         return r.data.data[0];
       }
       const results = await base44.entities.FinancialPlanData.filter({ user_id: userId });
-      return results[0];
+      return pickBestRecord(results);
     },
     enabled: !!userId && !!currentUser,
     staleTime: 0,

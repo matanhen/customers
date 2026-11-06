@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { pickBestRecord } from '@/lib/pickBestRecord';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, Wallet, Building2, Car, TrendingUp, Coins } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,7 +83,7 @@ export default function AssetsManager({ userId }) {
         return plans.find(p => p.plan_type === 'reflection_assets') || null;
       }
       const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: 'reflection_assets' });
-      return results[0] || null;
+      return pickBestRecord(results);
     },
     enabled: !!userId && !!currentUser,
     staleTime: 0,

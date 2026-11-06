@@ -4,7 +4,7 @@
   "properties": {
     "keyword": {
       "type": "string",
-      "description": "\u05de\u05d9\u05dc\u05ea \u05de\u05e4\u05ea\u05d7/\u05e9\u05dd \u05e1\u05e4\u05e7 \u05e9\u05d9\u05e9 \u05dc\u05d6\u05d4\u05d5\u05ea"
+      "description": "\u05de\u05d9\u05dc\u05ea \u05de\u05e4\u05ea\u05d7/\u05e9\u05dd \u05e1\u05e4\u05e7 \u05e9\u05d9\u05d9\u05e9\u05dd \u05dc\u05d6\u05d4\u05d5\u05ea"
     },
     "target_item": {
       "type": "string",
@@ -16,12 +16,90 @@
     },
     "created_by": {
       "type": "string",
-      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05d9\u05d5\u05e2\u05e5 \u05e9\u05d9\u05e6\u05e8 \u05d4\u05de\u05d9\u05e4\u05d5\u05d9"
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05d9\u05d5\u05e2\u05e5 \u05e9\u05d9\u05e6\u05e8 \u05d0\u05ea \u05d4\u05de\u05d9\u05e4\u05d5\u05d9"
     }
   },
   "required": [
     "keyword",
     "target_item",
     "target_category"
-  ]
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "advisor"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "advisor"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "advisor"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.user_type": "advisor"
+          }
+        }
+      ]
+    }
+  }
 }

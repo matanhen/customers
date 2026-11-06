@@ -51,40 +51,36 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Invalid entity name' }, { status: 400 });
         }
 
-        // Strategy: try by clientUserId first, then fallback to all User IDs matching the email
-        let data = [];
-
-        if (clientUserId) {
-            data = await base44.asServiceRole.entities[entityName].filter({ user_id: clientUserId });
+        // Union every id that belongs to this client: the account id and every
+        // registration record id. A client's history can be split across them
+        // after a duplicate account or a re-created registration record, so
+        // stopping at the first non-empty id used to hide the rest of the data.
+        const ownerIds = new Set();
+        if (clientUserId) ownerIds.add(clientUserId);
+        if (clientEmail) {
+          const [users, allowedUsers] = await Promise.all([
+            base44.asServiceRole.entities.User.filter({ email: clientEmail }),
+            base44.asServiceRole.entities.AllowedUser.filter({ email: clientEmail }),
+          ]);
+          [...users, ...allowedUsers].forEach(record => { if (record?.id) ownerIds.add(record.id); });
         }
 
-        // If nothing found and we have an email, try to find the correct user_id by email
-        if (data.length === 0 && clientEmail) {
-            const users = await base44.asServiceRole.entities.User.filter({ email: clientEmail });
-            for (const user of users) {
-                const records = await base44.asServiceRole.entities[entityName].filter({ user_id: user.id });
-                if (records.length > 0) {
-                    data = records;
-                    break;
-                }
-            }
-        }
+        const ids = [...ownerIds];
+        const pages = await Promise.all(ids.map(id =>
+          base44.asServiceRole.entities[entityName].filter({ user_id: id }).catch(() => [])
+        ));
 
-        // Last fallback: the client's data may live under their registration
-        // record (AllowedUser) id — clients that never opened an app account,
-        // or data re-linked there after an account was removed.
-        if (data.length === 0 && clientEmail) {
-            const allowedUsers = await base44.asServiceRole.entities.AllowedUser.filter({ email: clientEmail });
-            for (const allowed of allowedUsers) {
-                const records = await base44.asServiceRole.entities[entityName].filter({ user_id: allowed.id });
-                if (records.length > 0) {
-                    data = records;
-                    break;
-                }
-            }
+        // Union, never "first id wins": a record is identified by its own id,
+        // and the richest record wins when the same id appears twice.
+        const byId = new Map();
+        for (const page of pages) {
+          for (const record of (page || [])) {
+            if (record?.id) byId.set(record.id, record);
+          }
         }
+        const data = [...byId.values()];
 
-        return Response.json({ success: true, data });
+        return Response.json({ success: true, data, owner_ids: ids });
     } catch (error) {
         console.error('Error fetching client data:', error);
         return Response.json({ error: error.message }, { status: 500 });

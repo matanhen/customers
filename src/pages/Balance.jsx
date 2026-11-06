@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { pickBestRecord } from '@/lib/pickBestRecord';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Building2, Car, Wallet, TrendingUp, Coins, CreditCard, Home, Landmark, Lock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import LoanRefinanceSimulator from '../components/balance/LoanRefinanceSimulator';
@@ -187,7 +188,7 @@ export default function Balance() {
     queryFn: async () => {
       if (!userId) return null;
       const results = await base44.entities.MonthlyBalance.filter({ user_id: userId, month: selectedMonth });
-      return results[0] || null;
+      return pickBestRecord(results);
     },
     enabled: !!userId,
     staleTime: 0,
@@ -200,7 +201,7 @@ export default function Balance() {
     queryFn: async () => {
       if (!userId) return null;
       const results = await base44.entities.MonthlyBalance.filter({ user_id: userId, month: prevMonthStr });
-      return results[0] || null;
+      return pickBestRecord(results);
     },
     enabled: !!userId && !monthData, // only fetch if current month has no data
     staleTime: 0,
@@ -212,7 +213,7 @@ export default function Balance() {
     queryFn: async () => {
       if (!userId) return null;
       const results = await base44.entities.FinancialPlan.filter({ user_id: userId, plan_type: 'balance_sheet' });
-      return results[0] || null;
+      return pickBestRecord(results);
     },
     enabled: !!userId && !monthData && !isBalanceLoading,
     staleTime: 0,

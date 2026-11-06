@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { pickBestRecord } from '@/lib/pickBestRecord';
 import { useQuery } from '@tanstack/react-query';
 import { format, subMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -53,7 +54,7 @@ export default function BeforeAfterComparison({ userId }) {
         return response.data.data[0];
       }
       const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
-      return results[0];
+      return pickBestRecord(results);
     },
     enabled: !!userId && !!currentUser,
   });

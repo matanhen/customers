@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { pickBestRecord } from '@/lib/pickBestRecord';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DollarSign, Receipt, TrendingUp, TrendingDown, Save, Check, FileText, Image } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -96,10 +97,10 @@ export default function FinancialReflection({ userId }) {
           clientEmail: viewingClientEmail,
           entityName: 'FinancialReflection'
         });
-        return response.data.data[0] || null;
+        return pickBestRecord(response.data.data);
       }
       const results = await base44.entities.FinancialReflection.filter({ user_id: userId });
-      return results[0] || null;
+      return pickBestRecord(results);
     },
     enabled: !!userId,
     staleTime: 0,
