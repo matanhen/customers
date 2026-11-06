@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { secrets } from 'base44:runtime';
 import { relinkUserData, clientHasData } from '../../shared/relinkUserData.ts';
 
 export default async function(req) {
@@ -13,7 +14,7 @@ export default async function(req) {
     const { email, token } = body;
 
     // Validate token
-    const expectedToken = Deno.env.get('EXTERNAL_EXPENSE_TOKEN');
+    const expectedToken = secrets.get('EXTERNAL_EXPENSE_TOKEN');
     if (!token || token !== expectedToken) {
       return Response.json({ error: 'Unauthorized - invalid token' }, { status: 401 });
     }

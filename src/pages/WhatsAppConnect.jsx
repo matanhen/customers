@@ -20,7 +20,8 @@ export default function WhatsAppConnect() {
         if (!response.data?.personal_code) throw new Error('לא ניתן לטעון את הקוד האישי.');
         if (active) setState({ code: response.data.personal_code });
       } catch (error) {
-        if (error.status === 401) base44.auth.redirectToLogin(window.location.href);
+        const status = error?.status || error?.response?.status;
+        if (status === 401) base44.auth.redirectToLogin(window.location.href);
         else if (active) setState({ error: error.message || 'לא ניתן לטעון את החיבור.' });
       } finally {
         if (active) setState(current => ({ ...current, loading: false }));
