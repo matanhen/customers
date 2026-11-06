@@ -164,6 +164,22 @@ async function lookupUserByPhone(base44, rawPhone) {
   return registration ? registrationOnly(registration) : null;
 }
 
+// True when the number already belongs to a DIFFERENT client. Used before
+// saving a WhatsApp number onto a record: two clients whose numbers overwrite
+// each other end up misidentified (one client's messages land on the other's
+// profile and data), so a number that is already taken is never re-assigned.
+export async function isPhoneOwnedByOther(base44, rawPhone, email) {
+  const key = phoneKey(rawPhone);
+  if (!key) return false;
+  const ownEmail = normalizeEmail(email);
+  const [users, allowedUsers] = await Promise.all([
+    listAllUsers(base44),
+    listAllAllowedUsers(base44),
+  ]);
+  return [...users, ...allowedUsers]
+    .some(x => phoneKey(x.phone) === key && normalizeEmail(x.email) !== ownEmail);
+}
+
 // Makes sure the code the client actually uses is stored on both records of the
 // client, so it keeps working (link, bot, app). Adopts the code the client sent
 // when it is a valid 4-letter code that no one else uses; otherwise keeps the

@@ -95,7 +95,11 @@ export async function relinkUserData(base44, fromId, toId) {
             await base44.asServiceRole.entities[entity].update(conflict.id, patch);
             results.merged++;
           }
-          // No move and no delete — the target row now holds everything.
+          // The target row now holds everything the orphan had — remove the
+          // duplicate so it cannot shadow the merged record in the app.
+          try {
+            await base44.asServiceRole.entities[entity].delete(record.id);
+          } catch (e) { /* keep going — content is already merged */ }
         } else {
           const updated = await base44.asServiceRole.entities[entity].update(record.id, { user_id: toId });
           if (updated && (updated.user_id === toId || updated.id === record.id)) {
