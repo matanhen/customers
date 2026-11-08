@@ -364,7 +364,9 @@ export default function AdminDashboard() {
 
   const combinedUsers = [...allUsers, ...allowedUsersNotInSystem].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
-  const clients = combinedUsers.filter(u => u.user_type === 'client');
+  // Anyone who is not an advisor or an admin is a client — this keeps the
+  // counts adding up even for older records saved without a user type.
+  const clients = combinedUsers.filter(u => u.user_type !== 'advisor' && u.user_type !== 'admin');
   const advisors = combinedUsers.filter(u => u.user_type === 'advisor' || u.user_type === 'admin');
   const admins = combinedUsers.filter(u => u.user_type === 'admin');
 
@@ -747,7 +749,7 @@ export default function AdminDashboard() {
               className={`rounded-xl ${userFilter === 'all' ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white' : 'border-slate-200 text-slate-600'}`}
             >
               <Users className="w-4 h-4 ml-2" />
-              כולם ({allUsers.length})
+              כולם ({combinedUsers.length})
             </Button>
             <Button
               onClick={() => setUserFilter('clients')}
@@ -763,7 +765,7 @@ export default function AdminDashboard() {
               className={`rounded-xl ${userFilter === 'advisors' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' : 'border-blue-200 text-blue-600'}`}
             >
               <Briefcase className="w-4 h-4 ml-2" />
-              יועצים ({allUsers.filter(u => u.user_type === 'advisor').length})
+              יועצים ({advisors.filter(u => u.user_type === 'advisor').length})
             </Button>
             <Button
               onClick={() => setUserFilter('admins')}
