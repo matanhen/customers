@@ -41,6 +41,8 @@ import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
 import PhoneBulkUpdate from '@/components/admin/PhoneBulkUpdate';
 import ConversationHistory from '@/components/admin/ConversationHistory';
 import CopyPersonalLinkButton from '@/components/admin/CopyPersonalLinkButton';
+import AdvisorBreakdown from '@/components/advisor/AdvisorBreakdown';
+import { buildAdvisorGroups } from '@/lib/advisorGrouping';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -373,6 +375,9 @@ export default function AdminDashboard() {
 
   // Count unassigned clients
   const unassignedClients = clients.filter(u => !getClientAssignment(u));
+
+  // Live distribution of clients across advisors and admins (no fixed list)
+  const advisorBreakdown = buildAdvisorGroups({ clients, assignments, advisors });
 
   // Filter by user type first
   let displayedUsers = combinedUsers;
@@ -715,6 +720,19 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Client distribution by advisor */}
+      <AdvisorBreakdown
+        groups={advisorBreakdown}
+        totalClients={clients.length}
+        isLoading={isLoading}
+        onSelectClient={(client) => {
+          setSelectedClient(client);
+          const assignment = getClientAssignment(client);
+          setSelectedAdvisor(assignment?.advisor_id || 'none');
+          setShowAssignDialog(true);
+        }}
+      />
 
       {/* Filter Tabs */}
       <Card className="mb-6 border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
