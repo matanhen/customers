@@ -26,7 +26,8 @@ export default function WhatsAppConnectionSteps({ personalCode }) {
   return <div className="space-y-6">
     <div className="space-y-3">
       <h2 className="font-semibold">1. חיבור לאפליקציה</h2>
-      <p className="text-sm text-muted-foreground">פתח את ווטסאפ ושלח את הודעת ההפעלה הרשמית כפי שהיא, ללא שינוי וללא הוספת הקוד האישי.</p>
+      <p className="text-sm text-muted-foreground">לחץ על הכפתור כדי לפתוח הודעת הפעלה חדשה בווטסאפ, ושלח אותה כפי שהיא, ללא שינוי וללא הוספת הקוד האישי.</p>
+      <p className="text-xs font-medium text-destructive">אין לשלוח הודעת הפתיחה הישנה — היא פגה תוקף והבוט לא יזהה אותה.</p>
       <Button onClick={openWhatsApp} className="w-full">פתח חיבור רשמי בווטסאפ</Button>
     </div>
     <div className="space-y-3">
