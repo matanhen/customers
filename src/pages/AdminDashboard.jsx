@@ -41,7 +41,6 @@ import MacroRatesEditor from '@/components/admin/MacroRatesEditor';
 import PhoneBulkUpdate from '@/components/admin/PhoneBulkUpdate';
 import ConversationHistory from '@/components/admin/ConversationHistory';
 import CopyPersonalLinkButton from '@/components/admin/CopyPersonalLinkButton';
-import AdvisorBreakdown from '@/components/advisor/AdvisorBreakdown';
 import { buildAdvisorGroups } from '@/lib/advisorGrouping';
 
 export default function AdminDashboard() {
@@ -62,6 +61,7 @@ export default function AdminDashboard() {
   const [newUserType, setNewUserType] = useState('client');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [userFilter, setUserFilter] = useState('all'); // all, clients, advisors, admins, unassigned
+  const [advisorFilter, setAdvisorFilter] = useState('all'); // 'all' | advisor group key | 'unassigned'
   const [selectedClients, setSelectedClients] = useState(new Set());
   const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
   const [bulkAdvisor, setBulkAdvisor] = useState('');
@@ -377,7 +377,14 @@ export default function AdminDashboard() {
   const unassignedClients = clients.filter(u => !getClientAssignment(u));
 
   // Live distribution of clients across advisors and admins (no fixed list)
-  const advisorBreakdown = buildAdvisorGroups({ clients, assignments, advisors });
+  const advisorGroups = buildAdvisorGroups({ clients, assignments, advisors });
+  const groupKeyByClient = new Map();
+  for (const group of advisorGroups) {
+    for (const client of group.clients) {
+      groupKeyByClient.set(emailKey(client.email) || client.id, group.key);
+    }
+  }
+  const advisorKeyOfClient = (client) => groupKeyByClient.get(emailKey(client.email) || client.id) || 'unassigned';
 
   // Filter by user type first
   let displayedUsers = combinedUsers;
@@ -390,6 +397,13 @@ export default function AdminDashboard() {
   } else if (userFilter === 'unassigned') {
     displayedUsers = unassignedClients;
   }
+
+  // Advisor filter — show only the clients that belong to one advisor/admin
+  if (advisorFilter !== 'all') {
+    displayedUsers = displayedUsers.filter(u => u.user_type === 'client' && advisorKeyOfClient(u) === advisorFilter);
+  }
+
+  const isClientView = userFilter === 'clients' || userFilter === 'unassigned' || advisorFilter !== 'all';
 
   // Then apply search filter
   const filteredUsers = displayedUsers.filter(u =>
@@ -721,19 +735,6 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Client distribution by advisor */}
-      <AdvisorBreakdown
-        groups={advisorBreakdown}
-        totalClients={clients.length}
-        isLoading={isLoading}
-        onSelectClient={(client) => {
-          setSelectedClient(client);
-          const assignment = getClientAssignment(client);
-          setSelectedAdvisor(assignment?.advisor_id || 'none');
-          setShowAssignDialog(true);
-        }}
-      />
-
       {/* Filter Tabs */}
       <Card className="mb-6 border-0 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
         <CardContent className="p-5">
@@ -779,6 +780,51 @@ export default function AdminDashboard() {
               ללא יועץ ({unassignedClients.length})
             </Button>
           </div>
+
+          {/* Advisor filter — built from the live assignments, no fixed list */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <span className="text-sm font-semibold text-slate-500">סינון לפי יועץ:</span>
+            <button
+              onClick={() => setAdvisorFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${advisorFilter === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+            >
+              כולם
+            </button>
+            {advisorGroups.map(group => (
+              <button
+                key={group.key}
+                onClick={() => {
+                  setAdvisorFilter(advisorFilter === group.key ? 'all' : group.key);
+                  setUserFilter('clients');
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${advisorFilter === group.key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+              >
+                {group.name} ({group.clients.length})
+                {group.user_type === 'admin' && <span className="text-[10px] mr-1 opacity-80">מנהל</span>}
+              </button>
+            ))}
+          </div>
+
+          {advisorFilter !== 'all' && (
+            <div className="flex items-center justify-between gap-3 mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex-wrap">
+              <span className="text-sm text-indigo-800">
+                מציג {filteredUsers.length} לקוחות של{' '}
+                <strong>{advisorGroups.find(g => g.key === advisorFilter)?.name || 'ללא יועץ'}</strong>
+              </span>
+              <Button
+                onClick={() => {
+                  setSelectedClients(new Set(filteredUsers.map(u => u.id)));
+                  setShowBulkAssignDialog(true);
+                }}
+                disabled={filteredUsers.length === 0}
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-xl shadow-lg"
+              >
+                <Link2 className="w-4 h-4 ml-2" />
+                העבר את כל {filteredUsers.length} הלקוחות ליועץ אחר
+              </Button>
+            </div>
+          )}
+
           <div className="relative">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <Input
@@ -805,7 +851,7 @@ export default function AdminDashboard() {
               {userFilter === 'admins' && `מנהלים (${filteredUsers.length})`}
               {userFilter === 'unassigned' && `לקוחות ללא יועץ (${filteredUsers.length})`}
             </div>
-            {(userFilter === 'clients' || userFilter === 'unassigned') && selectedClients.size > 0 && (
+            {isClientView && selectedClients.size > 0 && (
               <div className="flex gap-2">
                 <Button
                   onClick={() => setShowBulkAssignDialog(true)}
@@ -830,7 +876,7 @@ export default function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50">
-                  {(userFilter === 'clients' || userFilter === 'unassigned') && (
+                  {isClientView && (
                     <TableHead className="w-10">
                       <input
                         type="checkbox"
@@ -858,7 +904,7 @@ export default function AdminDashboard() {
               <TableBody>
                 {filteredUsers.map((u) => (
                   <TableRow key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                    {(userFilter === 'clients' || userFilter === 'unassigned') && (
+                    {isClientView && (
                       <TableCell>
                         <input
                           type="checkbox"
