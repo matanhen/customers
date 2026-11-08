@@ -55,6 +55,8 @@ export default async function(req) {
       if (!allowed.full_name && name) patch.full_name = name;
       if (!allowed.phone && phone) patch.phone = phone;
       if (!allowed.user_type && userType) patch.user_type = userType;
+      // Re-adding a person the admin deleted brings them back into the app
+      if (allowed.is_deleted) patch.is_deleted = false;
       if (Object.keys(patch).length) {
         allowed = await base44.asServiceRole.entities.AllowedUser.update(allowed.id, patch);
       }

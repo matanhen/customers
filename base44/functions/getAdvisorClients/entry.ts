@@ -22,11 +22,15 @@ export default async function (req) {
 
     const callerEmail = emailOf(caller.email);
 
-    const [allUsers, allAllowed, allAssignments] = await Promise.all([
+    const [allUsersRaw, allAllowedRaw, allAssignments] = await Promise.all([
       base44.asServiceRole.entities.User.list('-created_date', LIST_LIMIT),
       base44.asServiceRole.entities.AllowedUser.list('-created_date', LIST_LIMIT),
       base44.asServiceRole.entities.ClientAdvisorAssignment.list('-created_date', LIST_LIMIT),
     ]);
+
+    // Deleted users never appear in any client list
+    const allUsers = allUsersRaw.filter(u => !u.is_deleted);
+    const allAllowed = allAllowedRaw.filter(a => !a.is_deleted);
 
     const allowedByEmail = new Map(allAllowed.map(a => [emailOf(a.email), a]));
     const userById = new Map(allUsers.map(u => [u.id, u]));

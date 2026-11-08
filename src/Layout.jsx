@@ -153,7 +153,9 @@ export default function Layout({ children }) {
       // New user - check AllowedUser
       let allowedUsers = [];
       try {
-        allowedUsers = await base44.entities.AllowedUser.filter({ email: currentUser.email });
+        const allowedResult = await base44.entities.AllowedUser.filter({ email: currentUser.email });
+        allowedUsers = (Array.isArray(allowedResult) ? allowedResult : (allowedResult?.items || []))
+          .filter(a => !a.is_deleted);
       } catch (e) { /* continue */ }
 
       if (allowedUsers.length === 0) {

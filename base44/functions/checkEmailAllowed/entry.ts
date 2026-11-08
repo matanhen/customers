@@ -14,8 +14,8 @@ Deno.serve(async (req) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     // 1. The pre-approved allow-list (emails are stored lowercase).
-    const allowedUsers = await base44.asServiceRole.entities.AllowedUser.filter({ email: normalizedEmail });
-    if (allowedUsers.length > 0) {
+    const allowedUsers = asArray(await base44.asServiceRole.entities.AllowedUser.filter({ email: normalizedEmail }));
+    if (allowedUsers.some(a => !a.is_deleted)) {
       return Response.json({ allowed: true });
     }
 

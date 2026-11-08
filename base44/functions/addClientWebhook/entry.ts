@@ -66,9 +66,11 @@ export default async function (req: Request): Promise<Response> {
     let created = false;
     let client = matches[0] || null;
     if (client) {
-      const patch: Record<string, string> = {};
+      const patch: Record<string, unknown> = {};
       if (!client.full_name && name) patch.full_name = name;
       if (!client.phone && phone) patch.phone = phone;
+      // Re-registering a deleted person restores them
+      if (client.is_deleted) patch.is_deleted = false;
       if (Object.keys(patch).length) {
         client = await base44.asServiceRole.entities.AllowedUser.update(client.id, patch);
       }

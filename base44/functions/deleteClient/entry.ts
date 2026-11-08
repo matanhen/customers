@@ -82,7 +82,16 @@ export default async function(req) {
     let deletedAllowed = false;
     const hasData = anchorId ? await clientHasData(base44, [anchorId]) : false;
     for (const allowed of allowedUsers) {
-      if (hasData && allowed.id === anchorId) continue;
+      // A kept anchor is marked deleted — no access, no listing, data preserved.
+      if (hasData && allowed.id === anchorId) {
+        await base44.asServiceRole.entities.AllowedUser.update(allowed.id, {
+          is_deleted: true,
+          phone: '',
+          personal_code: '',
+        });
+        deletedAllowed = true;
+        continue;
+      }
       await base44.asServiceRole.entities.AllowedUser.delete(allowed.id);
       deletedAllowed = true;
     }

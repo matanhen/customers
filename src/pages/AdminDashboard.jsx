@@ -189,6 +189,7 @@ export default function AdminDashboard() {
         const userEmails = new Set(allUsers.map(u => (u.email || '').toLowerCase().trim()));
         const seenMissing = new Set();
         const missingUsers = allowedUsers.filter(au => {
+          if (au.is_deleted) return false;
           const key = (au.email || '').toLowerCase().trim();
           if (!key || userEmails.has(key) || seenMissing.has(key)) return false;
           seenMissing.add(key);
@@ -287,11 +288,11 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-      queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
-      queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
-      queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
+      // Refresh immediately — the row must be gone as soon as the delete returns
+      await queryClient.refetchQueries({ queryKey: ['allUsers'] });
+      await queryClient.refetchQueries({ queryKey: ['allowedUsers'] });
+      await queryClient.refetchQueries({ queryKey: ['allAssignments'] });
+      await queryClient.refetchQueries({ queryKey: ['advisorAssignments'] });
     } catch (e) {
       console.error('Error deleting user:', e);
       alert('שגיאה במחיקת המשתמש');
@@ -344,6 +345,7 @@ export default function AdminDashboard() {
   const seenAllowedEmails = new Set();
   const allowedUsersNotInSystem = allowedUsers
     .filter(au => {
+      if (au.is_deleted) return false;
       const key = emailKey(au.email);
       if (!key || userEmails.has(key) || seenAllowedEmails.has(key)) return false;
       seenAllowedEmails.add(key);
@@ -558,10 +560,10 @@ export default function AdminDashboard() {
         failedEmails.push(client.email || client.full_name || '');
       }
     }
-    queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-    queryClient.invalidateQueries({ queryKey: ['allowedUsers'] });
-    queryClient.invalidateQueries({ queryKey: ['allAssignments'] });
-    queryClient.invalidateQueries({ queryKey: ['advisorAssignments'] });
+    await queryClient.refetchQueries({ queryKey: ['allUsers'] });
+    await queryClient.refetchQueries({ queryKey: ['allowedUsers'] });
+    await queryClient.refetchQueries({ queryKey: ['allAssignments'] });
+    await queryClient.refetchQueries({ queryKey: ['advisorAssignments'] });
     setSelectedClients(new Set());
     setShowBulkDeleteDialog(false);
     setBulkDeleting(false);

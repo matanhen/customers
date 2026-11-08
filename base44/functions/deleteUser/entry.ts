@@ -31,17 +31,43 @@ export default async function(req) {
 
     const asArray = (result) => (Array.isArray(result) ? result : (result?.items || []));
     const emailOf = (record) => (record?.email || '').toString().trim().toLowerCase();
+    const rawEmail = (body.email || '').toString().trim();
+    const emailVariants = [...new Set([email, rawEmail].filter(Boolean))];
 
-    // Every record of this person, matched case-insensitively
-    const allUsers = asArray(await base44.asServiceRole.entities.User.list());
-    const allAllowed = asArray(await base44.asServiceRole.entities.AllowedUser.list());
+    // Look the person's records up directly (never a full-table scan first),
+    // so the deletion acts on exactly this person and returns fast.
+    const findRecords = async (entity) => {
+      const found = new Map();
+      for (const variant of emailVariants) {
+        try {
+          for (const record of asArray(await entity.filter({ email: variant }))) {
+            found.set(record.id, record);
+          }
+        } catch (e) { /* try the next variant */ }
+      }
+      if (extraId && !found.has(extraId)) {
+        try {
+          const record = await entity.get(extraId);
+          if (record?.id) found.set(record.id, record);
+        } catch (e) { /* not this entity */ }
+      }
+      if (found.size === 0) {
+        // Case-insensitive fallback for records stored with different casing
+        const all = asArray(await entity.list('-created_date', 2000));
+        for (const record of all) {
+          if ((email && emailOf(record) === email) || (extraId && record.id === extraId)) {
+            found.set(record.id, record);
+          }
+        }
+      }
+      return [...found.values()];
+    };
 
-    const userIds = [...new Set(allUsers
-      .filter(u => (email && emailOf(u) === email) || (extraId && u.id === extraId))
-      .map(u => u.id))];
-    const allowedIds = [...new Set(allAllowed
-      .filter(a => (email && emailOf(a) === email) || (extraId && a.id === extraId))
-      .map(a => a.id))];
+    const allUsers = await findRecords(base44.asServiceRole.entities.User);
+    const allAllowed = await findRecords(base44.asServiceRole.entities.AllowedUser);
+
+    const userIds = [...new Set(allUsers.map(u => u.id))];
+    const allowedIds = [...new Set(allAllowed.map(a => a.id))];
 
     if (userIds.length === 0 && allowedIds.length === 0) {
       return Response.json({ success: true, not_found: true, deleted: { users: 0, allowed_users: 0, assignments: 0 }, preserved_data: { moved: 0, merged: 0 } });
@@ -100,6 +126,13 @@ export default async function(req) {
       asAdvisor.forEach(a => assignmentIds.add(a.id));
     }
 
+    for (const id of allowedIds) {
+      try {
+        const asClient = asArray(await base44.asServiceRole.entities.ClientAdvisorAssignment.filter({ client_id: id }));
+        asClient.forEach(a => assignmentIds.add(a.id));
+      } catch (e) { /* non-critical */ }
+    }
+
     for (const id of assignmentIds) {
       try {
         await base44.asServiceRole.entities.ClientAdvisorAssignment.delete(id);
@@ -125,7 +158,21 @@ export default async function(req) {
       hasData = await clientHasData(base44, [anchorId]);
     }
     for (const id of allowedIds) {
-      if (hasData && id === anchorId) continue;
+      // The anchor stays only as a holder for the client's history, but it is
+      // marked deleted so it grants no access and never returns to any list.
+      if (hasData && id === anchorId) {
+        try {
+          await base44.asServiceRole.entities.AllowedUser.update(id, {
+            is_deleted: true,
+            phone: '',
+            personal_code: '',
+          });
+          deleted.allowed_users++;
+        } catch (e) {
+          errors.push('רשומת הרשמה: ' + e.message);
+        }
+        continue;
+      }
       try {
         await base44.asServiceRole.entities.AllowedUser.delete(id);
         deleted.allowed_users++;

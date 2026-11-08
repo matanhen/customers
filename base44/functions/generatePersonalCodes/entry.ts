@@ -20,11 +20,14 @@ export default async function (req) {
       return Response.json({ error: 'אין הרשאה - נדרש מנהל מערכת' }, { status: 403 });
     }
 
-    const [users, allowedUsers, assignments] = await Promise.all([
+    const [users, allowedUsersRaw, assignments] = await Promise.all([
       base44.asServiceRole.entities.User.list(),
       base44.asServiceRole.entities.AllowedUser.list(),
       base44.asServiceRole.entities.ClientAdvisorAssignment.list(),
     ]);
+
+    // A deleted client's record is only a data anchor — it gets no code back
+    const allowedUsers = allowedUsersRaw.filter(a => !a.is_deleted);
 
     const existingCodes = new Set();
     const registerCode = (value) => {
