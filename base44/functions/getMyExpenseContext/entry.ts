@@ -5,7 +5,7 @@ import {
   getCurrentMonth,
 } from '../../shared/expenseCategories.ts';
 import { identifyUser } from '../../shared/userIdentification.ts';
-import { resolvePlannedVariable, loadFixedOverrides, computeVariableSpend } from '../../shared/expenseBudget.ts';
+import { resolveClientIds, resolvePlannedVariable, loadFixedOverrides, computeVariableSpend, loadTrackingForMonth } from '../../shared/expenseBudget.ts';
 
 // Returns the current client's financial context so the WhatsApp expense agent
 // can identify the user and know their categories, budget, and current spending.
@@ -26,9 +26,13 @@ export default async function(req) {
     const month = getCurrentMonth();
     const week = getCurrentFinWeek(new Date(), user.cycle_start_day || 10);
 
+    // Every id that holds this client's data (app account + registration records),
+    // so a plan saved on one record and expenses on another are both found.
+    const clientIds = await resolveClientIds(base44, user);
+    if (!clientIds.length) clientIds.push(effectiveUserId);
+
     // This month's ExpenseTracking record (calendar month key, matches ExpenseTracking.jsx)
-    const records = await base44.entities.ExpenseTracking.filter({ user_id: effectiveUserId, month });
-    const tracking = records[0] || null;
+    const tracking = await loadTrackingForMonth(base44, clientIds, month);
 
     // Custom expense categories the user defined
     let customCategories = [];
@@ -37,7 +41,7 @@ export default async function(req) {
     } catch (e) { /* non-critical */ }
 
     // Planned variable budget — this month, or the most recent earlier month
-    const plannedVariable = await resolvePlannedVariable(base44, effectiveUserId, month);
+    const plannedVariable = await resolvePlannedVariable(base44, clientIds, month);
 
     // Variable spend, identical to the app and to addMyExpense
     const overrides = await loadFixedOverrides(base44, effectiveUserId);
@@ -61,6 +65,7 @@ export default async function(req) {
         variableSpent: Math.round(variableSpent),
       } : null,
       plannedVariable,
+      budgetKnown: plannedVariable > 0,
       variableSpent: Math.round(variableSpent),
       remaining: Math.round(plannedVariable - variableSpent),
       weekBudget: Math.round(weekBudget),

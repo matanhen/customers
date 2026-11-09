@@ -10,7 +10,7 @@ import {
   EXPENSE_CATEGORIES,
 } from '../../shared/expenseCategories.ts';
 import { identifyUser } from '../../shared/userIdentification.ts';
-import { resolvePlannedVariable, loadFixedOverrides, computeVariableSpend } from '../../shared/expenseBudget.ts';
+import { resolveClientIds, resolvePlannedVariable, loadFixedOverrides, computeVariableSpend } from '../../shared/expenseBudget.ts';
 
 const HEBREW_MONTHS = [
   'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
@@ -116,8 +116,11 @@ export default async function(req) {
     const { monthSpent: variableSpent, weekly } = computeVariableSpend(updated, overrides);
 
     // Monthly variable budget — this month's plan, or the most recent earlier one
-    // when the current month has no plan yet.
-    const variableBudget = await resolvePlannedVariable(base44, effectiveUserId, month);
+    // when the current month has no plan yet. The plan can sit on any of the
+    // client's records (app account or registration record), so all are checked.
+    const clientIds = await resolveClientIds(base44, user);
+    if (!clientIds.length) clientIds.push(effectiveUserId);
+    const variableBudget = await resolvePlannedVariable(base44, clientIds, month);
     const budgetKnown = variableBudget > 0;
 
     const remaining = variableBudget - variableSpent;
