@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, Loader2, Check, AlertCircle, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -304,15 +304,16 @@ export default function PDFExpenseImport({ open, onOpenChange, onApply }) {
 
                     {group.confirmed && (
                       <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                        <Select value={group.type} onValueChange={(v) => updateGroup(index, 'type', v)}>
-                          <SelectTrigger className="h-8 w-24 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">קבועה</SelectItem>
-                            <SelectItem value="variable">משתנה</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <ResponsiveSelect
+                          value={group.type}
+                          onValueChange={(v) => updateGroup(index, 'type', v)}
+                          title="סוג הוצאה"
+                          triggerClassName="h-8 w-24 text-xs"
+                          options={[
+                            { value: 'fixed', label: 'קבועה' },
+                            { value: 'variable', label: 'משתנה' },
+                          ]}
+                        />
                         {group.isCustom ? (
                           <Input
                             value={group.customName}
@@ -321,17 +322,19 @@ export default function PDFExpenseImport({ open, onOpenChange, onApply }) {
                             className="h-8 text-xs w-36"
                           />
                         ) : (
-                          <Select value={group.category} onValueChange={(v) => updateGroup(index, 'category', v)}>
-                            <SelectTrigger className="h-8 w-36 text-xs">
-                              <SelectValue placeholder="קטגוריה" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[220px]">
-                              <SelectItem value="_f" disabled className="font-bold text-blue-700 text-xs">— קבועות —</SelectItem>
-                              {FIXED_EXPENSE_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                              <SelectItem value="_v" disabled className="font-bold text-purple-700 text-xs">— משתנות —</SelectItem>
-                              {VARIABLE_EXPENSE_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <ResponsiveSelect
+                            value={group.category}
+                            onValueChange={(v) => updateGroup(index, 'category', v)}
+                            placeholder="קטגוריה"
+                            title="קטגוריה"
+                            triggerClassName="h-8 w-36 text-xs"
+                            options={[
+                              { value: '_f', label: '— קבועות —', disabled: true },
+                              ...FIXED_EXPENSE_CATEGORIES.map(cat => ({ value: cat, label: cat })),
+                              { value: '_v', label: '— משתנות —', disabled: true },
+                              ...VARIABLE_EXPENSE_CATEGORIES.map(cat => ({ value: cat, label: cat })),
+                            ]}
+                          />
                         )}
                       </div>
                     )}
@@ -355,27 +358,22 @@ export default function PDFExpenseImport({ open, onOpenChange, onApply }) {
                             <span className="truncate flex-1 text-slate-700">{item.description}</span>
                             <span className="font-medium text-slate-600 shrink-0">₪{item.amount.toLocaleString()}</span>
                             {group.items.length > 1 && (
-                              <Select
+                              <ResponsiveSelect
                                 value=""
                                 onValueChange={(val) => {
                                   const [newType, ...catParts] = val.split('::');
                                   moveItemToCategory(index, ii, catParts.join('::'), newType);
                                 }}
-                              >
-                                <SelectTrigger className="h-7 w-32 text-xs border-dashed border-orange-300 text-orange-600 hover:border-orange-500">
-                                  <SelectValue placeholder="העבר ל..." />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[220px]">
-                                  <SelectItem value="_f" disabled className="font-bold text-blue-700 text-xs">— קבועות —</SelectItem>
-                                  {FIXED_EXPENSE_CATEGORIES.filter(c => c !== group.category).map(cat => (
-                                    <SelectItem key={cat} value={`fixed::${cat}`}>{cat}</SelectItem>
-                                  ))}
-                                  <SelectItem value="_v" disabled className="font-bold text-purple-700 text-xs">— משתנות —</SelectItem>
-                                  {VARIABLE_EXPENSE_CATEGORIES.filter(c => c !== group.category).map(cat => (
-                                    <SelectItem key={cat} value={`variable::${cat}`}>{cat}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder="העבר ל..."
+                                title="העבר לקטגוריה"
+                                triggerClassName="h-7 w-32 text-xs border-dashed border-orange-300 text-orange-600"
+                                options={[
+                                  { value: '_f', label: '— קבועות —', disabled: true },
+                                  ...FIXED_EXPENSE_CATEGORIES.filter(c => c !== group.category).map(cat => ({ value: `fixed::${cat}`, label: cat })),
+                                  { value: '_v', label: '— משתנות —', disabled: true },
+                                  ...VARIABLE_EXPENSE_CATEGORIES.filter(c => c !== group.category).map(cat => ({ value: `variable::${cat}`, label: cat })),
+                                ]}
+                              />
                             )}
                           </div>
                         ))}

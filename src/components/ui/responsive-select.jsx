@@ -31,7 +31,14 @@ export default function ResponsiveSelect({
         </SelectTrigger>
         <SelectContent className={className}>
           {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            <SelectItem
+              key={o.value}
+              value={o.value}
+              disabled={o.disabled}
+              className={o.disabled ? 'text-xs font-bold' : undefined}
+            >
+              {o.label}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -57,7 +64,11 @@ export default function ResponsiveSelect({
           <DrawerTitle className="text-base text-right">{title || placeholder}</DrawerTitle>
         </DrawerHeader>
         <div className="overflow-y-auto px-2 pb-6">
-          {options.map((o) => (
+          {options.map((o) => o.disabled ? (
+            <p key={o.value} className="px-3 pt-3 pb-1 text-xs font-bold text-slate-400">
+              {o.label}
+            </p>
+          ) : (
             <button
               key={o.value}
               type="button"

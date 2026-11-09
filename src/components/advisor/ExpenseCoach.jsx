@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS } from '../financial/expenseCategories';
 
 export default function ExpenseCoach() {
@@ -166,21 +166,24 @@ Respond with JSON only:
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">קטגוריה</Label>
-                <Select value={manualCategory} onValueChange={handleManualCategoryChange}>
-                  <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
-                  <SelectContent>
-                    {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <ResponsiveSelect
+                  value={manualCategory}
+                  onValueChange={handleManualCategoryChange}
+                  placeholder="בחר קטגוריה"
+                  title="קטגוריה"
+                  options={EXPENSE_CATEGORIES.map(c => ({ value: c.key, label: c.label }))}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">סעיף יעד</Label>
-                <Select value={manualItem} onValueChange={setManualItem} disabled={!manualCategory}>
-                  <SelectTrigger><SelectValue placeholder="בחר סעיף" /></SelectTrigger>
-                  <SelectContent>
-                    {manualCatItems.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <ResponsiveSelect
+                  value={manualItem}
+                  onValueChange={setManualItem}
+                  disabled={!manualCategory}
+                  placeholder="בחר סעיף"
+                  title="סעיף יעד"
+                  options={manualCatItems.map(item => ({ value: item, label: item }))}
+                />
               </div>
             </div>
             <Button

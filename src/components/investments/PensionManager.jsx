@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import { resolvePensionForMonth, PENSION_KEY } from '@/lib/pension';
 
@@ -278,16 +278,17 @@ function PensionForm({ gender, fundType, initialData, onSave }) {
                   <TrendingUp className="w-5 h-5 text-[#c8a863]" />
                   <span className="font-semibold text-[#105330]">חישוב לשנה ספציפית:</span>
                 </div>
-                <Select value={selectedYears} onValueChange={setSelectedYears}>
-                  <SelectTrigger className="w-40 border-[#105330]/30 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 40 }, (_, i) => i + 1).map(year => (
-                      <SelectItem key={year} value={year.toString()}>עוד {year} שנים</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ResponsiveSelect
+                  value={selectedYears}
+                  onValueChange={setSelectedYears}
+                  placeholder="בחר שנה"
+                  title="חישוב לשנה ספציפית"
+                  triggerClassName="w-40 rounded-xl border-[#105330]/30"
+                  options={Array.from({ length: 40 }, (_, i) => i + 1).map(year => ({
+                    value: year.toString(),
+                    label: `עוד ${year} שנים`,
+                  }))}
+                />
                 <div className="flex-1 text-left">
                   <span className="text-xl md:text-2xl font-bold text-[#c8a863]">₪{projectedInSelectedYears.toLocaleString()}</span>
                 </div>

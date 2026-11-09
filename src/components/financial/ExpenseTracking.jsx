@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
@@ -723,19 +723,17 @@ export default function ExpenseTracking({ userId }) {
         </div>
         <div className="flex items-center gap-2 order-1 sm:order-2">
           <Label className="text-sm text-slate-600 whitespace-nowrap">תחילת מעקב חודשי:</Label>
-          <Select
+          <ResponsiveSelect
             value={String(cycleStart)}
             onValueChange={(v) => handleCycleStartChange(v)}
             disabled={targetUser === undefined}
-          >
-            <SelectTrigger className="w-36 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">ה-10 בחודש</SelectItem>
-              <SelectItem value="1">ה-1 בחודש</SelectItem>
-            </SelectContent>
-          </Select>
+            title="תחילת מעקב חודשי"
+            triggerClassName="w-36 text-sm"
+            options={[
+              { value: '10', label: 'ה-10 בחודש' },
+              { value: '1', label: 'ה-1 בחודש' },
+            ]}
+          />
         </div>
       </div>
 
@@ -943,17 +941,16 @@ export default function ExpenseTracking({ userId }) {
                 </button>
               </div>
               {creditNameMode === 'list' ? (
-                <Select value={creditForm.category} onValueChange={v => setCreditForm(p => ({ ...p, category: v }))}>
-                  <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
-                  <SelectContent>
-                    {EXPENSE_CATEGORIES.map(cat => (
-                      <React.Fragment key={cat.key}>
-                        <div className="px-2 py-1 text-xs font-bold text-slate-500 bg-slate-50">{cat.label}</div>
-                        {cat.items.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
-                      </React.Fragment>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ResponsiveSelect
+                  value={creditForm.category}
+                  onValueChange={v => setCreditForm(p => ({ ...p, category: v }))}
+                  placeholder="בחר קטגוריה"
+                  title="קטגוריית הוצאה"
+                  options={EXPENSE_CATEGORIES.flatMap(cat => [
+                    { value: `__h_${cat.key}`, label: cat.label, disabled: true },
+                    ...cat.items.map(item => ({ value: item, label: item })),
+                  ])}
+                />
               ) : (
                 <Input
                   value={creditForm.category}
@@ -1011,26 +1008,24 @@ export default function ExpenseTracking({ userId }) {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>קטגוריה</Label>
-              <Select value={manualForm.catKey} onValueChange={v => setManualForm(p => ({ ...p, catKey: v, item: '' }))}>
-                <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
-                <SelectContent>
-                  {EXPENSE_CATEGORIES.map(cat => (
-                    <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ResponsiveSelect
+                value={manualForm.catKey}
+                onValueChange={v => setManualForm(p => ({ ...p, catKey: v, item: '' }))}
+                placeholder="בחר קטגוריה"
+                title="קטגוריה"
+                options={EXPENSE_CATEGORIES.map(cat => ({ value: cat.key, label: cat.label }))}
+              />
             </div>
             {manualForm.catKey && (
               <div className="space-y-2">
                 <Label>סעיף</Label>
-                <Select value={manualForm.item} onValueChange={v => setManualForm(p => ({ ...p, item: v }))}>
-                  <SelectTrigger><SelectValue placeholder="בחר סעיף" /></SelectTrigger>
-                  <SelectContent>
-                    {(EXPENSE_CATEGORIES.find(c => c.key === manualForm.catKey)?.items || []).map(item => (
-                      <SelectItem key={item} value={item}>{item}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ResponsiveSelect
+                  value={manualForm.item}
+                  onValueChange={v => setManualForm(p => ({ ...p, item: v }))}
+                  placeholder="בחר סעיף"
+                  title="סעיף"
+                  options={(EXPENSE_CATEGORIES.find(c => c.key === manualForm.catKey)?.items || []).map(item => ({ value: item, label: item }))}
+                />
               </div>
             )}
             <div className="space-y-2">
