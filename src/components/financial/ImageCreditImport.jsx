@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, Loader2, Check, AlertCircle, Image, ChevronDown, ChevronUp } from 'lucide-react';
 import { ALL_EXPENSE_ITEMS } from './expenseCategories';
@@ -202,16 +202,17 @@ export default function ImageCreditImport({ open, onOpenChange, onApply, mode = 
               {mode === 'reflection' && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-blue-800">כל ההוצאות לחודש:</span>
-                  <Select value={globalMonth} onValueChange={applyGlobalMonth}>
-                    <SelectTrigger className="h-9 w-28 bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="month1">חודש 1</SelectItem>
-                      <SelectItem value="month2">חודש 2</SelectItem>
-                      <SelectItem value="month3">חודש 3</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <ResponsiveSelect
+                    value={globalMonth}
+                    onValueChange={applyGlobalMonth}
+                    title="חודש לשיקוף"
+                    triggerClassName="h-9 w-28"
+                    options={[
+                      { value: 'month1', label: 'חודש 1' },
+                      { value: 'month2', label: 'חודש 2' },
+                      { value: 'month3', label: 'חודש 3' },
+                    ]}
+                  />
                 </div>
               )}
             </div>
@@ -233,27 +234,25 @@ export default function ImageCreditImport({ open, onOpenChange, onApply, mode = 
                     {group.confirmed && (
                       <div className="flex items-center gap-2 shrink-0">
                         {mode === 'reflection' && (
-                          <Select value={group.month} onValueChange={(v) => updateGroup(index, 'month', v)}>
-                            <SelectTrigger className="h-8 w-24 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="month1">חודש 1</SelectItem>
-                              <SelectItem value="month2">חודש 2</SelectItem>
-                              <SelectItem value="month3">חודש 3</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <ResponsiveSelect
+                            value={group.month}
+                            onValueChange={(v) => updateGroup(index, 'month', v)}
+                            title="חודש לשיקוף"
+                            triggerClassName="h-8 w-24 text-xs"
+                            options={[
+                              { value: 'month1', label: 'חודש 1' },
+                              { value: 'month2', label: 'חודש 2' },
+                              { value: 'month3', label: 'חודש 3' },
+                            ]}
+                          />
                         )}
-                        <Select value={group.category} onValueChange={(v) => updateGroup(index, 'category', v)}>
-                          <SelectTrigger className="h-8 w-36 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[220px]">
-                            {ALL_EXPENSE_ITEMS.map(item => (
-                              <SelectItem key={item} value={item}>{item}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <ResponsiveSelect
+                          value={group.category}
+                          onValueChange={(v) => updateGroup(index, 'category', v)}
+                          title="קטגוריה"
+                          triggerClassName="h-8 w-36 text-xs"
+                          options={ALL_EXPENSE_ITEMS.map(item => ({ value: item, label: item }))}
+                        />
                       </div>
                     )}
                     <Button

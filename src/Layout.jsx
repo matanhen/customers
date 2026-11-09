@@ -571,7 +571,11 @@ export default function Layout({ children }) {
             <div className="px-4 py-4 grid grid-cols-2 gap-2">
               {/* Mobile User Info */}
               {user && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-white/10 rounded-xl mb-4 col-span-2">
+                <button
+                  type="button"
+                  onClick={() => { setMobileMenuOpen(false); setShowProfileDialog(true); }}
+                  className="flex items-center gap-3 px-4 py-3 bg-white/10 rounded-xl mb-4 col-span-2 text-right hover:bg-white/20 transition-colors cursor-pointer"
+                >
                   <div className="p-2 rounded-lg bg-[#c8a863]">
                     <User className="w-4 h-4 text-[#105330]" />
                   </div>
@@ -579,7 +583,7 @@ export default function Layout({ children }) {
                     <p className="text-white font-semibold text-sm">{user.custom_name || user.full_name || user.email}</p>
                     <p className="text-[#c8a863] text-xs font-medium">{getUserRoleLabel()}</p>
                   </div>
-                </div>
+                </button>
               )}
               
               {menuItems.map((item) => {
