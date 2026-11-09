@@ -234,3 +234,59 @@ button:focus-visible {
     font-size: 1rem;
   }
 }
+
+/* === Dark mode: adapt hardcoded light surfaces and texts (WebView / iOS) === */
+.dark .bg-\[\#fcf8ee\] { background-color: #020617; }
+.dark .bg-white { background-color: #0f172a; }
+.dark .bg-slate-50 { background-color: #111a2b; }
+.dark .bg-slate-100 { background-color: #16233a; }
+.dark .bg-gray-100 { background-color: #16233a; }
+
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #b6c2d2; }
+.dark .text-slate-500 { color: #94a3b8; }
+.dark .text-gray-900 { color: #e2e8f0; }
+
+/* Brand green text and its opacity variants become a readable light green */
+.dark [class*="text-[#105330]"] { color: #8ed9b4; }
+
+.dark .border-slate-200 { border-color: #24344d; }
+.dark .border-slate-100 { border-color: #1c2942; }
+
+/* === WebView mobile: hide native scrollbars === */
+@media (max-width: 767px) {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+}
+
+/* === WebView mobile: 44px minimum touch targets for icon actions === */
+@media (max-width: 767px) {
+  button[aria-label],
+  a[aria-label],
+  [role="button"][aria-label] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* === Prevent accidental text selection on non-text UI elements === */
+nav,
+header,
+th,
+[role="tab"],
+[role="tablist"],
+[role="menuitem"],
+table thead {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}

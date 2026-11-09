@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Coins, Info, Search, Calendar, Wallet, TrendingUp, ReceiptText, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
 
 // Snapshot of the funds table from https://lazyinvestor.co.il/monetary-fund/
@@ -103,49 +104,104 @@ function FundsTable({ funds }) {
   }, [funds, sortKey, sortDir]);
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-[#105330]/10 shadow-lg">
-      <table className="w-full text-sm whitespace-nowrap">
-        <thead>
-          <tr className="bg-gradient-to-l from-[#105330] to-[#1a7a4a] text-white">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                onClick={col.sortable ? () => toggleSort(col.key) : undefined}
-                className={`px-4 py-3 font-semibold text-center ${col.sortable ? 'cursor-pointer hover:bg-white/10 transition-colors select-none' : ''}`}
-              >
-                <span className="inline-flex items-center gap-1 justify-center">
-                  <span>{col.label}</span>
-                  {col.sortable &&
-                    (sortKey === col.key ? (
-                      sortDir === 'desc' ? (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      )
-                    ) : (
-                      <ChevronsUpDown className="w-3 h-3 opacity-50" />
-                    ))}
-                </span>
-              </th>
+    <div className="space-y-4">
+      {/* Mobile sort selector */}
+      <div className="md:hidden flex items-center gap-2">
+        <span className="text-sm font-semibold text-[#105330] shrink-0">מיון:</span>
+        <Select
+          value={sortKey || 'default'}
+          onValueChange={(v) => { setSortKey(v === 'default' ? null : v); setSortDir('desc'); }}
+        >
+          <SelectTrigger className="flex-1 rounded-xl border-[#105330]/20 bg-white text-base shadow-sm h-10">
+            <SelectValue placeholder="ברירת מחדל" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">ברירת מחדל</SelectItem>
+            {columns.filter((c) => c.sortable).map((col) => (
+              <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedFunds.map((f, idx) => (
-            <tr
-              key={f.paper}
-              className={`border-b border-[#105330]/10 hover:bg-[#c8a863]/10 transition-colors ${idx % 2 === 1 ? 'bg-[#105330]/[0.03]' : 'bg-white'}`}
-            >
-              <td className="px-4 py-2.5 text-slate-600 dir-ltr text-right font-mono">{f.paper}</td>
-              <td className="px-4 py-2.5 font-semibold text-[#105330]">{f.name}</td>
-              <td className="px-4 py-2.5 text-slate-700">{f.mgmt2026}</td>
-              <td className="px-4 py-2.5 text-green-700 font-bold">{f.yield2026}</td>
-              <td className="px-4 py-2.5 text-slate-700">{f.yield2025}</td>
-              <td className="px-4 py-2.5 text-slate-700">{f.mgmt2025}</td>
+          </SelectContent>
+        </Select>
+        <button
+          onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+          disabled={!sortKey}
+          className="px-3 py-2 rounded-xl bg-[#105330]/10 text-[#105330] disabled:opacity-30 text-sm font-bold"
+          aria-label="הפוך כיוון מיון"
+        >
+          {sortDir === 'desc' ? '↓' : '↑'}
+        </button>
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-[#105330]/10 shadow-lg">
+        <table className="w-full text-sm whitespace-nowrap">
+          <thead>
+            <tr className="bg-gradient-to-l from-[#105330] to-[#1a7a4a] text-white">
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={col.sortable ? () => toggleSort(col.key) : undefined}
+                  className={`px-4 py-3 font-semibold text-center ${col.sortable ? 'cursor-pointer hover:bg-white/10 transition-colors select-none' : ''}`}
+                >
+                  <span className="inline-flex items-center gap-1 justify-center">
+                    <span>{col.label}</span>
+                    {col.sortable &&
+                      (sortKey === col.key ? (
+                        sortDir === 'desc' ? (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        )
+                      ) : (
+                        <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                      ))}
+                  </span>
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sortedFunds.map((f, idx) => (
+              <tr
+                key={f.paper}
+                className={`border-b border-[#105330]/10 hover:bg-[#c8a863]/10 transition-colors ${idx % 2 === 1 ? 'bg-[#105330]/[0.03]' : 'bg-white'}`}
+              >
+                <td className="px-4 py-2.5 text-slate-600 dir-ltr text-right font-mono">{f.paper}</td>
+                <td className="px-4 py-2.5 font-semibold text-[#105330]">{f.name}</td>
+                <td className="px-4 py-2.5 text-slate-700">{f.mgmt2026}</td>
+                <td className="px-4 py-2.5 text-green-700 font-bold">{f.yield2026}</td>
+                <td className="px-4 py-2.5 text-slate-700">{f.yield2025}</td>
+                <td className="px-4 py-2.5 text-slate-700">{f.mgmt2025}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile card view */}
+      <div className="md:hidden space-y-3">
+        {sortedFunds.map((f, idx) => (
+          <div
+            key={f.paper}
+            className={`rounded-2xl border border-[#105330]/15 shadow-sm p-4 ${idx % 2 === 1 ? 'bg-[#105330]/[0.03]' : 'bg-white'}`}
+          >
+            <div className="flex items-start justify-between gap-3 pb-3 mb-3 border-b border-[#105330]/10">
+              <div className="font-semibold text-[#105330] text-base leading-snug flex-1">{f.name}</div>
+              <div className="text-xs text-slate-500 dir-ltr font-mono whitespace-nowrap">#{f.paper}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-y-2 gap-x-3 text-sm">
+              <div className="text-slate-500">דמי ניהול 2026</div>
+              <div className="text-slate-800 font-medium text-left dir-ltr">{f.mgmt2026}</div>
+              <div className="text-slate-500">תשואה 2026</div>
+              <div className="text-green-700 font-bold text-left dir-ltr">{f.yield2026}</div>
+              <div className="text-slate-500">תשואה 2025</div>
+              <div className="text-slate-800 text-left dir-ltr">{f.yield2025}</div>
+              <div className="text-slate-500">דמי ניהול 2025</div>
+              <div className="text-slate-800 text-left dir-ltr">{f.mgmt2025}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

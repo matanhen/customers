@@ -332,7 +332,7 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#fcf8ee]">
+    <div dir="rtl" className="min-h-screen bg-[#fcf8ee] dark:bg-slate-950">
       <style>{`
         :root {
           --primary: #105330;
