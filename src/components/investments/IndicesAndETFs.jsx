@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 
 // ETF funds data
@@ -131,16 +132,20 @@ function ETFSection() {
       {/* Mobile sort selector */}
       <div className="md:hidden flex items-center gap-2">
         <span className="text-sm font-semibold text-[#105330] shrink-0">מיון:</span>
-        <select
-          value={sortKey || ''}
-          onChange={(e) => { setSortKey(e.target.value || null); setSortDir('desc'); }}
-          className="flex-1 rounded-xl border-[#105330]/20 bg-white px-3 py-2 text-sm shadow-sm"
+        <Select
+          value={sortKey || 'default'}
+          onValueChange={(v) => { setSortKey(v === 'default' ? null : v); setSortDir('desc'); }}
         >
-          <option value="">ברירת מחדל</option>
-          {columns.filter((c) => c.sortable).map((col) => (
-            <option key={col.key} value={col.key}>{col.label}</option>
-          ))}
-        </select>
+          <SelectTrigger className="flex-1 rounded-xl border-[#105330]/20 bg-white text-base shadow-sm h-10">
+            <SelectValue placeholder="ברירת מחדל" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">ברירת מחדל</SelectItem>
+            {columns.filter((c) => c.sortable).map((col) => (
+              <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <button
           onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
           disabled={!sortKey}

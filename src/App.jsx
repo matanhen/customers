@@ -81,7 +81,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>

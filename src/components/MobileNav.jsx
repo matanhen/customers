@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, PiggyBank, TrendingUp, Target, Scale } from 'lucide-react';
 import { createPageUrl } from '../utils/index.ts';
@@ -10,16 +11,46 @@ const navItems = [
   { name: 'תכנון', page: 'FinancialFreedom', icon: Target },
 ];
 
+const STORAGE_KEY = 'mobileNavLastPaths';
+
+const readStoredPaths = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}') || {};
+  } catch (e) {
+    return {};
+  }
+};
+
 export default function MobileNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPage = location.pathname.replace('/', '');
 
+  // Remember the last path (including ?section=...) visited inside each tab
+  useEffect(() => {
+    if (!currentPage) return;
+    const stored = readStoredPaths();
+    const fullPath = `${location.pathname}${location.search}`;
+    if (stored[currentPage] === fullPath) return;
+    stored[currentPage] = fullPath;
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    } catch (e) { /* storage unavailable */ }
+  }, [location.pathname, location.search, currentPage]);
+
   const handleTabClick = (e, item) => {
     const targetPath = createPageUrl(item.page);
+    // Tapping the active tab resets it to its root
     if (location.pathname === targetPath || currentPage === item.page) {
       e.preventDefault();
       navigate(targetPath, { replace: true });
+      return;
+    }
+    // Returning to a tab restores the query it was last left on
+    const storedPath = readStoredPaths()[item.page];
+    if (storedPath && storedPath !== targetPath) {
+      e.preventDefault();
+      navigate(storedPath);
     }
   };
 

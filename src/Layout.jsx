@@ -374,7 +374,7 @@ export default function Layout({ children }) {
                   className="lg:hidden p-2 text-white hover:bg-white/10 rounded-xl"
                   aria-label="חזרה"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronRight className="w-6 h-6" />
                 </button>
               )}
               {logoUrl ? (
