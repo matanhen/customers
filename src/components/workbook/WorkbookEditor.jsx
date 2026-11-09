@@ -3,7 +3,14 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { ArrowRight, Save, Plus, Trash2, GripVertical } from 'lucide-react';
+
+const QUESTION_TYPE_OPTIONS = [
+  { value: 'text', label: 'שדה קצר' },
+  { value: 'textarea', label: 'שדה ארוך' },
+  { value: 'rating', label: 'דירוג 1-10' },
+];
 
 export default function WorkbookEditor({ sections, onSave, onClose }) {
   const [editedSections, setEditedSections] = useState(
@@ -114,17 +121,20 @@ export default function WorkbookEditor({ sections, onSave, onClose }) {
                     placeholder="טקסט השאלה"
                     className="text-sm border-dashed"
                   />
-                  <select
+                  <ResponsiveSelect
                     value={q.type}
-                    onChange={(e) => updateQuestion(sIdx, qIdx, 'type', e.target.value)}
-                    className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white"
-                  >
-                    <option value="text">שדה קצר</option>
-                    <option value="textarea">שדה ארוך</option>
-                    <option value="rating">דירוג 1-10</option>
-                  </select>
+                    onValueChange={(v) => updateQuestion(sIdx, qIdx, 'type', v)}
+                    options={QUESTION_TYPE_OPTIONS}
+                    placeholder="סוג שאלה"
+                    title="סוג השאלה"
+                    triggerClassName="text-sm h-11"
+                  />
                 </div>
-                <button onClick={() => removeQuestion(sIdx, qIdx)} className="text-red-400 hover:text-red-600 mt-1">
+                <button
+                  onClick={() => removeQuestion(sIdx, qIdx)}
+                  aria-label="מחיקת שאלה"
+                  className="text-red-400 hover:text-red-600 mt-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

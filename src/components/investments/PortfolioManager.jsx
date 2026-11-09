@@ -326,7 +326,7 @@ export default function PortfolioManager({ userId }) {
 
       {/* Target Percentage Summary */}
       {investments.length > 0 && (
-        <Card className={`border-2 ${totalTargetPercentage === 100 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
+        <Card className={`border-2 ${totalTargetPercentage === 100 ? 'border-green-300 bg-green-50 dark:bg-slate-900/40 dark:border-green-900/50' : 'border-red-300 bg-red-50 dark:bg-slate-900/40 dark:border-red-900/50'}`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -393,10 +393,10 @@ export default function PortfolioManager({ userId }) {
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="font-bold text-base md:text-lg text-slate-800">{stock.name}</h3>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditingStock(stock)} className="hover:bg-slate-100">
+                    <Button variant="ghost" size="icon" onClick={() => setEditingStock(stock)} aria-label="עריכת נייר ערך" className="h-11 w-11 hover:bg-slate-100 dark:hover:bg-slate-800">
                       <Edit2 className="w-4 h-4 text-slate-400" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setStockToDelete(stock)} className="hover:bg-red-50">
+                    <Button variant="ghost" size="icon" onClick={() => setStockToDelete(stock)} aria-label="מחיקת נייר ערך" className="h-11 w-11 hover:bg-red-50 dark:hover:bg-red-950/40">
                       <Trash2 className="w-4 h-4 text-red-400" />
                     </Button>
                   </div>
@@ -636,7 +636,7 @@ export default function PortfolioManager({ userId }) {
                   </div>
                 ))}
 
-                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200/50">
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200/50 dark:bg-slate-900/40 dark:border-amber-900/50">
                   <p className="text-amber-700 font-medium">
                     יתרה שתישאר: ₪{remainingCash.toLocaleString()}
                   </p>

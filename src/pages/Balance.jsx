@@ -93,8 +93,8 @@ function ItemRow({ item, onEdit, onDelete, isLiability }) {
         </span>
         {hovered && (
           <>
-            <button onClick={() => onEdit(item)} aria-label="עריכה" className="text-slate-400 hover:text-blue-500 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg"><Pencil className="w-4 h-4" /></button>
-            <button onClick={() => onDelete(item.id)} aria-label="מחיקה" className="text-slate-400 hover:text-red-500 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg"><Trash2 className="w-4 h-4" /></button>
+            <button onClick={() => onEdit(item)} aria-label="עריכה" className="text-slate-400 hover:text-blue-500 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg"><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => onDelete(item.id)} aria-label="מחיקה" className="text-slate-400 hover:text-red-500 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg"><Trash2 className="w-4 h-4" /></button>
           </>
         )}
       </div>

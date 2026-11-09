@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Coins, Info, Search, Calendar, Wallet, TrendingUp, ReceiptText, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import { base44 } from '@/api/base44Client';
 
 // Snapshot of the funds table from https://lazyinvestor.co.il/monetary-fund/
@@ -108,20 +108,17 @@ function FundsTable({ funds }) {
       {/* Mobile sort selector */}
       <div className="md:hidden flex items-center gap-2">
         <span className="text-sm font-semibold text-[#105330] shrink-0">מיון:</span>
-        <Select
+        <ResponsiveSelect
           value={sortKey || 'default'}
           onValueChange={(v) => { setSortKey(v === 'default' ? null : v); setSortDir('desc'); }}
-        >
-          <SelectTrigger className="flex-1 rounded-xl border-[#105330]/20 bg-white text-base shadow-sm h-10">
-            <SelectValue placeholder="ברירת מחדל" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="default">ברירת מחדל</SelectItem>
-            {columns.filter((c) => c.sortable).map((col) => (
-              <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder="ברירת מחדל"
+          title="מיון"
+          triggerClassName="flex-1 rounded-xl border-[#105330]/20 text-base h-11"
+          options={[
+            { value: 'default', label: 'ברירת מחדל' },
+            ...columns.filter((c) => c.sortable).map((col) => ({ value: col.key, label: col.label })),
+          ]}
+        />
         <button
           onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
           disabled={!sortKey}

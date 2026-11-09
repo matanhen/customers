@@ -12,8 +12,15 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ResponsiveSelect from '@/components/ui/responsive-select';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
+
+const DEBT_TYPE_OPTIONS = [
+  { value: 'loan', label: 'הלוואה' },
+  { value: 'credit_card', label: 'כרטיס אשראי' },
+  { value: 'mortgage', label: 'משכנתא' },
+  { value: 'other', label: 'אחר' },
+];
 
 export default function DebtManager({ userId }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -398,17 +405,13 @@ export default function DebtManager({ userId }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>סוג החוב</Label>
-                    <Select value={debtForm.type} onValueChange={(v) => setDebtForm({ ...debtForm, type: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="loan">הלוואה</SelectItem>
-                        <SelectItem value="credit_card">כרטיס אשראי</SelectItem>
-                        <SelectItem value="mortgage">משכנתא</SelectItem>
-                        <SelectItem value="other">אחר</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <ResponsiveSelect
+                      value={debtForm.type}
+                      onValueChange={(v) => setDebtForm({ ...debtForm, type: v })}
+                      options={DEBT_TYPE_OPTIONS}
+                      placeholder="בחר סוג חוב"
+                      title="סוג החוב"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>ריבית שנתית (%)</Label>
@@ -468,7 +471,7 @@ export default function DebtManager({ userId }) {
 
       {/* Debt Summary */}
       <div className="grid md:grid-cols-3 gap-4">
-        <Card className="border-2 border-red-300 bg-red-50/50">
+        <Card className="border-2 border-red-300 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-red-500">
@@ -482,7 +485,7 @@ export default function DebtManager({ userId }) {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-orange-300 bg-orange-50/50">
+        <Card className="border-2 border-orange-300 bg-orange-50/50 dark:border-orange-900/50 dark:bg-orange-950/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-orange-500">
@@ -496,7 +499,7 @@ export default function DebtManager({ userId }) {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-green-300 bg-green-50/50">
+        <Card className="border-2 border-green-300 bg-green-50/50 dark:border-green-900/50 dark:bg-green-950/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-green-500">
@@ -530,7 +533,7 @@ export default function DebtManager({ userId }) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="p-4 bg-white rounded-xl border-2 border-green-200">
+            <div className="p-4 bg-white rounded-xl border-2 border-green-200 dark:bg-slate-900/40 dark:border-green-900/50">
               <h3 className="font-bold text-green-700 mb-2">⛄ שיטת כדור השלג (Snowball)</h3>
               <p className="text-sm text-gray-600 mb-3">קודם סוגרים את החוב הקטן ביותר לטובת צבירת מוטיבציה ומומנטום</p>
               <div className="space-y-1">
@@ -595,7 +598,8 @@ export default function DebtManager({ userId }) {
                         variant="ghost" 
                         size="icon"
                         onClick={() => handleEdit(debt)}
-                        className="text-blue-500 hover:text-blue-700"
+                        aria-label="עריכת חוב"
+                        className="text-blue-500 hover:text-blue-700 h-11 w-11"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -603,7 +607,8 @@ export default function DebtManager({ userId }) {
                         variant="ghost" 
                         size="icon"
                         onClick={() => deleteMutation.mutate(debt.id)}
-                        className="text-red-500 hover:text-red-700"
+                        aria-label="מחיקת חוב"
+                        className="text-red-500 hover:text-red-700 h-11 w-11"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -634,7 +639,7 @@ export default function DebtManager({ userId }) {
           </DialogHeader>
           <div className="space-y-6 py-4">
             {/* Current Situation */}
-            <div className="p-4 bg-red-50 rounded-xl border-2 border-red-200">
+            <div className="p-4 bg-red-50 rounded-xl border-2 border-red-200 dark:bg-slate-900/40 dark:border-red-900/50">
               <h3 className="font-bold text-red-700 mb-3 text-lg">📊 המצב הקיים</h3>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -663,7 +668,7 @@ export default function DebtManager({ userId }) {
             </div>
 
             {/* New Loan Input */}
-            <div className="p-4 bg-green-50 rounded-xl border-2 border-green-200">
+            <div className="p-4 bg-green-50 rounded-xl border-2 border-green-200 dark:bg-slate-900/40 dark:border-green-900/50">
               <h3 className="font-bold text-green-700 mb-3 text-lg">💚 הלוואה חדשה (מיחזור)</h3>
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -708,7 +713,7 @@ export default function DebtManager({ userId }) {
                 <>
                   {/* Recommendation */}
                   {results.recommendation && (
-                    <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+                    <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200 dark:bg-slate-900/40 dark:border-blue-900/50">
                       <h3 className="font-bold text-blue-700 mb-2 flex items-center gap-2">
                         <Target className="w-5 h-5" />
                         המלצת מיחזור
@@ -718,20 +723,20 @@ export default function DebtManager({ userId }) {
                   )}
 
                   {/* Monthly Payment */}
-                  <div className="p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                  <div className="p-4 bg-purple-50 rounded-xl border-2 border-purple-200 dark:bg-slate-900/40 dark:border-purple-900/50">
                     <h3 className="font-bold text-purple-700 mb-2">תשלום חודשי להלוואת מיחזור</h3>
                     <p className="text-3xl font-bold text-purple-800">₪{Math.round(results.new.monthlyPayment).toLocaleString()}</p>
                     <p className="text-sm text-purple-600 mt-1">לתקופה של {results.new.months} חודשים</p>
                   </div>
 
-                  <div className={`p-5 rounded-xl border-2 ${isSavings ? 'bg-[#c8a863]/10 border-[#c8a863]' : 'bg-orange-50 border-orange-300'}`}>
+                  <div className={`p-5 rounded-xl border-2 ${isSavings ? 'bg-[#c8a863]/10 border-[#c8a863]' : 'bg-orange-50 border-orange-300 dark:bg-slate-900/40 dark:border-orange-900/50'}`}>
                     <h3 className={`font-bold mb-4 text-xl flex items-center gap-2 ${isSavings ? 'text-[#105330]' : 'text-orange-700'}`}>
                       {isSavings ? '✨ תוצאות - חיסכון משמעותי!' : '⚠️ תוצאות - אין חיסכון'}
                     </h3>
                     
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                     {/* Current */}
-                    <div className="bg-white p-4 rounded-lg shadow">
+                    <div className="bg-white p-4 rounded-lg shadow dark:bg-slate-900/40">
                       <p className="text-sm text-gray-500 mb-2">מצב קיים</p>
                       <div className="space-y-1">
                         <div className="flex justify-between">
@@ -750,7 +755,7 @@ export default function DebtManager({ userId }) {
                     </div>
 
                     {/* New */}
-                    <div className="bg-white p-4 rounded-lg shadow">
+                    <div className="bg-white p-4 rounded-lg shadow dark:bg-slate-900/40">
                       <p className="text-sm text-gray-500 mb-2">מצב חדש (מיחזור חלקי)</p>
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs text-gray-500">
@@ -795,7 +800,7 @@ export default function DebtManager({ userId }) {
                   </div>
 
                   {isSavings && (
-                    <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200 dark:bg-slate-900/40 dark:border-green-900/50">
                       <p className="text-sm text-green-800">
                         <strong>💡 המלצה:</strong> מיחזור ההלוואה יכול לחסוך לך {Math.abs(results.savings.interest).toLocaleString()}₪ בריבית. 
                         שקול לפנות לבנק או מוסד פיננסי למימון מחדש.
@@ -842,7 +847,7 @@ export default function DebtManager({ userId }) {
               </div>
             </div>
 
-            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 dark:bg-slate-900/40 dark:border-amber-900/50">
               <h3 className="font-bold text-amber-700 mb-2">💡 טיפים נוספים</h3>
               <ul className="text-sm text-gray-700 space-y-2">
                 <li>• שקול איחוד חובות אם יש לך מספר חובות עם ריבית גבוהה</li>
