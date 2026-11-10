@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subMonths, addMonths } from 'date-fns';
@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import PDFExpenseImport from './PDFExpenseImport';
 import ImageCreditImport from './ImageCreditImport';
 import ExpenseTrackingTable from './ExpenseTrackingTable';
-import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, FIXED_EXPENSE_ITEMS, getCategoryByKey, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal } from './expenseCategories';
+import { EXPENSE_CATEGORIES, ALL_EXPENSE_ITEMS, FIXED_EXPENSE_ITEMS, getCategoryByKey, getItemWeekAmount, setItemWeekAmount, getItemMonthTotal, getCarriedFixedExpenses } from './expenseCategories';
 import FormattedNumberInput from '@/components/ui/FormattedNumberInput';
 import WeeklyVariableTracker, { getFinMonthAnchor } from './WeeklyVariableTracker';
 import ExpenseTrackerBot from '@/components/chat/ExpenseTrackerBot';
@@ -204,10 +204,24 @@ export default function ExpenseTracking({ userId }) {
     fixedOverrideIdsRef.current = ids;
   }, [fixedOverridesRaw]);
 
+  // The saved choices, read straight from the loaded records so the first
+  // render already knows which items are fixed.
+  const savedFixedMap = useMemo(() => {
+    const map = {};
+    (fixedOverridesRaw || []).forEach(r => { if (r?.item_name) map[r.item_name] = !!r.is_fixed; });
+    return map;
+  }, [fixedOverridesRaw]);
+
   // The user's choice wins; otherwise fall back to the app's default list.
   const isItemFixed = useCallback(
-    (itemName) => (fixedOverrides[itemName] !== undefined ? fixedOverrides[itemName] : FIXED_EXPENSE_ITEMS.has(itemName)),
-    [fixedOverrides]
+    (itemName) => (
+      fixedOverrides[itemName] !== undefined
+        ? fixedOverrides[itemName]
+        : savedFixedMap[itemName] !== undefined
+          ? savedFixedMap[itemName]
+          : FIXED_EXPENSE_ITEMS.has(itemName)
+    ),
+    [fixedOverrides, savedFixedMap]
   );
 
   const dataLoadedRef = useRef(false);
@@ -221,24 +235,38 @@ export default function ExpenseTracking({ userId }) {
   }, [currentMonth]);
 
   useEffect(() => {
+    // Wait for the user's fixed/variable choices, so carried items use them.
+    if (overridesLoading) return;
+
+    // FIXED expenses carry over to this month until the user changes the amount.
+    const carriedFixed = getCarriedFixedExpenses(allTracking, currentMonth, isItemFixed);
+
     if (currentTracking) {
       if (lastLoadedTrackingIdRef.current === currentTracking.id && dataLoadedRef.current) return;
       lastLoadedTrackingIdRef.current = currentTracking.id;
       dataLoadedRef.current = false;
+      const savedFixed = currentTracking.fixed_expenses || {};
+      const fixedExpenses = { ...carriedFixed, ...savedFixed };
       setTrackingData({
         actual_income: currentTracking.actual_income || 0,
-        fixed_expenses: currentTracking.fixed_expenses || {},
+        fixed_expenses: fixedExpenses,
         variable_expenses: currentTracking.variable_expenses || {},
         custom_expenses: currentTracking.custom_expenses || [],
         credit_payments: currentTracking.credit_payments || [],
         freedom_transfer_done: currentTracking.freedom_transfer_done || false,
         weekly_snapshots: currentTracking.weekly_snapshots || {}
       });
+      // A month record that exists without its fixed expenses (e.g. created by
+      // the monthly roll) gets them saved, so every screen and the WhatsApp bot
+      // see the same fixed expenses for it.
+      if (Object.keys(carriedFixed).length > 0) {
+        const recordId = currentTracking.id;
+        setTimeout(() => {
+          if (lastLoadedTrackingIdRef.current === recordId) performSaveRef.current();
+        }, 400);
+      }
       setTimeout(() => { dataLoadedRef.current = true; }, 100);
     } else if (!trackingLoading && allTracking !== undefined) {
-      // Wait for the user's fixed/variable choices, so a brand-new month is
-      // created with the correct items carried forward.
-      if (overridesLoading) return;
       // Don't reset to empty if we've already saved data for this month.
       // A refetch (or cache update) might return no record before the save
       // reaches the server, which would wipe the user's in-progress data.
@@ -254,23 +282,6 @@ export default function ExpenseTracking({ userId }) {
       const carriedPayments = prevPayments
         .map(p => ({ ...p, paid_installments: (p.paid_installments || 0) + 1 }))
         .filter(p => (p.total_installments || 1) - (p.paid_installments || 0) > 0);
-
-      // Carry over FIXED expenses from the most recent prior month that has a
-      // tracking record. Fixed items (rent, mortgage, etc.) keep their monthly
-      // total forward into the new month; variable items reset to zero.
-      const priorRecords = allTracking
-        .filter(t => t.month < currentMonth)
-        .sort((a, b) => b.month.localeCompare(a.month));
-      const latestPrior = priorRecords[0];
-      const carriedFixed = {};
-      if (latestPrior?.fixed_expenses) {
-        Object.entries(latestPrior.fixed_expenses).forEach(([item, entry]) => {
-          if (isItemFixed(item)) {
-            const total = getItemMonthTotal(entry);
-            if (total > 0) carriedFixed[item] = total;
-          }
-        });
-      }
 
       setTrackingData({
         actual_income: 0,

@@ -120,6 +120,34 @@ export function getItemMonthTotal(entry) {
   return (entry.week1 || 0) + (entry.week2 || 0) + (entry.week3 || 0) + (entry.week4 || 0);
 }
 
+/**
+ * Fixed expenses carry over to every following month until the user changes them.
+ * For each fixed item, the most recent month that recorded it decides the amount
+ * (so changing it — even to 0 — applies from that month onward).
+ * Returns { [itemName]: monthlyTotal } for fixed items missing in currentMonth.
+ */
+export function getCarriedFixedExpenses(allTracking = [], currentMonth, isItemFixed) {
+  const records = allTracking || [];
+  const currentFixed = records.find(t => t.month === currentMonth)?.fixed_expenses || {};
+  const priors = records
+    .filter(t => t.month && t.month < currentMonth)
+    .sort((a, b) => b.month.localeCompare(a.month));
+
+  const carried = {};
+  const seen = new Set();
+  priors.forEach(record => {
+    Object.entries(record.fixed_expenses || {}).forEach(([item, entry]) => {
+      if (seen.has(item)) return;
+      seen.add(item);
+      if (currentFixed[item] !== undefined) return;
+      if (typeof isItemFixed === 'function' && !isItemFixed(item)) return;
+      const total = getItemMonthTotal(entry);
+      if (total > 0) carried[item] = total;
+    });
+  });
+  return carried;
+}
+
 // Default expense structure for new users
 export function getDefaultExpenses() {
   const result = {};
