@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+const REMEMBERED_EMAIL_KEY = 'remembered_email';
+
 export default function Landing() {
-  const [email, setEmail] = useState('');
+  const { isAuthenticated } = useAuth();
+  const [email, setEmail] = useState(() => {
+    try { return localStorage.getItem(REMEMBERED_EMAIL_KEY) || ''; } catch (e) { return ''; }
+  });
+  const [autoLogin, setAutoLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -24,6 +32,29 @@ export default function Landing() {
     loadLogo();
   }, []);
 
+  // Returning users: recognize the device and go straight in, no email typing.
+  useEffect(() => {
+    if (isAuthenticated) return;
+    let remembered = '';
+    try { remembered = (localStorage.getItem(REMEMBERED_EMAIL_KEY) || '').trim(); } catch (e) { return; }
+    const alreadyTried = sessionStorage.getItem('auto_login_attempted') === 'true';
+    if (!remembered || alreadyTried) return;
+
+    setAutoLogin(true);
+    base44.functions.invoke('checkEmailAllowed', { email: remembered })
+      .then((result) => {
+        if (!result?.data?.allowed) {
+          try { localStorage.removeItem(REMEMBERED_EMAIL_KEY); } catch (e) { /* ignore */ }
+          setEmail('');
+          setAutoLogin(false);
+          return;
+        }
+        sessionStorage.setItem('auto_login_attempted', 'true');
+        base44.auth.redirectToLogin('/Home');
+      })
+      .catch(() => setAutoLogin(false));
+  }, [isAuthenticated]);
+
   const handleLogin = async () => {
     if (!email.trim()) return;
     setLoading(true);
@@ -38,6 +69,7 @@ export default function Landing() {
         return;
       }
 
+      try { localStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim()); } catch (e) { /* ignore */ }
       const returnTo = window.location.pathname === '/WhatsAppConnect'
         ? window.location.href
         : '/Home';
@@ -47,6 +79,20 @@ export default function Landing() {
       setLoading(false);
     }
   };
+
+  // Already signed in on this device — straight into the app.
+  if (isAuthenticated) return <Navigate to="/Home" replace />;
+
+  if (autoLogin) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-[#fcf8ee] flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-14 h-14 border-4 border-[#105330] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#105330] font-semibold">מזהה אותך ומתחבר...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#fcf8ee] flex items-center justify-center p-4">
