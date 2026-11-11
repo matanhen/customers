@@ -128,7 +128,6 @@ export function getItemMonthTotal(entry) {
  */
 export function getCarriedFixedExpenses(allTracking = [], currentMonth, isItemFixed) {
   const records = allTracking || [];
-  const currentFixed = records.find(t => t.month === currentMonth)?.fixed_expenses || {};
   const priors = records
     .filter(t => t.month && t.month < currentMonth)
     .sort((a, b) => b.month.localeCompare(a.month));
@@ -138,11 +137,13 @@ export function getCarriedFixedExpenses(allTracking = [], currentMonth, isItemFi
   priors.forEach(record => {
     Object.entries(record.fixed_expenses || {}).forEach(([item, entry]) => {
       if (seen.has(item)) return;
-      seen.add(item);
-      if (currentFixed[item] !== undefined) return;
       if (typeof isItemFixed === 'function' && !isItemFixed(item)) return;
       const total = getItemMonthTotal(entry);
-      if (total > 0) carried[item] = total;
+      // A month where the item is empty (0) is not a value — keep looking back
+      // until the most recent month that actually recorded the amount.
+      if (total <= 0) return;
+      seen.add(item);
+      carried[item] = total;
     });
   });
   return carried;

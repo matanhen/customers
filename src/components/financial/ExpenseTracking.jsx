@@ -32,6 +32,16 @@ const stableStringify = (obj) => {
   return '{' + Object.keys(obj).sort().map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}';
 };
 
+// { item: monthlyTotal } — used to detect which fixed amounts the user changed,
+// so a change can continue into the following months.
+const totalsOf = (fixedExpenses) => {
+  const totals = {};
+  Object.entries(fixedExpenses || {}).forEach(([item, entry]) => {
+    totals[item] = getItemMonthTotal(entry);
+  });
+  return totals;
+};
+
 export default function ExpenseTracking({ userId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showPDFImportDialog, setShowPDFImportDialog] = useState(false);
@@ -224,6 +234,12 @@ export default function ExpenseTracking({ userId }) {
     [fixedOverrides, savedFixedMap]
   );
 
+  // The fixed amounts as they were loaded for this month, so a change the user
+  // makes can be told apart from what was simply carried over.
+  const baseFixedTotalsRef = useRef({});
+  const isItemFixedRef = useRef(isItemFixed);
+  isItemFixedRef.current = isItemFixed;
+
   const dataLoadedRef = useRef(false);
   const lastLoadedTrackingIdRef = useRef(null);
   const hasSavedForMonthRef = useRef(false);
@@ -246,7 +262,13 @@ export default function ExpenseTracking({ userId }) {
       lastLoadedTrackingIdRef.current = currentTracking.id;
       dataLoadedRef.current = false;
       const savedFixed = currentTracking.fixed_expenses || {};
-      const fixedExpenses = { ...carriedFixed, ...savedFixed };
+      // A fixed item stored as 0 in this month must not block the amount that
+      // carried over from an earlier month.
+      const fixedExpenses = { ...savedFixed };
+      Object.entries(carriedFixed).forEach(([item, total]) => {
+        if (getItemMonthTotal(fixedExpenses[item]) === 0) fixedExpenses[item] = total;
+      });
+      baseFixedTotalsRef.current = totalsOf(fixedExpenses);
       setTrackingData({
         actual_income: currentTracking.actual_income || 0,
         fixed_expenses: fixedExpenses,
@@ -257,9 +279,10 @@ export default function ExpenseTracking({ userId }) {
         weekly_snapshots: currentTracking.weekly_snapshots || {}
       });
       // A month record that exists without its fixed expenses (e.g. created by
-      // the monthly roll) gets them saved, so every screen and the WhatsApp bot
-      // see the same fixed expenses for it.
-      if (Object.keys(carriedFixed).length > 0) {
+      // the monthly roll or saved with zeros) gets them saved, so every screen
+      // and the WhatsApp bot see the same fixed expenses for it.
+      const needsCarrySave = Object.keys(carriedFixed).some(item => getItemMonthTotal(savedFixed[item]) === 0);
+      if (needsCarrySave) {
         const recordId = currentTracking.id;
         setTimeout(() => {
           if (lastLoadedTrackingIdRef.current === recordId) performSaveRef.current();
@@ -283,6 +306,7 @@ export default function ExpenseTracking({ userId }) {
         .map(p => ({ ...p, paid_installments: (p.paid_installments || 0) + 1 }))
         .filter(p => (p.total_installments || 1) - (p.paid_installments || 0) > 0);
 
+      baseFixedTotalsRef.current = totalsOf(carriedFixed);
       setTrackingData({
         actual_income: 0,
         fixed_expenses: carriedFixed,
@@ -409,6 +433,46 @@ export default function ExpenseTracking({ userId }) {
         return [...old, savedRecord];
       });
       lastSaveAtRef.current = Date.now();
+
+      // A fixed amount the user changed here continues into every following
+      // month that still holds the previous amount (months with their own
+      // different amount are left untouched).
+      const baseline = baseFixedTotalsRef.current || {};
+      const nextBaseline = totalsOf(data.fixed_expenses);
+      const changedItems = Object.keys(nextBaseline)
+        .filter(item => isItemFixedRef.current(item))
+        .map(item => ({ item, before: baseline[item] ?? 0, after: nextBaseline[item] ?? 0 }))
+        .filter(c => c.before !== c.after);
+      baseFixedTotalsRef.current = nextBaseline;
+
+      if (changedItems.length > 0) {
+        const laterRecords = (allTracking || []).filter(t => t.month && t.month > month);
+        for (const record of laterRecords) {
+          const laterFixed = { ...(record.fixed_expenses || {}) };
+          let touched = false;
+          changedItems.forEach(({ item, before, after }) => {
+            if (getItemMonthTotal(laterFixed[item]) !== before) return;
+            laterFixed[item] = after;
+            touched = true;
+          });
+          if (!touched) continue;
+          try {
+            if (isViewingOther && isAdvisorOrAdmin) {
+              await base44.functions.invoke('saveClientData', {
+                entityName: 'ExpenseTracking',
+                clientUserId: userId,
+                data: { fixed_expenses: laterFixed },
+                recordId: record.id,
+              });
+            } else {
+              await base44.entities.ExpenseTracking.update(record.id, { fixed_expenses: laterFixed });
+            }
+            queryClient.setQueryData(trackingQueryKey, (old = []) => old.map(t => (
+              t.id === record.id ? { ...t, fixed_expenses: laterFixed } : t
+            )));
+          } catch (err) { /* non-critical — the next change retries */ }
+        }
+      }
     } catch (e) {
       // Retry on the next edit / flush with the latest data
       dirtyRef.current = true;
@@ -419,7 +483,7 @@ export default function ExpenseTracking({ userId }) {
       dirtyRef.current = false;
       performSaveRef.current();
     }
-  }, [userId, currentDate, queryClient, isViewingOther, isAdvisorOrAdmin, currentUser]);
+  }, [userId, currentDate, queryClient, isViewingOther, isAdvisorOrAdmin, currentUser, allTracking]);
 
   performSaveRef.current = performSave;
 
