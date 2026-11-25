@@ -77,6 +77,24 @@ export default async function(req) {
       ? normalizeItemName(mappedItem, customCategories)
       : normalizeItemName(rawItemName, customCategories);
 
+    // 4. Item the client wrote that matches no existing section → add it as a
+    //    manual expense item for this client, so the expense is recorded under a
+    //    real section (and keeps showing in the app) instead of being rejected.
+    const allItems = EXPENSE_CATEGORIES.flatMap(c => c.items);
+    const knownItem = allItems.includes(itemName)
+      || customCategories.some(c => (c.name || '').trim() === itemName);
+    if (!knownItem) {
+      try {
+        const created = await base44.entities.CustomExpenseCategory.create({
+          user_id: effectiveUserId,
+          name: itemName,
+          expense_type: 'variable',
+          category_key: 'misc',
+        });
+        customCategories = [...customCategories, created];
+      } catch (e) { /* non-critical — the amount is still recorded below */ }
+    }
+
     const month = getCurrentMonth();
     // Use the user's own cycle start day so the expense lands in the week the app shows
     const week = getCurrentFinWeek(new Date(), user.cycle_start_day || 10);
