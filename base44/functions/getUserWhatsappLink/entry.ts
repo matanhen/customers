@@ -1,9 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { ensureClientPersonalCode } from '../../shared/userIdentification.ts';
+import { resolveWhatsappConnect, buildDirectWhatsappLink } from '../../shared/whatsappConnect.ts';
 
-// Returns a stable, shareable app link. The recipient signs in with their own
-// account and opens the official WhatsApp connection from their browser.
-// Never generate an activation code using an advisor's or admin's session.
+// Returns a DIRECT WhatsApp link for the client: it opens the bot conversation
+// with the activation message and the client's personal code already typed in.
+// The client never has to sign in to the app first.
 const emailOf = (value) => (value || '').toString().trim().toLowerCase();
 
 export default async function (req) {
@@ -60,11 +61,17 @@ export default async function (req) {
     const ensured = await ensureClientPersonalCode(base44, { email: targetEmail });
     const personalCode = (ensured.personal_code || '').toUpperCase();
 
-    const link = `https://customers.matanhen.com/WhatsAppConnect?client=${encodeURIComponent(targetEmail)}`;
+    const { phone, activationCode } = await resolveWhatsappConnect(base44);
+    if (!phone) {
+      return Response.json({ error: 'WhatsApp number unavailable' }, { status: 500 });
+    }
+
+    const link = buildDirectWhatsappLink(phone, activationCode, personalCode);
     return Response.json({
       link,
       personal_code: personalCode,
-      requires_client_login: true,
+      whatsapp_phone: phone,
+      direct_whatsapp: true,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

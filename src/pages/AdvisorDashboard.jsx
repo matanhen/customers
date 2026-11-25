@@ -44,7 +44,7 @@ export default function AdvisorDashboard() {
     }
   };
 
-  // Share the client sign-in flow, never an activation code tied to the advisor.
+  // Opens the client's direct WhatsApp link (activation message + personal code).
   const handleOpenWhatsappLink = async (clientRow) => {
     if (!clientRow.id && !clientRow.email) return;
     setGeneratingLinkFor(clientRow.id || clientRow.email);
@@ -347,7 +347,7 @@ export default function AdvisorDashboard() {
                         type="button"
                         onClick={() => handleOpenWhatsappLink(client)}
                         disabled={generatingLinkFor === (client.id || client.email)}
-                        className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 text-white text-xs font-medium bg-blue-600 hover:bg-blue-700 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50"
                       >
                         {generatingLinkFor === (client.id || client.email) ? (
                           <Loader2 className="w-3 h-3 animate-spin" />

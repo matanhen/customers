@@ -41,8 +41,8 @@ export default function CopyPersonalLinkButton({ client, className = '' }) {
       type="button"
       onClick={handleCopy}
       disabled={state === 'loading'}
-      title="העתקת הקישור האישי של הלקוח"
-      className={`inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50 ${className}`}
+      title="העתקת קישור ישיר לשיחת הוואטסאפ של הלקוח"
+      className={`inline-flex items-center gap-1 text-blue-700 hover:text-blue-800 text-xs font-medium bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50 ${className}`}
     >
       {state === 'loading' ? (
         <Loader2 className="w-3 h-3 animate-spin" />

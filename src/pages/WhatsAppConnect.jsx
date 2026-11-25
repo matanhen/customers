@@ -18,7 +18,7 @@ export default function WhatsAppConnect() {
         }
         const response = await base44.functions.invoke('getUserWhatsappLink', { email: me.email });
         if (!response.data?.personal_code) throw new Error('לא ניתן לטעון את הקוד האישי.');
-        if (active) setState({ code: response.data.personal_code });
+        if (active) setState({ code: response.data.personal_code, link: response.data.link });
       } catch (error) {
         const status = error?.status || error?.response?.status;
         if (status === 401) base44.auth.redirectToLogin(window.location.href);
@@ -35,6 +35,6 @@ export default function WhatsAppConnect() {
     {state.loading ? <p role="status">טוען את פרטי החיבור...</p> : state.mismatch ? <>
       <p>הקישור מיועד לחשבון <b dir="ltr">{targetEmail}</b>. יש לפתוח אותו מחשבון הלקוח, ולא מחשבון היועץ.</p>
       <Button onClick={() => { sessionStorage.removeItem('currentUser'); sessionStorage.removeItem('viewingClient'); base44.auth.logout(window.location.href); }}>התחבר לחשבון הלקוח</Button>
-    </> : state.error ? <p role="alert" className="text-destructive">{state.error}</p> : <WhatsAppConnectionSteps personalCode={state.code} />}
+    </> : state.error ? <p role="alert" className="text-destructive">{state.error}</p> : <WhatsAppConnectionSteps personalCode={state.code} link={state.link} />}
   </section>;
 }
